@@ -56,11 +56,6 @@ function drawComponent(ctx: CanvasRenderingContext2D, comp: OpticalComponent, se
   ctx.translate(comp.x, comp.y);
   ctx.rotate(toRad(comp.angle));
 
-  if (selected) {
-    ctx.shadowColor = '#00E5FF';
-    ctx.shadowBlur = 12;
-  }
-
   const hw = comp.width / 2;
   const hh = comp.height / 2;
 
@@ -182,6 +177,37 @@ function drawComponent(ctx: CanvasRenderingContext2D, comp: OpticalComponent, se
       ctx.fillText('OBJ', 0, 0);
       break;
     }
+  }
+
+  // Selection border
+  if (selected) {
+    ctx.save();
+    ctx.strokeStyle = '#00E5FF';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.shadowColor = '#00E5FF';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.rect(-(hw + 6), -(hh + 6), comp.width + 12, comp.height + 12);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // Rotation handle — small circle at top of component
+    ctx.beginPath();
+    ctx.arc(0, -(hh + 14), 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#00E5FF';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Angle label below component
+    ctx.fillStyle = 'rgba(0,229,255,0.7)';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`${Math.round(comp.angle)}°`, 0, hh + 18);
   }
 
   ctx.restore();
@@ -369,7 +395,6 @@ function traceRays(
           bounces: src.bounces + 1,
         });
         // Reflected ray (perpendicular, 50% intensity) — reflect off diagonal (45°)
-        // BS diagonal is at 45° in local space, so reflect about that normal
         const bsRad = toRad(comp.angle + 45);
         const nx = -Math.sin(bsRad);
         const ny = Math.cos(bsRad);
@@ -392,12 +417,12 @@ function traceRays(
         const ey = edge[3] - edge[1];
         const len = Math.sqrt(ex * ex + ey * ey) || 1;
         // normal perpendicular to edge
-        const nx = -ey / len;
-        const ny = ex / len;
-        const ref = reflect(src.dx, src.dy, nx, ny);
+        const mnx = -ey / len;
+        const mny = ex / len;
+        const mref = reflect(src.dx, src.dy, mnx, mny);
         queue.push({
-          x: hx + ref.dx * 2, y: hy + ref.dy * 2,
-          dx: ref.dx, dy: ref.dy,
+          x: hx + mref.dx * 2, y: hy + mref.dy * 2,
+          dx: mref.dx, dy: mref.dy,
           color: src.color,
           rayType: src.rayType,
           intensity: src.intensity * 0.95,
@@ -551,10 +576,14 @@ export default function OpticalTable() {
   const { lang } = useLang();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const paletteRef = useRef<HTMLCanvasElement>(null);
+  const fringeCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const [components, setComponents] = useState<OpticalComponent[]>(makeStandardPreset());
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [rotatingId, setRotatingId] = useState<string | null>(null);
+  const [pointerDownPos, setPointerDownPos] = useState<{ x: number; y: number } | null>(null);
   const [tutorialOpen, setTutorialOpen] = useState(true);
   const [animFrame, setAnimFrame] = useState(0);
 
@@ -635,7 +664,7 @@ export default function OpticalTable() {
 
     // Draw components
     for (const comp of components) {
-      drawComponent(ctx, comp, false);
+      drawComponent(ctx, comp, comp.id === selectedId);
     }
 
     // Interference glow on film
@@ -666,7 +695,7 @@ export default function OpticalTable() {
         ctx.restore();
       }
     }
-  }, [components, rays, interferenceInfo, animFrame]);
+  }, [components, rays, interferenceInfo, animFrame, selectedId]);
 
   // Draw palette canvas
   useEffect(() => {
@@ -712,6 +741,55 @@ export default function OpticalTable() {
     });
   }, []);
 
+  // Draw fringe preview mini-canvas
+  useEffect(() => {
+    const canvas = fringeCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, 200, 120);
+    ctx.fillStyle = '#060B18';
+    ctx.fillRect(0, 0, 200, 120);
+
+    if (!interferenceInfo.hasInterference || !isFinite(interferenceInfo.d_nm) || interferenceInfo.d_nm <= 0) {
+      ctx.fillStyle = '#90A4AE';
+      ctx.font = '13px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Нет данных', 100, 60);
+      return;
+    }
+
+    const d = interferenceInfo.d_nm;
+    const fringesVisible = Math.min(30, Math.max(2, Math.round(120 / (d / 100))));
+    const fringeH = 120 / fringesVisible;
+
+    for (let i = 0; i < fringesVisible; i++) {
+      const yPos = i * fringeH;
+      const brightness = Math.sin(i * Math.PI) * 0.5 + 0.5;
+      const grad = ctx.createLinearGradient(0, yPos, 0, yPos + fringeH);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(0.5, `rgba(255,179,0,${0.8 * brightness})`);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, yPos, 200, fringeH);
+    }
+  }, [interferenceInfo]);
+
+  // Helper: get canvas-space coords for the rotation handle of a component (world coords)
+  const getRotationHandlePos = useCallback((comp: OpticalComponent): { x: number; y: number } => {
+    const rad = toRad(comp.angle);
+    const hh = comp.height / 2;
+    // Handle is at local (0, -(hh+14)), rotate to world
+    const lx = 0;
+    const ly = -(hh + 14);
+    return {
+      x: comp.x + lx * Math.cos(rad) - ly * Math.sin(rad),
+      y: comp.y + lx * Math.sin(rad) + ly * Math.cos(rad),
+    };
+  }, []);
+
   // Pointer handlers for main canvas
   const getTableCoords = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
@@ -738,39 +816,115 @@ export default function OpticalTable() {
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     const { x, y } = getTableCoords(e);
+    setPointerDownPos({ x, y });
+
+    // Check if clicking on rotation handle of selected component
+    if (selectedId) {
+      const selComp = components.find(c => c.id === selectedId);
+      if (selComp) {
+        const handlePos = getRotationHandlePos(selComp);
+        const dist = Math.hypot(x - handlePos.x, y - handlePos.y);
+        if (dist <= 10) {
+          setRotatingId(selectedId);
+          (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
+          return;
+        }
+      }
+    }
+
     const comp = findComponentAt(x, y);
     if (comp) {
       setDragging(comp.id);
       setDragOffset({ x: x - comp.x, y: y - comp.y });
       (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
     }
-  }, [getTableCoords, findComponentAt]);
+  }, [getTableCoords, findComponentAt, selectedId, components, getRotationHandlePos]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!dragging) return;
     const { x, y } = getTableCoords(e);
+
+    if (rotatingId) {
+      const comp = components.find(c => c.id === rotatingId);
+      if (comp) {
+        const angle = Math.atan2(y - comp.y, x - comp.x) * 180 / Math.PI;
+        setComponents(prev => prev.map(c =>
+          c.id === rotatingId ? { ...c, angle: (angle + 90 + 360) % 360 } : c
+        ));
+      }
+      return;
+    }
+
+    if (!dragging) return;
     setComponents(prev => prev.map(c =>
       c.id === dragging ? { ...c, x: x - dragOffset.x, y: y - dragOffset.y } : c
     ));
-  }, [dragging, dragOffset, getTableCoords]);
+  }, [dragging, dragOffset, getTableCoords, rotatingId, components]);
 
-  const handlePointerUp = useCallback(() => {
-    setDragging(null);
-  }, []);
-
-  const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
-    const x = (e.clientX - rect.left) * ((CANVAS_W - PALETTE_W) / rect.width);
-    const y = (e.clientY - rect.top) * (CANVAS_H / rect.height);
-    const comp = findComponentAt(x, y);
-    if (comp) {
-      const delta = e.deltaY > 0 ? 5 : -5;
-      setComponents(prev => prev.map(c =>
-        c.id === comp.id ? { ...c, angle: (c.angle + delta + 360) % 360 } : c
-      ));
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (rotatingId) {
+      setRotatingId(null);
+      return;
     }
-  }, [findComponentAt]);
+
+    if (pointerDownPos) {
+      const { x, y } = getTableCoords(e);
+      const dist = Math.hypot(x - pointerDownPos.x, y - pointerDownPos.y);
+      if (dist < 4) {
+        // It was a click — handle selection
+        const comp = findComponentAt(x, y);
+        if (comp) {
+          setSelectedId(comp.id);
+        } else {
+          setSelectedId(null);
+        }
+      }
+    }
+
+    setDragging(null);
+    setPointerDownPos(null);
+  }, [rotatingId, pointerDownPos, getTableCoords, findComponentAt]);
+
+  // Keep a ref to current components so the native wheel handler can access them
+  const componentsRef = useRef<OpticalComponent[]>(components);
+  useEffect(() => { componentsRef.current = components; }, [components]);
+
+  // Native (non-passive) wheel handler to enable preventDefault and rotation
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mx = (e.clientX - rect.left) * ((CANVAS_W - PALETTE_W) / rect.width);
+      const my = (e.clientY - rect.top) * (CANVAS_H / rect.height);
+
+      // Find component under cursor
+      const currentComps = componentsRef.current;
+      let hit: OpticalComponent | null = null;
+      for (let i = currentComps.length - 1; i >= 0; i--) {
+        const c = currentComps[i];
+        const dx = mx - c.x;
+        const dy = my - c.y;
+        const hw = (c.width / 2) + 10;
+        const hh = (c.height / 2) + 10;
+        if (Math.abs(dx) < hw && Math.abs(dy) < hh) {
+          hit = c;
+          break;
+        }
+      }
+
+      if (hit) {
+        const delta = e.deltaY > 0 ? 5 : -5;
+        setComponents(prev => prev.map(c =>
+          c.id === hit!.id ? { ...c, angle: (c.angle + delta + 360) % 360 } : c
+        ));
+      }
+    };
+
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', handleWheel);
+  }, []);
 
   // Palette click — add component to center of table
   const handlePaletteClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -791,9 +945,36 @@ export default function OpticalTable() {
     }
   }, []);
 
+  // Compute path lengths for simulation panel
+  const refLength = rays
+    .filter(r => r.rayType === 'reference')
+    .reduce((sum, r) => sum + Math.hypot(r.x2 - r.x1, r.y2 - r.y1), 0);
+  const objLength = rays
+    .filter(r => r.rayType === 'object')
+    .reduce((sum, r) => sum + Math.hypot(r.x2 - r.x1, r.y2 - r.y1), 0);
+  const pathDiff = Math.abs(refLength - objLength);
+  const coherenceLength = 40000;
+  const pathOk = pathDiff < coherenceLength;
+
+  // Setup checklist
+  const checks = [
+    { label: 'Лазер', ok: components.some(c => c.type === 'laser') },
+    { label: 'Светоделитель', ok: components.some(c => c.type === 'beamsplitter') },
+    { label: 'Зеркало', ok: components.some(c => c.type === 'mirror') },
+    { label: 'Линза', ok: components.some(c => c.type === 'lens') },
+    { label: 'Объект', ok: components.some(c => c.type === 'object') },
+    { label: 'Плёнка', ok: components.some(c => c.type === 'film') },
+    { label: 'Интерференция', ok: interferenceInfo.hasInterference },
+  ];
+
   const tutorialDone = TUTORIAL_STEPS.map(step =>
     step.done(components, interferenceInfo.hasInterference)
   );
+
+  // Cursor logic
+  let canvasCursor = 'grab';
+  if (dragging) canvasCursor = 'grabbing';
+  if (rotatingId) canvasCursor = 'crosshair';
 
   return (
     <div className="space-y-4">
@@ -809,28 +990,28 @@ export default function OpticalTable() {
       {/* Preset buttons */}
       <div className="flex flex-wrap gap-2">
         <button
-          onClick={() => setComponents(makeStandardPreset())}
+          onClick={() => { setComponents(makeStandardPreset()); setSelectedId(null); }}
           className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
           style={{ background: '#00E5FF22', border: '1px solid #00E5FF66', color: '#00E5FF' }}
         >
           {t.presetStandard[lang]}
         </button>
         <button
-          onClick={() => setComponents([])}
+          onClick={() => { setComponents([]); setSelectedId(null); }}
           className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
           style={{ background: '#1E3A5F44', border: '1px solid #1E3A5F', color: '#90A4AE' }}
         >
           {t.presetEmpty[lang]}
         </button>
         <button
-          onClick={() => setComponents(makeErrorPreset())}
+          onClick={() => { setComponents(makeErrorPreset()); setSelectedId(null); }}
           className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
           style={{ background: '#FF444422', border: '1px solid #FF444466', color: '#FF6666' }}
         >
           {t.presetError[lang]}
         </button>
         <span className="ml-auto text-xs self-center" style={{ color: '#90A4AE' }}>
-          Колесо мыши = вращение | Перетащите для перемещения
+          Клик — выбрать | Перетащить — переместить | Ручка сверху или колёсико — вращать
         </span>
       </div>
 
@@ -860,10 +1041,9 @@ export default function OpticalTable() {
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerLeave={handlePointerUp}
-              onWheel={handleWheel}
               style={{
                 position: 'absolute', left: PALETTE_W, top: 0,
-                cursor: dragging ? 'grabbing' : 'grab',
+                cursor: canvasCursor,
                 touchAction: 'none',
               }}
             />
@@ -915,6 +1095,157 @@ export default function OpticalTable() {
             <div>Лучей: <span style={{ color: '#E8EAF6' }}>{rays.length}</span></div>
             <div>Попаданий в плёнку: <span style={{ color: '#E8EAF6' }}>{filmHits.length}</span></div>
           </div>
+        </div>
+      </div>
+
+      {/* Selection control bar */}
+      {selectedId && (() => {
+        const sel = components.find(c => c.id === selectedId);
+        if (!sel) return null;
+        return (
+          <div className="flex items-center gap-3 px-4 py-2 rounded-xl flex-wrap"
+            style={{ background: 'var(--bg-secondary)', border: '1px solid #00E5FF44' }}>
+
+            {/* Component type label */}
+            <span className="text-sm font-bold" style={{ color: '#00E5FF' }}>
+              {PALETTE_LABELS[sel.type]}
+            </span>
+
+            {/* Angle display + input */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs" style={{ color: '#90A4AE' }}>Угол:</span>
+              <input
+                type="number"
+                value={Math.round(sel.angle)}
+                onChange={e => {
+                  const v = parseFloat(e.target.value);
+                  if (!isNaN(v)) setComponents(prev => prev.map(c =>
+                    c.id === selectedId ? { ...c, angle: ((v % 360) + 360) % 360 } : c
+                  ));
+                }}
+                className="w-16 text-center text-sm font-mono px-2 py-1 rounded"
+                style={{ background: '#111827', border: '1px solid #1E3A5F', color: '#00E5FF' }}
+              />
+              <span className="text-xs" style={{ color: '#90A4AE' }}>°</span>
+            </div>
+
+            {/* Step buttons */}
+            {([-45, -15, -5, -1, 1, 5, 15, 45] as const).map(delta => (
+              <button key={delta}
+                onClick={() => setComponents(prev => prev.map(c =>
+                  c.id === selectedId ? { ...c, angle: ((c.angle + delta) % 360 + 360) % 360 } : c
+                ))}
+                className="px-2 py-1 text-xs rounded font-mono transition-colors hover:opacity-80"
+                style={{
+                  background: delta < 0 ? '#1E3A5F' : '#1a2a1a',
+                  border: `1px solid ${delta < 0 ? '#2E4A6F' : '#2a3a2a'}`,
+                  color: delta < 0 ? '#90CEFF' : '#90EAA0',
+                }}
+              >
+                {delta > 0 ? '+' : ''}{delta}°
+              </button>
+            ))}
+
+            {/* Snap to common angles */}
+            <div className="flex items-center gap-1">
+              <span className="text-xs" style={{ color: '#90A4AE' }}>Снапы:</span>
+              {[0, 45, 90, 135, 180].map(a => (
+                <button key={a}
+                  onClick={() => setComponents(prev => prev.map(c =>
+                    c.id === selectedId ? { ...c, angle: a } : c
+                  ))}
+                  className="px-2 py-1 text-xs rounded font-mono"
+                  style={{ background: '#0D1526', border: '1px solid #1E3A5F', color: '#FFB300' }}
+                >
+                  {a}°
+                </button>
+              ))}
+            </div>
+
+            {/* Delete button */}
+            <button
+              onClick={() => {
+                setComponents(prev => prev.filter(c => c.id !== selectedId));
+                setSelectedId(null);
+              }}
+              className="ml-auto px-3 py-1 text-xs rounded"
+              style={{ background: '#330000', border: '1px solid #FF444444', color: '#FF6666' }}
+            >
+              🗑 Удалить
+            </button>
+          </div>
+        );
+      })()}
+
+      {/* Live Simulation Panel */}
+      <div className="rounded-xl p-4 space-y-3" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+        <div className="font-bold text-sm" style={{ color: 'var(--accent-cyan)' }}>
+          Живая симуляция
+        </div>
+        <div className="flex gap-4 flex-wrap">
+
+          {/* Section A — Beam path quality meter */}
+          <div className="flex-1 min-w-[180px] rounded-lg p-3 space-y-1"
+            style={{ background: '#060B18', border: '1px solid #1E3A5F' }}>
+            <div className="text-xs font-bold mb-2" style={{ color: '#90A4AE' }}>
+              Длины оптических путей
+            </div>
+            <div className="font-mono text-xs space-y-1">
+              <div>
+                <span style={{ color: '#90A4AE' }}>Опорный: </span>
+                <span style={{ color: '#00E5FF' }}>{refLength.toFixed(0)} пикс</span>
+              </div>
+              <div>
+                <span style={{ color: '#90A4AE' }}>Объектный: </span>
+                <span style={{ color: '#9C27B0' }}>{objLength.toFixed(0)} пикс</span>
+              </div>
+              <div>
+                <span style={{ color: '#90A4AE' }}>Разность: </span>
+                <span style={{ color: pathOk ? '#69F0AE' : '#FF6666' }}>{pathDiff.toFixed(0)} пикс</span>
+              </div>
+              <div className="pt-1" style={{ color: pathOk ? '#69F0AE' : '#FF6666' }}>
+                {pathOk ? '✓ В пределах когерентности' : '✗ Превышает когерентную длину'}
+              </div>
+            </div>
+          </div>
+
+          {/* Section B — Interference fringe preview */}
+          <div className="rounded-lg p-3 space-y-2"
+            style={{ background: '#060B18', border: '1px solid #1E3A5F' }}>
+            <div className="text-xs font-bold" style={{ color: '#90A4AE' }}>
+              Картина интерференции
+            </div>
+            <canvas
+              ref={fringeCanvasRef}
+              width={200}
+              height={120}
+              style={{ display: 'block', borderRadius: 6, border: '1px solid #1E3A5F' }}
+            />
+            <div className="text-xs font-mono text-center" style={{ color: '#FFB300' }}>
+              {interferenceInfo.hasInterference && isFinite(interferenceInfo.d_nm)
+                ? `d = ${interferenceInfo.d_nm.toFixed(0)} нм | N = ${interferenceInfo.N.toFixed(0)} лин/мм`
+                : 'Нет интерференции'}
+            </div>
+          </div>
+
+          {/* Section C — Setup checklist */}
+          <div className="rounded-lg p-3"
+            style={{ background: '#060B18', border: '1px solid #1E3A5F', minWidth: 140 }}>
+            <div className="text-xs font-bold mb-2" style={{ color: '#90A4AE' }}>
+              Компоненты схемы
+            </div>
+            <div className="space-y-1">
+              {checks.map(({ label, ok }) => (
+                <div key={label} className="flex items-center gap-2 text-xs font-mono">
+                  <span style={{ color: ok ? '#69F0AE' : '#FF6666', minWidth: 12 }}>
+                    {ok ? '✓' : '✗'}
+                  </span>
+                  <span style={{ color: ok ? '#E8EAF6' : '#607D8B' }}>{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
       </div>
 

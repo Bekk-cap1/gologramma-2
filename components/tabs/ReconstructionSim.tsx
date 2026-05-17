@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import * as THREE from "three";
 import { useLang } from "@/components/LanguageContext";
 import { t } from "@/lib/translations";
-
-function toRad(deg: number) { return deg * Math.PI / 180; }
 
 const RECORD_ANGLE = 30;
 const RECORD_LAMBDA = 632.8;
@@ -34,224 +33,13 @@ function matchingLaserRow(reconLambda: number) {
   return bestDist < 30 ? best : -1;
 }
 
-// Draw the reconstruction scheme canvas
-function drawReconScheme(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  incidentAngle: number,
-  reconLambda: number,
-  time: number
-) {
-  ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = '#0D1526';
-  ctx.fillRect(0, 0, w, h);
-
-  // Grid dots
-  ctx.fillStyle = '#1E3A5F';
-  for (let gx = 40; gx < w; gx += 40) {
-    for (let gy = 40; gy < h; gy += 40) {
-      ctx.beginPath();
-      ctx.arc(gx, gy, 1.2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  const filmX = w * 0.48;
-  const filmY = h * 0.1;
-  const filmH = h * 0.8;
-  const filmW = 12;
-
-  // Film
-  ctx.fillStyle = '#1a0e00';
-  ctx.strokeStyle = '#FFB300';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.rect(filmX - filmW / 2, filmY, filmW, filmH);
-  ctx.fill();
-  ctx.stroke();
-
-  // Film fringes
-  const numFringes = 22;
-  for (let fi = 0; fi < numFringes; fi++) {
-    const fy = filmY + (fi / numFringes) * filmH;
-    const b = Math.abs(Math.sin(fi * Math.PI * 0.6));
-    ctx.fillStyle = `rgba(255,179,0,${0.07 + b * 0.45})`;
-    ctx.fillRect(filmX - filmW / 2 + 2, fy, filmW - 4, (filmH / numFringes) * 0.65);
-  }
-
-  ctx.fillStyle = '#FFB300';
-  ctx.font = '11px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText('FILM', filmX, filmY - 8);
-
-  // Incoming beam from left at incidentAngle from film normal
-  const angleRad = toRad(incidentAngle);
-  const beamStartX = filmX - 200;
-  const beamCenterY = h * 0.5;
-
-  // Animated beam segments
-  const numBeamLines = 5;
-  for (let bi = -numBeamLines; bi <= numBeamLines; bi++) {
-    const spread = bi * 7;
-    const perpX = -Math.sin(angleRad) * spread;
-    const perpY = Math.cos(angleRad) * spread;
-    const animOffset = ((time * 2 + bi * 15) % 40) / 40;
-    const alpha = 0.15 + (1 - Math.abs(bi) / numBeamLines) * 0.7;
-
-    ctx.strokeStyle = `rgba(255,60,60,${alpha})`;
-    ctx.lineWidth = 1.5;
-    ctx.shadowColor = '#FF3333';
-    ctx.shadowBlur = 4;
-    ctx.setLineDash([20 * animOffset, 20 * (1 - animOffset)]);
-    ctx.beginPath();
-    ctx.moveTo(beamStartX + perpX, beamCenterY + perpY);
-    ctx.lineTo(filmX - filmW / 2 + perpX, beamCenterY + Math.tan(angleRad) * (filmX - filmW / 2 - beamStartX) + perpY);
-    ctx.stroke();
-  }
-  ctx.setLineDash([]);
-  ctx.shadowBlur = 0;
-
-  // Laser box on left
-  const laserX = beamStartX - 50;
-  ctx.fillStyle = '#CC2222';
-  ctx.strokeStyle = '#FF4444';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.roundRect(laserX - 28, beamCenterY - 16, 56, 32, 4);
-  ctx.fill();
-  ctx.stroke();
-  // Lens arcs
-  ctx.strokeStyle = '#00E5FF';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(laserX + 34, beamCenterY, 26, -Math.PI * 0.55, Math.PI * 0.55);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(laserX + 44, beamCenterY, 26, Math.PI - Math.PI * 0.55, Math.PI + Math.PI * 0.55);
-  ctx.stroke();
-
-  ctx.fillStyle = '#FFaaaa';
-  ctx.font = 'bold 9px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText('LASER', laserX, beamCenterY + 1);
-
-  // Quality: affects diffraction orders
-  const quality = getQuality(incidentAngle, reconLambda);
-  const brightness = quality === 0 ? 1.0 : quality === 1 ? 0.55 : 0.2;
-
-  // 0th order — straight through (gray)
-  ctx.strokeStyle = 'rgba(150,150,150,0.5)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(filmX + filmW / 2, beamCenterY);
-  ctx.lineTo(filmX + 220, beamCenterY);
-  ctx.stroke();
-
-  ctx.fillStyle = 'rgba(150,150,150,0.6)';
-  ctx.font = '10px monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText('0-й порядок', filmX + filmW / 2 + 5, beamCenterY - 6);
-
-  // +1st order upward (cyan, bright) — angle affected by angle/lambda mismatch
-  const order1Angle = -25 + (incidentAngle - RECORD_ANGLE) * 0.5 + (reconLambda - RECORD_LAMBDA) * 0.02;
-  const order1Rad = toRad(order1Angle);
-
-  const o1EndX = filmX + filmW / 2 + Math.cos(order1Rad) * 230;
-  const o1EndY = beamCenterY + Math.sin(order1Rad) * 230;
-
-  // Animated +1 beam
-  for (let bi2 = -3; bi2 <= 3; bi2++) {
-    const perp = bi2 * 5;
-    const pX = -Math.sin(order1Rad) * perp;
-    const pY = Math.cos(order1Rad) * perp;
-    const alpha2 = brightness * (0.3 + (1 - Math.abs(bi2) / 3) * 0.65);
-    ctx.strokeStyle = `rgba(0,229,255,${alpha2})`;
-    ctx.lineWidth = 1.8;
-    ctx.shadowColor = '#00E5FF';
-    ctx.shadowBlur = brightness > 0.6 ? 10 : 3;
-    ctx.beginPath();
-    ctx.moveTo(filmX + filmW / 2 + pX, beamCenterY + pY);
-    ctx.lineTo(o1EndX + pX, o1EndY + pY);
-    ctx.stroke();
-  }
-  ctx.shadowBlur = 0;
-
-  // +1 order label
-  ctx.fillStyle = `rgba(0,229,255,${brightness})`;
-  ctx.font = `bold ${quality === 0 ? 11 : 9}px monospace`;
-  ctx.textAlign = 'left';
-  ctx.fillText('3D ИЗОБРАЖЕНИЕ', o1EndX - 20, o1EndY - 8);
-  ctx.font = '9px monospace';
-  ctx.fillText('+1-й порядок', o1EndX - 20, o1EndY + 4);
-
-  // -1st order downward (violet, dimmer)
-  const order_1Angle = 25 + (incidentAngle - RECORD_ANGLE) * 0.5;
-  const order_1Rad = toRad(order_1Angle);
-  const om1EndX = filmX + filmW / 2 + Math.cos(order_1Rad) * 180;
-  const om1EndY = beamCenterY + Math.sin(order_1Rad) * 180;
-
-  ctx.strokeStyle = `rgba(156,39,176,${brightness * 0.5})`;
-  ctx.lineWidth = 1.5;
-  ctx.shadowColor = '#9C27B0';
-  ctx.shadowBlur = 5;
-  ctx.beginPath();
-  ctx.moveTo(filmX + filmW / 2, beamCenterY);
-  ctx.lineTo(om1EndX, om1EndY);
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-
-  ctx.fillStyle = `rgba(206,147,216,${brightness * 0.7})`;
-  ctx.font = '9px monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText('Сопряжённая волна', om1EndX - 10, om1EndY + 12);
-  ctx.fillText('-1-й порядок', om1EndX - 10, om1EndY + 23);
-
-  // Observer eye on right
-  const eyeX = w - 40;
-  const eyeY = o1EndY;
-  ctx.strokeStyle = '#E8EAF6';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.ellipse(eyeX, eyeY, 14, 9, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.fillStyle = '#00E5FF';
-  ctx.beginPath();
-  ctx.arc(eyeX, eyeY, 5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#001a22';
-  ctx.beginPath();
-  ctx.arc(eyeX, eyeY, 2.5, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#E8EAF6';
-  ctx.font = '10px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('Зритель', eyeX, eyeY + 22);
-
-  // Recording params (top-left)
-  ctx.fillStyle = 'rgba(14,21,38,0.8)';
-  ctx.beginPath();
-  ctx.roundRect(12, 12, 180, 52, 6);
-  ctx.fill();
-  ctx.strokeStyle = '#1E3A5F';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  ctx.fillStyle = '#90A4AE';
-  ctx.font = '9px monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText('Параметры записи:', 20, 27);
-  ctx.fillStyle = '#E8EAF6';
-  ctx.fillText(`θ = ${RECORD_ANGLE}°`, 20, 40);
-  ctx.fillText(`λ = ${RECORD_LAMBDA} нм`, 20, 53);
-}
-
 export default function ReconstructionSim() {
   const { lang } = useLang();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const threeCanvasRef = useRef<HTMLCanvasElement>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
   const rafRef = useRef<number>(0);
-  const timeRef = useRef(0);
+  const orbitRef = useRef({ theta: 0.5, phi: 0.4, radius: 7, dragging: false, lastX: 0, lastY: 0 });
 
   const [incidentAngle, setIncidentAngle] = useState(30);
   const [reconLambda, setReconLambda] = useState(632.8);
@@ -265,24 +53,182 @@ export default function ReconstructionSim() {
     { text: t.reconSimQuality2[lang], color: '#FF6666', bg: '#330000', border: '#FF444466' },
   ][quality];
 
-  // Animation loop
+  // Three.js scene
   useEffect(() => {
-    let running = true;
-    const tick = () => {
-      if (!running) return;
-      timeRef.current += 1;
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          drawReconScheme(ctx, canvas.width, canvas.height, incidentAngle, reconLambda, timeRef.current);
-        }
-      }
-      rafRef.current = requestAnimationFrame(tick);
+    const canvas = threeCanvasRef.current;
+    if (!canvas) return;
+
+    // Renderer
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(800, 420);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x060B18);
+    rendererRef.current = renderer;
+
+    // Scene
+    const scene = new THREE.Scene();
+    sceneRef.current = scene;
+
+    // Lights
+    scene.add(new THREE.AmbientLight(0x334466, 0.5));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(5, 5, 5);
+    scene.add(dirLight);
+
+    // Camera
+    const camera = new THREE.PerspectiveCamera(50, 800 / 420, 0.1, 100);
+
+    // Film plane (amber, semi-transparent)
+    const filmGeo = new THREE.PlaneGeometry(0.15, 3);
+    const filmMat = new THREE.MeshBasicMaterial({
+      color: 0xFFB300,
+      transparent: true,
+      opacity: 0.3,
+      side: THREE.DoubleSide,
+    });
+    const filmMesh = new THREE.Mesh(filmGeo, filmMat);
+    filmMesh.position.set(0, 0, 0);
+    scene.add(filmMesh);
+
+    // Fringes on film
+    const fringePoints: THREE.Vector3[] = [];
+    for (let i = 0; i < 15; i++) {
+      const fy = -1.4 + (i / 14) * 2.8;
+      fringePoints.push(new THREE.Vector3(-0.075, fy, 0.001));
+      fringePoints.push(new THREE.Vector3(0.075, fy, 0.001));
+    }
+    const fringeGeo = new THREE.BufferGeometry().setFromPoints(fringePoints);
+    const indices: number[] = [];
+    for (let i = 0; i < 15; i++) { indices.push(i * 2, i * 2 + 1); }
+    fringeGeo.setIndex(indices);
+    const fringeLines = new THREE.LineSegments(fringeGeo, new THREE.LineBasicMaterial({ color: 0xFFB300, opacity: 0.5, transparent: true }));
+    scene.add(fringeLines);
+
+    // Incoming laser beam (red cylinder from left)
+    const incidentRad = (incidentAngle * Math.PI) / 180;
+    const beamLen = 3;
+    const incomingGeo = new THREE.CylinderGeometry(0.04, 0.04, beamLen, 8);
+    const incomingMat = new THREE.MeshBasicMaterial({ color: 0xFF3333, transparent: true, opacity: 0.85 });
+    const incomingMesh = new THREE.Mesh(incomingGeo, incomingMat);
+    // Position: starts at left, aimed at film center
+    incomingMesh.position.set(-beamLen / 2 * Math.cos(incidentRad), beamLen / 2 * Math.sin(incidentRad), 0);
+    incomingMesh.rotation.z = -incidentRad;
+    scene.add(incomingMesh);
+
+    // Point light at beam origin (red)
+    const redLight = new THREE.PointLight(0xFF3333, 1.5, 6);
+    redLight.position.set(-beamLen * Math.cos(incidentRad), beamLen * Math.sin(incidentRad), 0);
+    scene.add(redLight);
+
+    // 0th order beam (gray, straight through)
+    const zeroGeo = new THREE.CylinderGeometry(0.025, 0.025, 2.5, 8);
+    const zeroMat = new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.3 });
+    const zeroMesh = new THREE.Mesh(zeroGeo, zeroMat);
+    zeroMesh.position.set(1.25, 0, 0);
+    zeroMesh.rotation.z = Math.PI / 2;
+    scene.add(zeroMesh);
+
+    // +1st order beam (cyan, going up-right)
+    const order1Angle = (-25 + (incidentAngle - RECORD_ANGLE) * 0.5) * Math.PI / 180;
+    const o1Len = 2.5;
+    const o1EndX = o1Len * Math.cos(-order1Angle);
+    const o1EndY = o1Len * Math.sin(-order1Angle);
+    const brightness = quality === 0 ? 1.0 : quality === 1 ? 0.4 : 0.05;
+
+    const order1Geo = new THREE.CylinderGeometry(0.04, 0.04, o1Len, 8);
+    const order1Mat = new THREE.MeshBasicMaterial({ color: 0x00E5FF, transparent: true, opacity: brightness });
+    const order1Mesh = new THREE.Mesh(order1Geo, order1Mat);
+    order1Mesh.position.set(o1EndX / 2, o1EndY / 2, 0);
+    order1Mesh.rotation.z = order1Angle + Math.PI / 2;
+    scene.add(order1Mesh);
+
+    // PointLight at +1 beam end
+    const cyanLight = new THREE.PointLight(0x00E5FF, brightness * 2, 5);
+    cyanLight.position.set(o1EndX, o1EndY, 0);
+    scene.add(cyanLight);
+
+    // -1st order beam (violet, going down-right)
+    const orderM1Angle = (25 + (incidentAngle - RECORD_ANGLE) * 0.5) * Math.PI / 180;
+    const om1Len = 2.0;
+    const om1EndX = om1Len * Math.cos(-orderM1Angle);
+    const om1EndY = om1Len * Math.sin(-orderM1Angle);
+    const orderM1Geo = new THREE.CylinderGeometry(0.025, 0.025, om1Len, 8);
+    const orderM1Mat = new THREE.MeshBasicMaterial({ color: 0x9C27B0, transparent: true, opacity: 0.2 });
+    const orderM1Mesh = new THREE.Mesh(orderM1Geo, orderM1Mat);
+    orderM1Mesh.position.set(om1EndX / 2, om1EndY / 2, 0);
+    orderM1Mesh.rotation.z = orderM1Angle - Math.PI / 2;
+    scene.add(orderM1Mesh);
+
+    // 3D virtual image (icosahedron wireframe)
+    const icoGeo = new THREE.IcosahedronGeometry(0.55, 1);
+    const icoMat = new THREE.MeshBasicMaterial({ color: 0x00E5FF, wireframe: true, transparent: true, opacity: brightness });
+    const icoMesh = new THREE.Mesh(icoGeo, icoMat);
+    icoMesh.position.set(o1EndX, o1EndY, 0);
+    scene.add(icoMesh);
+
+    // Observer sphere (white, far right along +1 beam)
+    const obsGeo = new THREE.SphereGeometry(0.15, 12, 12);
+    const obsMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const obsMesh = new THREE.Mesh(obsGeo, obsMat);
+    obsMesh.position.set(o1EndX + 0.5, o1EndY, 0);
+    scene.add(obsMesh);
+
+    // Mouse orbit handlers
+    const handleMouseDown = (e: MouseEvent) => {
+      orbitRef.current.dragging = true;
+      orbitRef.current.lastX = e.clientX;
+      orbitRef.current.lastY = e.clientY;
     };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => { running = false; cancelAnimationFrame(rafRef.current); };
-  }, [incidentAngle, reconLambda]);
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!orbitRef.current.dragging) return;
+      const dx = e.clientX - orbitRef.current.lastX;
+      const dy = e.clientY - orbitRef.current.lastY;
+      orbitRef.current.theta -= dx * 0.01;
+      orbitRef.current.phi = Math.max(0.1, Math.min(Math.PI - 0.1, orbitRef.current.phi - dy * 0.01));
+      orbitRef.current.lastX = e.clientX;
+      orbitRef.current.lastY = e.clientY;
+    };
+    const handleMouseUp = () => { orbitRef.current.dragging = false; };
+
+    canvas.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    // Animation loop
+    let frameId = 0;
+    const animate = () => {
+      frameId = requestAnimationFrame(animate);
+
+      // Rotate icosahedron
+      icoMesh.rotation.y += 0.01;
+
+      // Update camera from orbit
+      const { theta, phi, radius } = orbitRef.current;
+      camera.position.x = radius * Math.sin(phi) * Math.sin(theta);
+      camera.position.y = radius * Math.cos(phi);
+      camera.position.z = radius * Math.sin(phi) * Math.cos(theta);
+      camera.lookAt(0, 0, 0);
+
+      renderer.render(scene, camera);
+    };
+    animate();
+    rafRef.current = frameId;
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      canvas.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      renderer.dispose();
+      scene.traverse(obj => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry.dispose();
+          if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+          else obj.material.dispose();
+        }
+      });
+    };
+  }, [incidentAngle, reconLambda, quality]);
 
   return (
     <div className="space-y-6">
@@ -296,15 +242,123 @@ export default function ReconstructionSim() {
         </p>
       </div>
 
-      {/* Section A — Interactive canvas */}
+      {/* Section A — Interactive 3D canvas + 2D diagram */}
       <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-color)' }}>
         <div className="overflow-x-auto">
           <canvas
-            ref={canvasRef}
+            ref={threeCanvasRef}
             width={800}
-            height={350}
-            style={{ display: 'block', background: '#0D1526', minWidth: 400 }}
+            height={420}
+            style={{ display: 'block', background: '#060B18', minWidth: 400, cursor: 'grab' }}
           />
+        </div>
+
+        {/* 2D physics diagram */}
+        <div style={{ background: '#0A1020', borderTop: '1px solid var(--border-color)', padding: '12px 16px' }}>
+          <div className="text-xs font-semibold mb-2" style={{ color: '#90A4AE' }}>
+            {lang === 'ru' ? 'Схема дифракции (вид сверху)' : 'Difraksiya sxemasi (tepadan ko\'rinish)'}
+          </div>
+          <svg width="100%" viewBox="0 0 760 160" style={{ display: 'block' }}>
+            {/* Background */}
+            <rect width="760" height="160" fill="#060B18" rx="8"/>
+
+            {/* Film — vertical line at x=360 */}
+            <line x1="360" y1="10" x2="360" y2="150" stroke="#FFB300" strokeWidth="4"/>
+            {/* Film label */}
+            <text x="360" y="7" textAnchor="middle" fill="#FFB300" fontSize="9" fontFamily="monospace">FILM</text>
+            {/* Fringes on film */}
+            {Array.from({length: 10}, (_, i) => (
+              <line key={i} x1="356" y1={20 + i*13} x2="364" y2={20 + i*13} stroke="#FFB30088" strokeWidth="1.5"/>
+            ))}
+
+            {/* Incoming beam from left */}
+            <line x1="40" y1="80" x2="358" y2="80" stroke="#FF4444" strokeWidth="2"/>
+            <polygon points="358,76 368,80 358,84" fill="#FF4444"/>
+            {/* Laser box */}
+            <rect x="10" y="68" width="30" height="24" rx="3" fill="#CC222244" stroke="#FF4444" strokeWidth="1.5"/>
+            <text x="25" y="82" textAnchor="middle" fill="#FF4444" fontSize="7" fontFamily="monospace">λ</text>
+
+            {/* 0th order — straight */}
+            <line x1="362" y1="80" x2="520" y2="80" stroke="#888888" strokeWidth="1.5" strokeDasharray="6,4"/>
+            <text x="525" y="77" fill="#888888" fontSize="8" fontFamily="monospace">0-й</text>
+
+            {/* +1st order beam */}
+            {(() => {
+              const angle1 = -(25 + (incidentAngle - 30) * 0.5);
+              const rad1 = angle1 * Math.PI / 180;
+              const len = 200;
+              const ex = 362 + Math.cos(rad1) * len;
+              const ey = 80 + Math.sin(rad1) * len;
+              const bright = quality === 0 ? 1 : quality === 1 ? 0.5 : 0.15;
+              return (
+                <g>
+                  {/* Glow */}
+                  <line x1="362" y1="80" x2={ex} y2={ey} stroke={`rgba(0,229,255,${bright * 0.3})`} strokeWidth="8"/>
+                  {/* Main beam */}
+                  <line x1="362" y1="80" x2={ex} y2={ey} stroke={`rgba(0,229,255,${bright})`} strokeWidth="2.5"/>
+                  <polygon points={`${ex-5},${ey-3} ${ex+4},${ey} ${ex-5},${ey+3}`}
+                    fill={`rgba(0,229,255,${bright})`}
+                    transform={`rotate(${angle1}, ${ex}, ${ey})`}/>
+                  {/* 3D object at endpoint */}
+                  <circle cx={ex} cy={ey} r={quality === 0 ? 12 : 7} fill="none"
+                    stroke={`rgba(0,229,255,${bright})`} strokeWidth="1.5"/>
+                  <text x={ex} y={ey + 22} textAnchor="middle" fill={`rgba(0,229,255,${bright})`}
+                    fontSize="8" fontFamily="monospace">3D</text>
+                  <text x={ex + 8} y={ey - 8} fill={`rgba(0,229,255,${bright})`}
+                    fontSize="7.5" fontFamily="monospace">+1</text>
+                </g>
+              );
+            })()}
+
+            {/* -1st order beam */}
+            {(() => {
+              const angle2 = 25 + (incidentAngle - 30) * 0.5;
+              const rad2 = angle2 * Math.PI / 180;
+              const len = 150;
+              const ex = 362 + Math.cos(rad2) * len;
+              const ey = 80 + Math.sin(rad2) * len;
+              return (
+                <g>
+                  <line x1="362" y1="80" x2={ex} y2={ey} stroke="rgba(156,39,176,0.6)" strokeWidth="1.5"/>
+                  <text x={ex + 5} y={ey + 5} fill="rgba(206,147,216,0.8)" fontSize="7.5" fontFamily="monospace">-1</text>
+                </g>
+              );
+            })()}
+
+            {/* Observer eye */}
+            <ellipse cx="720" cy="80" rx="12" ry="8" fill="none" stroke="#E8EAF6" strokeWidth="1.5"/>
+            <circle cx="720" cy="80" r="4" fill="#00E5FF"/>
+            <circle cx="720" cy="80" r="2" fill="#001a22"/>
+            <text x="720" y="100" textAnchor="middle" fill="#90A4AE" fontSize="8" fontFamily="monospace">
+              {lang === 'ru' ? 'зритель' : 'ko\'z'}
+            </text>
+
+            {/* Angle label */}
+            <text x="200" y="70" fill="#FF6666" fontSize="8" fontFamily="monospace">
+              θ={incidentAngle}° λ={reconLambda.toFixed(0)}нм
+            </text>
+
+            {/* Labels left/right */}
+            <text x="30" y="155" fill="#90A4AE" fontSize="8" fontFamily="monospace">
+              {lang === 'ru' ? '← лазер' : '← lazer'}
+            </text>
+            <text x="600" y="155" fill="#90A4AE" fontSize="8" fontFamily="monospace">
+              {lang === 'ru' ? 'дифрагированные лучи →' : 'difraksiya nurlari →'}
+            </text>
+          </svg>
+
+          {/* Explanation of where 3D comes from */}
+          <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs" style={{ color: '#90A4AE' }}>
+            <div className="rounded-lg p-2" style={{ background: '#0D1526', border: '1px solid #FF444433' }}>
+              <span style={{ color: '#FF6666', fontWeight: 600 }}>① Падающий луч</span> — опорный лазер с длиной волны λ освещает плёнку под углом θ.
+            </div>
+            <div className="rounded-lg p-2" style={{ background: '#0D1526', border: '1px solid #00E5FF33' }}>
+              <span style={{ color: '#00E5FF', fontWeight: 600 }}>② +1-й порядок = 3D</span> — дифракция восстанавливает точную копию объектной волны. Мозг воспринимает её как объёмный предмет.
+            </div>
+            <div className="rounded-lg p-2" style={{ background: '#0D1526', border: '1px solid #9C27B033' }}>
+              <span style={{ color: '#CE93D8', fontWeight: 600 }}>③ -1-й порядок</span> — сопряжённая волна. Создаёт псевдоскопическое (вывернутое) изображение.
+            </div>
+          </div>
         </div>
 
         <div

@@ -1,9 +1,15 @@
+// NOTE: This route reads extension files from the local disk path below.
+// It only works when running locally (next dev). On Vercel or any hosted
+// environment this path does not exist and the route returns 500.
+// The correct cross-platform approach is ExtensionDownload.tsx (frontend ZIP).
 import { NextResponse } from 'next/server';
 import JSZip from 'jszip';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
 const EXT_DIR = 'C:\\Users\\Genius\\hologram-pdf-extension';
+// Font served from Next.js public/ so it's included in the deployment bundle.
+const PUBLIC_DIR = join(process.cwd(), 'public');
 
 export async function GET() {
   try {
@@ -20,6 +26,8 @@ export async function GET() {
       ['icon-48.svg',       readFileSync(join(EXT_DIR, 'assets', 'icon-48.svg'))],
       ['icon-128.svg',      readFileSync(join(EXT_DIR, 'assets', 'icon-128.svg'))],
       ['jspdf.umd.min.js',  readFileSync(join(EXT_DIR, 'lib', 'jspdf.umd.min.js'))],
+      // Font from public/ so this entry also works on hosting if files are stored there
+      ['fonts/NotoSans-Regular.ttf', readFileSync(join(PUBLIC_DIR, 'fonts', 'NotoSans-Regular.ttf'))],
     ];
 
     // manifest.json — rewritten for flat structure
@@ -77,7 +85,7 @@ export async function GET() {
 
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 
-    return new NextResponse(zipBuffer, {
+    return new NextResponse(zipBuffer as unknown as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': 'application/zip',
