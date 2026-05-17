@@ -1,26 +1,46 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --bg-primary: #060B18;
+  --bg-secondary: #0D1526;
+  --bg-card: #111827;
+  --accent-cyan: #00E5FF;
+  --accent-violet: #9C27B0;
+  --accent-amber: #FFB300;
+  --text-primary: #E8EAF6;
+  --text-secondary: #90A4AE;
+  --border-color: #1E3A5F;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
 }
+
+.font-mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+
+.tab-active {
+  color: #00E5FF;
+  border-bottom: 2px solid #00E5FF;
+}
+
+.formula-box {
+  background: #0D1526;
+  border: 1px solid #1E3A5F;
+  border-radius: 8px;
+  padding: 16px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
+}
+
+.glow-violet {
+  box-shadow: 0 0 20px rgba(156, 39, 176, 0.3);
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #060B18; }
+::-webkit-scrollbar-thumb { background: #1E3A5F; border-radius: 3px; }
