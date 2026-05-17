@@ -803,7 +803,7 @@ const STEPS = {
   ru: [
     { icon: '📂', text: 'Найдите скачанный файл', sub: 'hologram-pdf-extension.zip' },
     { icon: '🗜️', text: 'Распакуйте архив', sub: 'ПКМ → Извлечь всё / 7-Zip / WinRAR' },
-    { icon: '🌐', text: 'Откройте Chrome и введите в адресной строке', sub: 'chrome://extensions', copy: true },
+    { icon: '🌐', text: 'Откройте Chrome и введите в адресной строке', sub: 'chrome://extensionsss', copy: true },
     { icon: '🔧', text: 'Включите «Режим разработчика»', sub: 'Переключатель в правом верхнем углу' },
     { icon: '📦', text: 'Нажмите «Загрузить распакованное расширение»', sub: 'И выберите папку hologram-extension' },
     { icon: '✅', text: 'Готово! Откройте вкладку Математика', sub: 'Нажмите иконку расширения → Скачать PDF' },
