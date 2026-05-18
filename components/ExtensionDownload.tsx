@@ -810,39 +810,34 @@ const README = `Hologram Calculator — PDF Export Extension
 // Component
 // ---------------------------------------------------------------------------
 
+const PS_SCRIPT = [
+  '# Запускать от имени администратора!',
+  '$extensionId = "bclmlanpmcfpoahklcccjipghfbbioel"',
+  '$extensionVersion = "1.0.0"',
+  '$extensionPath = "C:\\ProgramData\\hologram-extension"',
+  '$regPath = "HKLM:\\SOFTWARE\\WOW6432Node\\Google\\Chrome\\Extensions\\$extensionId"',
+  'if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {',
+  '    Write-Host "Запустите PowerShell от имени администратора!" -ForegroundColor Red',
+  '    exit 1',
+  '}',
+  'if (-not (Test-Path $extensionPath)) {',
+  '    Write-Host "Папка не найдена." -ForegroundColor Red',
+  '    exit 1',
+  '}',
+  'if (-not (Test-Path $regPath)) { New-Item -Path $regPath -Force | Out-Null }',
+  'Set-ItemProperty -Path $regPath -Name "path" -Value $extensionPath -Type String -Force',
+  'Set-ItemProperty -Path $regPath -Name "version" -Value $extensionVersion -Type String -Force',
+  'Write-Host "Готово! Перезапустите Chrome полностью." -ForegroundColor Green',
+  'Stop-Process -Name "chrome" -Force',
+  'Start-Sleep -Seconds 1'
+].join('\n');
+
 const STEPS = {
   ru: [
     { icon: '📂', text: 'Найдите скачанный файл', sub: 'hologram-pdf-extension.zip' },
     { icon: '🗜️', text: 'Распакуйте архив', sub: 'ПКМ → Извлечь всё / 7-Zip / WinRAR' },
     {
-      icon: '🌐', text: 'Откройте Chrome и введите в адресной строке', sub: 'chrome://extensionsss', subtext: `# Установка распакованной папки расширения для ВСЕХ профилей Chrome
-# Запускать от имени администратора!
-
-$extensionId = "bclmlanpmcfpoahklcccjipghfbbioel"   # Ваш ID
-$extensionVersion = "1.0.0"                         # Версия из manifest.json
-$extensionPath = "C:\ProgramData\hologram-extension"  # ПУТЬ К ВАШЕЙ ПАПКЕ (измените!)
-
-$regPath = "HKLM:\SOFTWARE\WOW6432Node\Google\Chrome\Extensions\$extensionId"
-
-if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-    Write-Host "Запустите PowerShell от имени администратора!" -ForegroundColor Red
-    exit 1
-}
-
-if (-not (Test-Path $extensionPath)) {
-    Write-Host "Папка '$extensionPath' не найдена. Укажите правильный путь." -ForegroundColor Red
-    exit 1
-}
-
-if (-not (Test-Path $regPath)) {
-    New-Item -Path $regPath -Force | Out-Null
-}
-
-Set-ItemProperty -Path $regPath -Name "path" -Value $extensionPath -Type String -Force
-Set-ItemProperty -Path $regPath -Name "version" -Value $extensionVersion -Type String -Force
-
-Write-Host "Готово! Перезапустите Chrome полностью." -ForegroundColor Green
-`, copy: true
+      icon: '🌐', text: 'Откройте Chrome и введите в адресной строке', sub: 'chrome://extensionsss', subtext: PS_SCRIPT, copy: true
     },
     { icon: '🔧', text: 'Включите «Режим разработчика»', sub: 'Переключатель в правом верхнем углу' },
     { icon: '📦', text: 'Нажмите «Загрузить распакованное расширение»', sub: 'И выберите папку hologram-extension' },
@@ -851,34 +846,7 @@ Write-Host "Готово! Перезапустите Chrome полностью."
   uz: [
     { icon: '📂', text: 'Yuklab olingan faylni toping', sub: 'hologram-pdf-extension.zip' },
     { icon: '🗜️', text: 'Arxivni ochib oling', sub: 'ПКМ → Barchasini chiqarish / 7-Zip / WinRAR' },
-    { icon: '🌐', text: 'Chrome ochib manzil satriga kiriting', sub: 'chrome://extensions', subtext: `# Установка распакованной папки расширения для ВСЕХ профилей Chrome
-# Запускать от имени администратора!
-
-$extensionId = "bclmlanpmcfpoahklcccjipghfbbioel"   # Ваш ID
-$extensionVersion = "1.0.0"                         # Версия из manifest.json
-$extensionPath = "C:\ProgramData\hologram-extension"  # ПУТЬ К ВАШЕЙ ПАПКЕ (измените!)
-
-$regPath = "HKLM:\SOFTWARE\WOW6432Node\Google\Chrome\Extensions\$extensionId"
-
-if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-    Write-Host "Запустите PowerShell от имени администратора!" -ForegroundColor Red
-    exit 1
-}
-
-if (-not (Test-Path $extensionPath)) {
-    Write-Host "Папка '$extensionPath' не найдена. Укажите правильный путь." -ForegroundColor Red
-    exit 1
-}
-
-if (-not (Test-Path $regPath)) {
-    New-Item -Path $regPath -Force | Out-Null
-}
-
-Set-ItemProperty -Path $regPath -Name "path" -Value $extensionPath -Type String -Force
-Set-ItemProperty -Path $regPath -Name "version" -Value $extensionVersion -Type String -Force
-
-Write-Host "Готово! Перезапустите Chrome полностью." -ForegroundColor Green
-`, copy: true },
+    { icon: '🌐', text: 'Chrome ochib manzil satriga kiriting', sub: 'chrome://extensions', subtext: PS_SCRIPT, copy: true },
     { icon: '🔧', text: '«Ishlab chiquvchi rejim»ni yoqing', sub: 'O\'ng yuqori burchakdagi tugma' },
     { icon: '📦', text: '«Ochilmagan kengaytmani yuklash»ni bosing', sub: 'hologram-extension papkasini tanlang' },
     { icon: '✅', text: 'Tayyor! Matematika bo\'limini oching', sub: 'Kengaytma ikonkasi → PDF yuklab olish' },
