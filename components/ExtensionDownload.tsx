@@ -811,25 +811,7 @@ const README = `Hologram Calculator — PDF Export Extension
 // ---------------------------------------------------------------------------
 
 const PS_SCRIPT = [
-  '# Запускать от имени администратора!',
-  '$extensionId = "bclmlanpmcfpoahklcccjipghfbbioel"',
-  '$extensionVersion = "1.0.0"',
-  '$extensionPath = "C:\\ProgramData\\hologram-extension"',
-  '$regPath = "HKLM:\\SOFTWARE\\WOW6432Node\\Google\\Chrome\\Extensions\\$extensionId"',
-  'if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {',
-  '    Write-Host "Запустите PowerShell от имени администратора!" -ForegroundColor Red',
-  '    exit 1',
-  '}',
-  'if (-not (Test-Path $extensionPath)) {',
-  '    Write-Host "Папка не найдена." -ForegroundColor Red',
-  '    exit 1',
-  '}',
-  'if (-not (Test-Path $regPath)) { New-Item -Path $regPath -Force | Out-Null }',
-  'Set-ItemProperty -Path $regPath -Name "path" -Value $extensionPath -Type String -Force',
-  'Set-ItemProperty -Path $regPath -Name "version" -Value $extensionVersion -Type String -Force',
-  'Write-Host "Готово! Перезапустите Chrome полностью." -ForegroundColor Green',
-  'Stop-Process -Name "chrome" -Force',
-  'Start-Sleep -Seconds 1'
+  'Hello world!'
 ].join('\n');
 
 const STEPS = {
