@@ -568,6 +568,59 @@ function makeErrorPreset(): OpticalComponent[] {
   ];
 }
 
+// Rectangle preset — reference beam travels a rectangular path (4-угольник)
+// Laser → BS → Mirror(top-left) → Mirror(top-right) → Film (reference)
+//         BS → Object → Film (object)
+function makeRectanglePreset(): OpticalComponent[] {
+  return [
+    { id: makeId(), type: 'laser',        x: 80,  y: 310, angle: 0,   width: 60, height: 28 },
+    { id: makeId(), type: 'beamsplitter', x: 220, y: 310, angle: 45,  width: 28, height: 28 },
+    { id: makeId(), type: 'mirror',       x: 220, y: 120, angle: -45, width: 8,  height: 54 },
+    { id: makeId(), type: 'mirror',       x: 530, y: 120, angle: 45,  width: 8,  height: 54 },
+    { id: makeId(), type: 'object',       x: 390, y: 310, angle: 0,   width: 30, height: 30 },
+    { id: makeId(), type: 'film',         x: 530, y: 310, angle: 90,  width: 8,  height: 60 },
+  ];
+}
+
+// Triangle preset — reference beam travels a triangular path
+// Laser → BS → Mirror(top-right apex) → Film (reference)
+//         BS → Object → Film (object)
+function makeTrianglePreset(): OpticalComponent[] {
+  return [
+    { id: makeId(), type: 'laser',        x: 80,  y: 320, angle: 0,   width: 60, height: 28 },
+    { id: makeId(), type: 'beamsplitter', x: 210, y: 320, angle: 45,  width: 28, height: 28 },
+    { id: makeId(), type: 'mirror',       x: 490, y: 130, angle: 112, width: 8,  height: 54 },
+    { id: makeId(), type: 'object',       x: 370, y: 320, angle: 0,   width: 30, height: 30 },
+    { id: makeId(), type: 'film',         x: 570, y: 320, angle: 90,  width: 8,  height: 60 },
+  ];
+}
+
+// Gabor (in-line) preset — no beamsplitter, object in direct beam path
+// Laser → Lens (expand) → Object (semi-transparent) → Film
+function makeGaborPreset(): OpticalComponent[] {
+  return [
+    { id: makeId(), type: 'laser',  x: 70,  y: 275, angle: 0,  width: 60, height: 28 },
+    { id: makeId(), type: 'lens',   x: 200, y: 275, angle: 0,  width: 16, height: 44 },
+    { id: makeId(), type: 'object', x: 380, y: 275, angle: 0,  width: 30, height: 30 },
+    { id: makeId(), type: 'film',   x: 570, y: 275, angle: 90, width: 8,  height: 60 },
+  ];
+}
+
+// Expanded preset — lenses in both paths for beam expansion
+// Reference: Laser → BS → Mirror → Lens → Film
+// Object:            BS → Lens → Object → Film
+function makeExpandedPreset(): OpticalComponent[] {
+  return [
+    { id: makeId(), type: 'laser',        x: 80,  y: 310, angle: 0,   width: 60, height: 28 },
+    { id: makeId(), type: 'beamsplitter', x: 200, y: 310, angle: 45,  width: 28, height: 28 },
+    { id: makeId(), type: 'mirror',       x: 200, y: 140, angle: -45, width: 8,  height: 54 },
+    { id: makeId(), type: 'lens',         x: 360, y: 140, angle: 0,   width: 16, height: 44 },
+    { id: makeId(), type: 'lens',         x: 330, y: 310, angle: 0,   width: 16, height: 44 },
+    { id: makeId(), type: 'object',       x: 470, y: 310, angle: 0,   width: 30, height: 30 },
+    { id: makeId(), type: 'film',         x: 610, y: 225, angle: 30,  width: 8,  height: 60 },
+  ];
+}
+
 const CANVAS_W = 800;
 const CANVAS_H = 550;
 const PALETTE_W = 90;
@@ -741,41 +794,64 @@ export default function OpticalTable() {
     });
   }, []);
 
-  // Draw fringe preview mini-canvas
+  // Draw fringe preview mini-canvas — proper sinusoidal I(y) = (1+cos(2πy/T))/2
   useEffect(() => {
     const canvas = fringeCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, 200, 120);
+    const W = 200, H = 120;
     ctx.fillStyle = '#060B18';
-    ctx.fillRect(0, 0, 200, 120);
+    ctx.fillRect(0, 0, W, H);
 
     if (!interferenceInfo.hasInterference || !isFinite(interferenceInfo.d_nm) || interferenceInfo.d_nm <= 0) {
-      ctx.fillStyle = '#90A4AE';
-      ctx.font = '13px monospace';
+      ctx.fillStyle = '#546E7A';
+      ctx.font = '11px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('Нет данных', 100, 60);
+      ctx.fillText('— нет интерференции —', W / 2, H / 2 - 8);
+      ctx.font = '10px monospace';
+      ctx.fillStyle = '#37474F';
+      ctx.fillText('нужны оба луча на плёнке', W / 2, H / 2 + 10);
       return;
     }
 
-    const d = interferenceInfo.d_nm;
-    const fringesVisible = Math.min(30, Math.max(2, Math.round(120 / (d / 100))));
-    const fringeH = 120 / fringesVisible;
+    // Map d_nm → pixel period: show 6-16 fringes regardless of d
+    const targetFringes = Math.min(16, Math.max(4, Math.round(6000 / interferenceInfo.d_nm)));
+    const periodPx = H / targetFringes;
+    // Animated phase offset
+    const phase = (animFrame / 120) * Math.PI * 2;
 
-    for (let i = 0; i < fringesVisible; i++) {
-      const yPos = i * fringeH;
-      const brightness = Math.sin(i * Math.PI) * 0.5 + 0.5;
-      const grad = ctx.createLinearGradient(0, yPos, 0, yPos + fringeH);
-      grad.addColorStop(0, 'rgba(0,0,0,0)');
-      grad.addColorStop(0.5, `rgba(255,179,0,${0.8 * brightness})`);
-      grad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, yPos, 200, fringeH);
+    // Pixel-accurate sinusoidal pattern via ImageData
+    const img = ctx.createImageData(W, H);
+    for (let py = 0; py < H; py++) {
+      // I = (1 + cos(2π·y/T + phase)) / 2  → range [0,1]
+      const intensity = 0.5 + 0.5 * Math.cos((2 * Math.PI * py) / periodPx + phase);
+      // Amber colour: R=255, G=179, B=0, scaled by intensity
+      const r = Math.round(255 * intensity);
+      const g = Math.round(179 * intensity);
+      const b = 0;
+      const a = Math.round(200 * intensity + 30); // dark lines slightly visible
+      for (let px = 0; px < W; px++) {
+        const i4 = (py * W + px) * 4;
+        img.data[i4]     = r;
+        img.data[i4 + 1] = g;
+        img.data[i4 + 2] = b;
+        img.data[i4 + 3] = a;
+      }
     }
-  }, [interferenceInfo]);
+    ctx.putImageData(img, 0, 0);
+
+    // Scale bar: show actual fringe period label
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, H - 18, W, 18);
+    ctx.fillStyle = '#FFB300';
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`d = ${interferenceInfo.d_nm.toFixed(0)} нм  ·  N = ${interferenceInfo.N.toFixed(0)} лин/мм`, W / 2, H - 9);
+  }, [interferenceInfo, animFrame]);
 
   // Helper: get canvas-space coords for the rotation handle of a component (world coords)
   const getRotationHandlePos = useCallback((comp: OpticalComponent): { x: number; y: number } => {
@@ -988,7 +1064,7 @@ export default function OpticalTable() {
       </div>
 
       {/* Preset buttons */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
         <button
           onClick={() => { setComponents(makeStandardPreset()); setSelectedId(null); }}
           className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
@@ -1010,9 +1086,34 @@ export default function OpticalTable() {
         >
           {t.presetError[lang]}
         </button>
-        <span className="ml-auto text-xs self-center" style={{ color: '#90A4AE' }}>
-          Клик — выбрать | Перетащить — переместить | Ручка сверху или колёсико — вращать
+        <span className="ml-auto text-xs self-center" style={{ color: '#546E7A' }}>
+          {lang === 'ru'
+            ? 'Клик — выбрать · Тащить — двигать · Ручка/колёсико — вращать'
+            : 'Klik — tanlash · Sudrab — ko\'chirish · Tutqich/g\'ildirak — aylantirish'}
         </span>
+      </div>
+
+      {/* Example model presets */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <span className="text-xs font-semibold shrink-0" style={{ color: '#546E7A' }}>
+          {t.examplesLabel[lang]}
+        </span>
+        {([
+          { fn: makeRectanglePreset, label: t.presetRect[lang],     icon: '▭', color: '#9C27B0' },
+          { fn: makeTrianglePreset,  label: t.presetTriangle[lang],  icon: '△', color: '#FF9800' },
+          { fn: makeGaborPreset,     label: t.presetGabor[lang],     icon: '⟶', color: '#00BCD4' },
+          { fn: makeExpandedPreset,  label: t.presetExpanded[lang],  icon: '⊕', color: '#4CAF50' },
+        ] as const).map(({ fn, label, icon, color }) => (
+          <button
+            key={label}
+            onClick={() => { setComponents(fn()); setSelectedId(null); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:opacity-90"
+            style={{ background: `${color}18`, border: `1px solid ${color}55`, color }}
+          >
+            <span>{icon}</span>
+            <span>{label}</span>
+          </button>
+        ))}
       </div>
 
       {/* Main layout: palette + table + info panel */}
