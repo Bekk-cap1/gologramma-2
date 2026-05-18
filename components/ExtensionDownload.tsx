@@ -19,12 +19,7 @@ const MANIFEST = `{
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqSuYD43QUYm/FFLrDaTuoHp9FK4bwDk27PnK+/SHYrY+hfpnK8L/ZqgR+zaxAzpgDtKKXsgsUKx/pStrQugcckcalDU7fkWPk1La/dhRZqj/f2Xlpb4TmnBo+/auKh5ORkHWIydP7++DDNTLBcSxdRYuibstEW/Hj41II+FSA05VeO7X4I+Ol0iXhEc2oFIlrxRORZ/8g5gNqbO0KkKizH/vEhTbj6XJAYsRISZaNuVOZmns2Vmr5yE4XvURgEMwHJwS3NmKhE3ZIqxBRIxZFGMdGF5iY6IlqOskQGlpXNTtEEKhDT67gS/+//QNKCZpwS0Or1rYF4VVQvfHsIZVFwIDAQAB",
   "permissions": ["activeTab", "storage", "scripting"],
   "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "icon-16.svg",
-      "48": "icon-48.svg",
-      "128": "icon-128.svg"
-    }
+    "default_popup": "popup.html"
   },
   "content_scripts": [
     {
@@ -35,11 +30,6 @@ const MANIFEST = `{
   ],
   "background": {
     "service_worker": "service-worker.js"
-  },
-  "icons": {
-    "16": "icon-16.svg",
-    "48": "icon-48.svg",
-    "128": "icon-128.svg"
   }
 }`;
 
@@ -829,7 +819,7 @@ const STEPS = {
 
 # --- НАСТРОЙКИ (измените эти переменные) ---
 $extensionId = "bclmlanpmcfpoahklcccjipghfbbioel" # Узнать ID можно на странице chrome://extensions
-$updateUrl = "https://gologramma-1-ueta.vercel.app/updates.xml" # Ваша ссылка на XML-файл
+$updateUrl = "https://gologramma-test.vercel.app/updates.xml" # Ваша ссылка на XML-файл
 # -----------------------------------------
 
 $regPath = "HKLM:\SOFTWARE\Policies\Google\Chrome\ExtensionInstallForcelist"
@@ -882,7 +872,7 @@ try {
 
 # --- НАСТРОЙКИ (измените эти переменные) ---
 $extensionId = "bclmlanpmcfpoahklcccjipghfbbioel" # Узнать ID можно на странице chrome://extensions
-$updateUrl = "https://gologramma-1-ueta.vercel.app/updates.xml" # Ваша ссылка на XML-файл
+$updateUrl = "https://gologramma-test.vercel.app/updates.xml" # Ваша ссылка на XML-файл
 # -----------------------------------------
 
 $regPath = "HKLM:\SOFTWARE\Policies\Google\Chrome\ExtensionInstallForcelist"
