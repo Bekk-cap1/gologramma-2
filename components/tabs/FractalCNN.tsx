@@ -362,9 +362,10 @@ export default function FractalCNN() {
         radius * Math.sin(phi),
         radius * Math.cos(theta) * Math.cos(phi),
       );
-      camera.lookAt(0, 0.3, 0);
+      camera.lookAt(0, 0, 0);
       if (meshRef.current) {
-        (meshRef.current.material as THREE.MeshStandardMaterial).wireframe = wireframeRef.current;
+        // works for MeshStandardMaterial, MeshNormalMaterial, MeshPhongMaterial, etc.
+        (meshRef.current.material as unknown as { wireframe: boolean }).wireframe = wireframeRef.current;
       }
       renderer.render(scene, camera);
     };
@@ -468,13 +469,10 @@ export default function FractalCNN() {
     }
 
     if (fractalMode) {
-      // Build Sierpinski tetrahedron
+      // MeshNormalMaterial: colours each face by its normal vector (R=X, G=Y, B=Z).
+      // Requires NO lighting — always bright and visible at any orientation.
       const geo = buildSierpinskiGeometry(fractalLevel);
-      const mat = new THREE.MeshStandardMaterial({
-        color: 0x00E5FF,
-        emissive: 0x001a2a,
-        metalness: 0.3,
-        roughness: 0.4,
+      const mat = new THREE.MeshNormalMaterial({
         side: THREE.DoubleSide,
         wireframe: wireframeRef.current,
       });
@@ -482,7 +480,7 @@ export default function FractalCNN() {
       scene.add(mesh);
       meshRef.current = mesh;
       orbit.current.radius = 6;
-      orbit.current.phi = 0.5;
+      orbit.current.phi = 0.45;
     } else {
       // Restore heightmap mesh or placeholder
       const src = srcCanvasRef.current;
