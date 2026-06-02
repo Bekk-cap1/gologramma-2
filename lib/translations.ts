@@ -284,4 +284,7 @@ export const t = {
   svgViewerRight: { ru: "ЗРИТЕЛЬ ►", uz: "TOMOSHABIN ►" },
   svgViewerLight: { ru: "◄ ЗРИТЕЛЬ + СВЕТ", uz: "◄ TOMOSHABIN + NUR" },
   svgObjectRight: { ru: "ОБЪЕКТ ►", uz: "OB'EKT ►" },
+
+  // Fractal CNN tab
+  fractalTab: { ru: "2D → 3D", uz: "2D → 3D" },
 };

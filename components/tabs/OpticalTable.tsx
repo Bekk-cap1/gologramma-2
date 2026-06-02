@@ -555,8 +555,8 @@ function makeStandardPreset(): OpticalComponent[] {
     { id: makeId(), type: 'lens', x: 360, y: 120, angle: 0, width: 16, height: 44 },
     { id: makeId(), type: 'mirror', x: 340, y: 275, angle: 45, width: 8, height: 50 },
     { id: makeId(), type: 'lens', x: 480, y: 275, angle: 0, width: 16, height: 44 },
-    { id: makeId(), type: 'object', x: 600, y: 275, angle: 0, width: 30, height: 30 },
-    { id: makeId(), type: 'film', x: 700, y: 200, angle: 90, width: 8, height: 60 },
+    { id: makeId(), type: 'object', x: 560, y: 275, angle: 0, width: 30, height: 30 },
+    { id: makeId(), type: 'film', x: 650, y: 200, angle: 90, width: 8, height: 60 },
   ];
 }
 

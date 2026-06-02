@@ -10,6 +10,7 @@ import HologramPiece from "@/components/tabs/HologramPiece";
 import Comparison from "@/components/tabs/Comparison";
 import OpticalTable from "@/components/tabs/OpticalTable";
 import ReconstructionSim from "@/components/tabs/ReconstructionSim";
+import FractalCNN from "@/components/tabs/FractalCNN";
 import { useLang } from "@/components/LanguageContext";
 import { t } from "@/lib/translations";
 
@@ -27,6 +28,7 @@ export default function Home() {
     { id: 6, label: t.tab6[lang] },
     { id: 7, label: t.tableTab[lang] },
     { id: 8, label: t.reconSimTab[lang] },
+    { id: 9, label: t.fractalTab[lang] },
   ];
 
   const renderTab = () => {
@@ -40,6 +42,7 @@ export default function Home() {
       case 6: return <Comparison />;
       case 7: return <OpticalTable />;
       case 8: return <ReconstructionSim />;
+      case 9: return <FractalCNN />;
       default: return <Equipment />;
     }
   };
