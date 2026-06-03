@@ -60,3 +60,6 @@ __pycache__/
 /model/*.ckpt
 /dataset.zip
 /fractal_3d_TZ.md
+
+/dataset.zip
+/fractal_3d_TZ.md

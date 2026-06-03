@@ -100,6 +100,8 @@ const THREE_H = 400;
 
 // ─── inline translations (keeps translations.ts clean) ────────────────────────
 const TX = {
+  circle:      { ru: "Circle -> Sphere", uz: "Circle -> Sphere" },
+  square:      { ru: "Square -> Cube", uz: "Square -> Cube" },
   title:       { ru: "2D → 3D Реконструкция (Geometry-Aware Fractal CNN)", uz: "2D → 3D Rekonstruktsiya (Geometry-Aware Fractal CNN)" },
   subtitle:    { ru: "Загрузите любое изображение — приложение создаст карту глубины и трёхмерный рельеф на основе яркости пикселей, имитируя работу Fractal CNN.", uz: "Istalgan rasmni yuklang — ilova piksel yorqinligi asosida chuqurlik xaritasi va 3D rel'ef yaratadi, Fractal CNN ishini taqlid qiladi." },
   dropTitle:   { ru: "Перетащите изображение сюда", uz: "Rasmni bu yerga torting" },
@@ -219,10 +221,12 @@ const STEPS = [
   },
 ] as const;
 
-export type SampleType = "pyramid" | "sphere" | "cube" | "sierpinski" | "mandelbrot";
+export type SampleType = "pyramid" | "circle" | "square" | "sphere" | "cube" | "sierpinski" | "mandelbrot";
 
 // ─── Fractal classifier ────────────────────────────────────────────────────────
 export type FractalKind =
+  | "sphere"       // Circle in 2D -> sphere in 3D
+  | "cube"         // Square in 2D -> cube in 3D
   | "sierpinski"   // Sierpinski triangle/tetrahedron
   | "menger"       // Menger sponge / Sierpinski carpet
   | "pythagoras"   // Pythagoras tree
@@ -268,6 +272,8 @@ function classifyFractal(depth: Float32Array, res: number): ClassifyResult {
   const aspect    = bboxW / bboxH;
   const topRatio  = sumTop / bright;          // fraction of bright pixels in top half
   const hSymm     = Math.min(sumLeft, sumRight) / Math.max(sumLeft, sumRight || 1);
+  const vSymm     = Math.min(sumTop, sumBot) / Math.max(sumTop, sumBot || 1);
+  const bboxFill  = bright / (bboxW * bboxH);
 
   // ── 2. Edge density (measures fractal boundary complexity) ─────────────
   let edges = 0;
@@ -283,6 +289,16 @@ function classifyFractal(depth: Float32Array, res: number): ClassifyResult {
     }
   }
   const edgeDensity = edges / bright;
+
+  // Simple geometric shapes: 2D circle -> 3D sphere, 2D square -> 3D cube.
+  if (aspect > 0.78 && aspect < 1.28 && hSymm > 0.84 && vSymm > 0.84 && edgeDensity < 0.35) {
+    if (bboxFill > 0.86) {
+      return { kind: "cube", name3d: "Cube", confidence: 92, reason: "Simple square silhouette detected" };
+    }
+    if (bboxFill > 0.55 && bboxFill < 0.84) {
+      return { kind: "sphere", name3d: "Sphere", confidence: 90, reason: "Simple circular silhouette detected" };
+    }
+  }
 
   // ── 3. Self-similarity at half-scale ───────────────────────────────────
   let selfSim = 0;
@@ -471,6 +487,15 @@ function drawSample(canvas: HTMLCanvasElement, type: SampleType) {
     ctx.lineTo(w * 0.12, h * 0.86);
     ctx.closePath();
     ctx.fill();
+  } else if (type === "circle") {
+    ctx.fillStyle = "#FFFFFF";
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, h * 0.41, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (type === "square") {
+    const s = h * 0.34;
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(w / 2 - s, h / 2 - s, s * 2, s * 2);
   } else if (type === "sphere") {
     const grd = ctx.createRadialGradient(w * 0.37, h * 0.35, 3, w / 2, h / 2, h * 0.41);
     grd.addColorStop(0, "#FFFFFF");
@@ -760,6 +785,8 @@ interface CNNResponse {
 
 // Map API type string → FractalKind
 function apiTypeToKind(t: string): FractalKind {
+  if (t === "circle") return "sphere";
+  if (t === "square") return "cube";
   if (t === "mandelbrot" || t === "julia" || t === "spiral_julia") return "mandelbrot"; // Mandelbulb shader
   if (t === "burning_ship") return "voxel";       // Voxel — unique per image
   if (t === "sierpinski_triangle") return "sierpinski";
@@ -775,6 +802,8 @@ function apiTypeToKind(t: string): FractalKind {
 }
 
 const CLASS_LABELS: Record<string, string> = {
+  circle: "Circle",
+  square: "Square",
   mandelbrot: "Mandelbrot",
   julia: "Julia",
   burning_ship: "Burning Ship",
@@ -793,6 +822,24 @@ const CLASS_LABELS: Record<string, string> = {
 };
 
 // ─── component ────────────────────────────────────────────────────────────────
+function kindToName3d(kind: FractalKind): string {
+  const names: Record<FractalKind, string> = {
+    sphere: "Sphere",
+    cube: "Cube",
+    sierpinski: "Sierpinski Tetrahedron",
+    menger: "Menger Sponge",
+    pythagoras: "3D Pythagoras Tree",
+    mandelbrot: "Mandelbulb",
+    koch: "Koch Snowflake Surface",
+    octahedron: "Sierpinski Octahedron",
+    dodecahedron: "Dodecahedron Fractal",
+    icosahedron: "Icosahedron Fractal",
+    cantor: "Cantor Dust",
+    voxel: "Voxel extrusion",
+  };
+  return names[kind];
+}
+
 export default function FractalCNN() {
   const { lang } = useLang();
 
@@ -1021,7 +1068,7 @@ export default function FractalCNN() {
       let cls: ClassifyResult;
       if (forcedKindRef.current) {
         const k = forcedKindRef.current;
-        cls = { kind: k, name3d: k, confidence: 100, reason: "CNN API override" };
+        cls = { kind: k, name3d: kindToName3d(k), confidence: 100, reason: "CNN API override" };
       } else {
         cls = classifyFractal(depth, MESH_RES);
       }
@@ -1057,6 +1104,12 @@ export default function FractalCNN() {
         isMandelbulbRef.current = false;
         mandelbulbUniformsRef.current = null;
         switch (cls.kind) {
+          case "sphere":
+            geo = new THREE.SphereGeometry(1.35, 64, 32);
+            r = 5; phi = 0.35; break;
+          case "cube":
+            geo = new THREE.BoxGeometry(2.2, 2.2, 2.2);
+            r = 5; phi = 0.35; break;
           case "sierpinski":
             geo = buildSierpinskiGeometry(Math.min(fractalLevel, 5));
             r = 6; phi = 0.45; break;
@@ -1191,6 +1244,7 @@ export default function FractalCNN() {
     if (!file.type.startsWith("image/")) return;
     forcedKindRef.current = null; // new image → clear CNN override
     setCnnApiResult(null);
+    setCnnError(null);
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => { processImage(img); URL.revokeObjectURL(url); };
@@ -1198,6 +1252,9 @@ export default function FractalCNN() {
   }, [processImage]);
 
   const loadSample = useCallback((type: SampleType) => {
+    forcedKindRef.current = null;
+    setCnnApiResult(null);
+    setCnnError(null);
     const off = document.createElement("canvas");
     off.width = MESH_RES; off.height = MESH_RES;
     drawSample(off, type);
@@ -1346,7 +1403,7 @@ export default function FractalCNN() {
             <span className="text-xs font-semibold shrink-0" style={{ color: "var(--text-secondary)" }}>
               {TX.simpleHdr[lang]}
             </span>
-            {(["pyramid", "sphere", "cube"] as const).map(s => (
+            {(["pyramid", "circle", "square"] as const).map(s => (
               <button key={s} onClick={() => loadSample(s)}
                 className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
                 style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}
@@ -1707,6 +1764,8 @@ export default function FractalCNN() {
           {(() => {
             const detType = detection?.kind ?? "—";
             const gen3dFormula: Record<string, string> = {
+              sphere: "circle mask -> SphereGeometry(r)",
+              cube: "square mask -> BoxGeometry(w,h,d)",
               sierpinski: "P → ½(P + Vᵢ),  i = 1..4",
               menger: "удаление центр. кубов · 20ⁿ частей",
               koch: "ребро → 4 ребра, затем extrude в 3D",
@@ -1723,7 +1782,7 @@ export default function FractalCNN() {
               { n: 1, color: "#00E5FF", title: "Вход — 2D изображение", io: "вход", formula: "I(x, y) ∈ ℝ^(W×H)", desc: "Загруженная картинка фрактала (PNG / JPG).", out: hasImage ? "✓ изображение загружено" : "ожидание загрузки", canvas: "src", icon: "🖼️" },
               { n: 2, color: "#FFB300", title: "Препроцессинг", io: "обработка", formula: "x' = (x − μ) / σ   ·   resize 128×128 RGB", desc: "Нормализация пикселей + построение карты глубины по яркости.", out: hasImage ? "✓ тензор 3×128×128" : "—", canvas: "depth", icon: "⚙️" },
               { n: 3, color: "#9C27B0", title: "CNN — извлечение признаков", io: "нейросеть", formula: "f = Conv2D×4(x') → AvgPool → f ∈ ℝ²⁵⁶", desc: "4 свёрточных блока (Conv→BN→ReLU→Pool) сжимают картинку в вектор признаков. Слева — карта активаций.", out: "✓ вектор признаков 256-D", canvas: "feat", icon: "🧠" },
-              { n: 4, color: "#69F0AE", title: "Классификация", io: "решение", formula: "P(class) = softmax(W·f) = exp(zᵢ) / Σ exp(zⱼ)", desc: "Полносвязный слой → вероятности по 15 классам. Справа — реальные оценки.", out: detName ? `✓ ${detName} — ${detection!.confidence}%` : "нажмите «CNN Анализ»", icon: "🎯", bars: true },
+              { n: 4, color: "#69F0AE", title: "Классификация", io: "решение", formula: "P(class) = softmax(W·f) = exp(zᵢ) / Σ exp(zⱼ)", desc: "Полносвязный слой → вероятности по 17 классам. Справа — реальные оценки.", out: detName ? `✓ ${detName} — ${detection!.confidence}%` : "нажмите «CNN Анализ»", icon: "🎯", bars: true },
               { n: 5, color: "#FF6E40", title: "Генерация 3D-модели", io: "построение", formula: gen3dFormula[detType] ?? "—", desc: "По типу фрактала выбирается математический 3D-генератор (Three.js).", out: detection ? `✓ ${detection.name3d}` : "ожидание классификации", canvas: "three", icon: "🔮" },
               { n: 6, color: "#E040FB", title: "Выход — 3D mesh", io: "результат", formula: `${Math.round(polyCount).toLocaleString()} полигонов · экспорт .OBJ`, desc: "Готовая трёхмерная модель: вращение, масштаб, скачивание.", out: polyCount > 0 ? "✓ модель построена" : "—", canvas: "three", icon: "📦" },
             ];

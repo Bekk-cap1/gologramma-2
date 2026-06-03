@@ -7,7 +7,7 @@
 import argparse, csv, os, random, math
 from multiprocessing import Pool, cpu_count
 import numpy as np
-from PIL import Image, ImageFilter
+from PIL import Image, ImageFilter, ImageDraw
 
 FRACTAL_TYPES = [
     "mandelbrot", "julia", "burning_ship",
@@ -15,6 +15,7 @@ FRACTAL_TYPES = [
     "pythagoras_tree", "koch_snowflake", "barnsley_fern", "dragon_curve",
     "octahedron_3d", "dodecahedron_3d", "icosahedron_3d", "cantor_dust_3d",
     "spiral_julia",
+    "circle", "square",
 ]
 
 # c-values that produce spiral structures in the Julia set
@@ -402,8 +403,6 @@ def render_menger_sponge_projection(size, level=3):
 # ══════════════════════════════════════════════════════════════════════════════
 # NEW 2D FRACTALS — tree, snowflake, fern, dragon
 # ══════════════════════════════════════════════════════════════════════════════
-from PIL import ImageDraw
-
 def render_pythagoras_tree(size, depth=10, ang=0.5):
     im = Image.new("L", (size, size), 0)
     draw = ImageDraw.Draw(im)
@@ -490,6 +489,43 @@ def render_dragon_curve(size, iters=12):
 # ──────────────────────────────────────────────────────────────────────────────
 # Augmentation
 # ──────────────────────────────────────────────────────────────────────────────
+
+def _shape_canvas(size, scale=3):
+    big = size * scale
+    return Image.new("L", (big, big), 0), big
+
+
+def render_circle(size, rng):
+    im, big = _shape_canvas(size)
+    draw = ImageDraw.Draw(im)
+    radius = rng.uniform(0.28, 0.40) * big
+    cx = big / 2 + rng.uniform(-0.04, 0.04) * big
+    cy = big / 2 + rng.uniform(-0.04, 0.04) * big
+    box = [cx - radius, cy - radius, cx + radius, cy + radius]
+    if rng.random() < 0.78:
+        draw.ellipse(box, fill=255)
+    else:
+        draw.ellipse(box, outline=255, width=max(3, int(big * rng.uniform(0.025, 0.055))))
+    im = im.resize((size, size), Image.Resampling.LANCZOS)
+    return np.asarray(im, dtype=np.float32) / 255.0
+
+
+def render_square(size, rng):
+    im, big = _shape_canvas(size)
+    draw = ImageDraw.Draw(im)
+    half = rng.uniform(0.26, 0.38) * big
+    cx = big / 2 + rng.uniform(-0.04, 0.04) * big
+    cy = big / 2 + rng.uniform(-0.04, 0.04) * big
+    box = [cx - half, cy - half, cx + half, cy + half]
+    if rng.random() < 0.78:
+        draw.rectangle(box, fill=255)
+    else:
+        draw.rectangle(box, outline=255, width=max(3, int(big * rng.uniform(0.025, 0.055))))
+    if rng.random() < 0.3:
+        im = im.rotate(rng.uniform(-10, 10), fillcolor=0, resample=Image.Resampling.BILINEAR)
+    im = im.resize((size, size), Image.Resampling.LANCZOS)
+    return np.asarray(im, dtype=np.float32) / 255.0
+
 
 def augment(arr: np.ndarray) -> np.ndarray:
     """Heavy style augmentation → kills the domain gap between synthetic and real images."""
@@ -646,11 +682,22 @@ def generate_one(args):
         arr = render_cantor_dust_3d(size, rng)
         params = {"c_real": 0.0, "c_imag": 0.0, "zoom": 1.0, "iterations": 3}
 
-    else:  # spiral_julia
+    elif ftype == "spiral_julia":
         cr, ci = rng.choice(SPIRAL_CS)
         zoom = rng.uniform(0.7, 1.4)
         arr = render_spiral_julia(size, cr, ci, zoom, max_iter=300)
         params = {"c_real": cr, "c_imag": ci, "zoom": zoom, "iterations": 300}
+
+    elif ftype == "circle":
+        arr = render_circle(size, rng)
+        params = {"c_real": 0.0, "c_imag": 0.0, "zoom": 1.0, "iterations": 1}
+
+    elif ftype == "square":
+        arr = render_square(size, rng)
+        params = {"c_real": 0.0, "c_imag": 0.0, "zoom": 1.0, "iterations": 1}
+
+    else:
+        raise ValueError(f"Unknown image class: {ftype}")
 
     arr = augment(arr)
     img = Image.fromarray((arr * 255).astype(np.uint8), mode="L")

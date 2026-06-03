@@ -28,6 +28,7 @@ FRACTAL_CLASSES = [
     "pythagoras_tree", "koch_snowflake", "barnsley_fern", "dragon_curve",
     "octahedron_3d", "dodecahedron_3d", "icosahedron_3d", "cantor_dust_3d",
     "spiral_julia",
+    "circle", "square",
 ]
 CLS2IDX = {c: i for i, c in enumerate(FRACTAL_CLASSES)}
 NUM_CLASSES = len(FRACTAL_CLASSES)
