@@ -1,0 +1,9 @@
+fastapi
+numpy
+pandas
+pillow
+pydantic
+torch
+torchvision
+tqdm
+uvicorn
