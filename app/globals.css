@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Exclude binary/non-web files from Tailwind class scanning */
+@source not "../dataset/**";
+@source not "../scripts/**";
+@source not "../model/**";
+
 :root {
   --bg-primary: #060B18;
   --bg-secondary: #0D1526;
