@@ -1,0 +1,14 @@
+# Optional: enables Depth Anything V2 as the neural-depth unary estimator.
+# Without these, neural depth gracefully falls back to pseudo_depth_from_image
+# (gradient/contrast/focus cues) + DCNF-CRF — the system stays fully functional.
+#
+# Install:  python -m pip install -r requirements-neural.txt
+#
+# NOTE: transformers must stay <5 with torch 2.6 — transformers 5.x references
+# torch.float8_e8m0fnu which only exists in torch >=2.7 (ImportError otherwise).
+# For CUDA wheels (e.g. RTX 4060), install torch from the appropriate index-url:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+torch>=2.6,<2.7
+torchvision
+transformers>=4.44,<5
+safetensors

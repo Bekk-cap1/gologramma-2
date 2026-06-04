@@ -7,3 +7,13 @@ torch
 torchvision
 tqdm
 uvicorn
+# fractal_3d 4-layer reconstruction system
+scipy
+scikit-image
+scikit-learn
+matplotlib
+trimesh
+httpx
+pytest
+# optional: multi-agent LLM orchestration (system falls back to local mode without it)
+anthropic

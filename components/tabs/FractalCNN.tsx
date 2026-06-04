@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import * as THREE from "three";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { useLang } from "@/components/LanguageContext";
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -138,10 +139,29 @@ const TX = {
   cnnModel:    { ru: "3D модель:", uz: "3D model:" },
   cnnParams:   { ru: "Параметры:", uz: "Parametrlar:" },
   cnnApply:    { ru: "Применить к 3D", uz: "3D ga qo'llash" },
-  cnnOffline:  { ru: "API недоступен. Запустите: python scripts/api_server.py", uz: "API mavjud emas. Ishga tushiring: python scripts/api_server.py" },
+  cnnOffline:  { ru: "API недоступен. Запустите: python -m fractal_3d.api_server", uz: "API mavjud emas. Ishga tushiring: python -m fractal_3d.api_server" },
   cnnScores:   { ru: "Оценки классов:", uz: "Sinf ballari:" },
   cnnShowParams: { ru: "Параметры", uz: "Parametrlar" },
   cnnParamsHint: { ru: "Предсказание параметров — обратная задача, точность низкая. Классификация надёжнее.", uz: "Parametrlarni bashorat qilish — teskari masala, aniqligi past." },
+  // Step-by-step reconstruction panel
+  stepsTitle:   { ru: "🔬 Пошаговая реконструкция (4 слоя)", uz: "🔬 Bosqichma-bosqich rekonstruksiya (4 qatlam)" },
+  stepsBtn:     { ru: "▶ Запустить разбор", uz: "▶ Tahlilni boshlash" },
+  stepsLoading: { ru: "Анализирую слои...", uz: "Qatlamlar tahlil qilinmoqda..." },
+  stepsOffline: { ru: "API недоступен. Запустите: python -m fractal_3d.api_server", uz: "API mavjud emas. Ishga tushiring: python -m fractal_3d.api_server" },
+  finalVerdict: { ru: "Итоговое решение", uz: "Yakuniy qaror" },
+  depthTitle:   { ru: "Карта глубины (из бэкенда)", uz: "Chuqurlik xaritasi" },
+  escParams:    { ru: "Параметры escape", uz: "Escape parametrlari" },
+  escSsim:      { ru: "SSIM к эталону", uz: "Etalonga SSIM" },
+  escMethod:    { ru: "Метод", uz: "Usul" },
+  escView:      { ru: "Вид (zoom/центр)", uz: "Ko'rinish (zoom/markaz)" },
+  layerLbl:     { ru: "Слой", uz: "Qatlam" },
+  build3dBtn:   { ru: "🔮 Построить реальный 3D меш", uz: "🔮 Haqiqiy 3D mesh qurish" },
+  build3dLoad:  { ru: "Реконструирую меш на бэкенде...", uz: "Backendda mesh rekonstruksiya qilinmoqda..." },
+  build3dTpl:   { ru: "Шаблон (быстро)", uz: "Shablon (tez)" },
+  build3dHint:  { ru: "Финальный шаг: строит 3D объект ниже из самого изображения (IFS/глубина → marching cubes)", uz: "Yakuniy bosqich: 3D obyekt rasmning o'zidan quriladi (IFS/chuqurlik → marching cubes)" },
+  build3dLow:   { ru: "⚠ Низкая уверенность — будет построена приблизительная модель", uz: "⚠ Past ishonch — taxminiy model quriladi" },
+  meshBackend:  { ru: "✅ реальный меш из бэкенда", uz: "✅ backenddan haqiqiy mesh" },
+  meshTemplate: { ru: "▢ шаблонный генератор", uz: "▢ shablon generatori" },
   pipeTitle:   { ru: "Пайплайн 2D → 3D: пошагово", uz: "2D → 3D quvuri: bosqichma-bosqich" },
   pipeHint:    { ru: "Как изображение превращается в 3D-модель — каждый этап с формулой", uz: "Tasvir qanday 3D-modelga aylanadi — har bosqich formula bilan" },
   pipeline:    { ru: "Полный конвейер:", uz: "To'liq quvur:" },
@@ -155,6 +175,30 @@ const TX = {
   detRecur:    { ru: "Глубина рекурсии:", uz: "Rekursiya chuqurligi:" },
   exportOBJ:   { ru: "Экспорт OBJ", uz: "OBJ eksport" },
   fractalLvl2: { ru: "Уровень рекурсии", uz: "Rekursiya darajasi" },
+  // ── stage-5: tie-break / recovery / pose / generation ──────────────────────
+  tbTitle:       { ru: "Тай-брейк: геометрия переопределила CNN", uz: "Tay-brek: geometriya CNN ni qayta belgiladi" },
+  tbReason:      { ru: "Причина", uz: "Sabab" },
+  tbCnnThought:  { ru: "CNN считал", uz: "CNN deb hisobladi" },
+  tbGeoDecided:  { ru: "Геометрия решила", uz: "Geometriya qaror qildi" },
+  recCanonical:  { ru: "📐 Каноничная IFS", uz: "📐 Kanonik IFS" },
+  recBlind:      { ru: "🔍 Blind Recovery", uz: "🔍 Blind Recovery" },
+  recSkipped:    { ru: "⏭ IFS пропущен", uz: "⏭ IFS o'tkazildi" },
+  poseTitle:     { ru: "Подгонка позы", uz: "Poza moslash" },
+  poseScale:     { ru: "Масштаб", uz: "Masshtab" },
+  poseAngle:     { ru: "Поворот", uz: "Burilish" },
+  poseShift:     { ru: "Сдвиг", uz: "Siljish" },
+  poseFit:       { ru: "IoU подгонки", uz: "IoU mosligi" },
+  theoDim:       { ru: "Теоретич. D", uz: "Nazariy D" },
+  transformsLbl: { ru: "Преобразования (матрицы)", uz: "Almashtirishlar (matritsalar)" },
+  showAll:       { ru: "показать все", uz: "barchasini ko'rsatish" },
+  collapse:      { ru: "свернуть", uz: "yig'ish" },
+  evidenceLbl:   { ru: "Доказательства", uz: "Dalillar" },
+  moreN:         { ru: "ещё", uz: "yana" },
+  genMethodLbl:  { ru: "Метод генерации", uz: "Yaratish usuli" },
+  genChaos:      { ru: "Chaos Game (100K точек)", uz: "Chaos Game (100K nuqta)" },
+  genBoundary:   { ru: "Рекурсивная граница + extrusion", uz: "Rekursiv chegara + extrusion" },
+  genEscape:     { ru: "Escape-time карта глубины", uz: "Escape-time chuqurlik xaritasi" },
+  recMethodLbl:  { ru: "Метод восстановления", uz: "Tiklash usuli" },
 };
 
 // ─── CNN architecture steps ────────────────────────────────────────────────────
@@ -783,6 +827,94 @@ interface CNNResponse {
   all_scores: Record<string, number>;
 }
 
+// ─── Step-by-step reconstruction API types ────────────────────────────────────
+interface StepMetric {
+  label: { ru: string; uz: string };
+  value: string;
+}
+interface IFSTransform {
+  matrix: number[][];        // 2×2 linear part
+  translation: number[];     // 2-vector
+  probability: number;
+}
+interface IFSPose {
+  scale: number;
+  angle_deg: number;
+  tx: number;
+  ty: number;
+  fit_score: number;
+}
+interface StepImage {
+  id: string;
+  title: string;
+  description?: string;
+  data: string;
+}
+interface PipelineStep {
+  id: string;
+  layer: number;
+  title: { ru: string; uz: string };
+  confidence: number;
+  hint: string;
+  metrics: StepMetric[];
+  // ── stage-5 extras (present only on specific cards) ───────────────────────
+  recovery_method?: string;            // ifs_recovery card
+  theoretical_dimension?: number | null;
+  transforms?: IFSTransform[];
+  pose?: IFSPose;
+  tiebreak_applied?: boolean;          // tiebreak card
+  evidence?: string[];
+  images?: StepImage[];
+  formula?: string;
+}
+interface AnalyzeStepsResponse {
+  final: {
+    type: string;
+    type_3d: string;
+    category: string;
+    confidence: number;
+    is_escape_time: boolean;
+    fractal_dimension: number;
+    low_confidence: boolean;
+    agreement: number;
+    // ── stage-5 extras ────────────────────────────────────────────────────
+    recovery_method?: string;
+    theoretical_dimension?: number | null;
+    generation_method?: string;
+    tiebreak_applied?: boolean;
+    tiebreak_reason?: string | null;
+    cnn_original_class?: string;
+    pose_fit_score?: number | null;
+    // ── stage-10: neural depth routing ───────────────────────────────────────
+    depth_method?: string;
+    photo_detection?: { is_photo: boolean; confidence: number; evidence?: string[] } | null;
+    depth_routing_reason?: string | null;
+  };
+  depth_image: string;
+  escape_params?: EscapeParams | null;
+  steps: PipelineStep[];
+}
+
+interface EscapeParams {
+  c_real: number;
+  c_imag: number;
+  center_x: number;
+  center_y: number;
+  zoom: number;
+  similarity: number;
+  optimization_method: string;
+  search_log?: Record<string, number | number[] | boolean>;
+}
+
+interface DepthMetricTriple { unary: number; crf: number; da_v2: number; }
+interface ComparisonMetrics {
+  gradient_energy: DepthMetricTriple;
+  smoothness: DepthMetricTriple;
+  edge_alignment: DepthMetricTriple;
+  depth_range: DepthMetricTriple;
+  differences: { crf_vs_unary: number; da_vs_crf: number; da_vs_unary: number };
+}
+
 // Map API type string → FractalKind
 function apiTypeToKind(t: string): FractalKind {
   if (t === "circle") return "sphere";
@@ -822,6 +954,21 @@ const CLASS_LABELS: Record<string, string> = {
 };
 
 // ─── component ────────────────────────────────────────────────────────────────
+function StepImages({ images }: { images: StepImage[] }) {
+  if (!images || images.length === 0) return null;
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+      {images.map((img) => (
+        <div key={img.id} className="rounded-lg p-2" style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)" }}>
+          <div className="text-xs font-semibold mb-1" style={{ color: "#06b6d4" }}>{img.title}</div>
+          <img src={img.data} alt={img.title} className="w-full rounded" style={{ imageRendering: "auto", border: "1px solid var(--border-color)" }} />
+          {img.description && <div className="text-[11px] mt-1" style={{ color: "var(--text-secondary)" }}>{img.description}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function kindToName3d(kind: FractalKind): string {
   const names: Record<FractalKind, string> = {
     sphere: "Sphere",
@@ -839,6 +986,86 @@ function kindToName3d(kind: FractalKind): string {
   };
   return names[kind];
 }
+
+// ─── MetricRow: a single row in the depth-comparison metrics table ────────────
+function MetricRow({ label, values }: { label: string; values: { unary: number; crf: number; da_v2: number } }) {
+  const vals = [values.unary, values.crf, values.da_v2];
+  const best = Math.max(...vals);
+  const cell = (v: number) => (
+    <td className="text-center py-1" style={{ color: v === best ? "#34D399" : "var(--text-secondary)", fontWeight: v === best ? 700 : 400 }}>{v.toFixed(3)}</td>
+  );
+  return (
+    <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
+      <td className="py-1" style={{ color: "var(--text-secondary)" }}>{label}</td>
+      {cell(values.unary)}{cell(values.crf)}{cell(values.da_v2)}
+    </tr>
+  );
+}
+
+// ─── interpretMetrics: produce a short RU interpretation sentence ─────────────
+function interpretMetrics(m: ComparisonMetrics): string {
+  const parts: string[] = [];
+  if (m.differences.crf_vs_unary * 100 < 5) {
+    parts.push("CRF почти не изменил unary (детали сохранены).");
+  } else if (m.differences.crf_vs_unary * 100 > 15) {
+    parts.push("CRF сильно сгладил unary.");
+  }
+  const geVals = [m.gradient_energy.unary, m.gradient_energy.crf, m.gradient_energy.da_v2];
+  const geMax = Math.max(...geVals);
+  if (m.gradient_energy.da_v2 === geMax) {
+    parts.push("DA V2 даёт больше всего деталей.");
+  } else if (m.gradient_energy.crf > m.gradient_energy.da_v2) {
+    parts.push("Full CRF подчёркивает границы сильнее.");
+  }
+  const eaVals = [m.edge_alignment.unary, m.edge_alignment.crf, m.edge_alignment.da_v2];
+  const eaMax = Math.max(...eaVals);
+  if (m.edge_alignment.da_v2 === eaMax) {
+    parts.push("Границы DA V2 лучше совпадают с изображением.");
+  }
+  return parts.join(" ");
+}
+
+// ─── Display-settings types + presets ─────────────────────────────────────────
+interface PipelineSettings {
+  showBoxCounting: boolean; showIFS: boolean; showFourier: boolean;
+  showLacunarity: boolean; showMultifractal: boolean; showCNN: boolean;
+  showEnsemble: boolean; showTiebreak: boolean; showDepthSteps: boolean;
+  showVerification: boolean; showComparison: boolean;
+  showPipeline: boolean; showArchitecture: boolean; generateImages: boolean;
+}
+const ALL_ON: PipelineSettings = { showBoxCounting:true, showIFS:true, showFourier:true, showLacunarity:true, showMultifractal:true, showCNN:true, showEnsemble:true, showTiebreak:true, showDepthSteps:true, showVerification:true, showComparison:false, showPipeline:true, showArchitecture:true, generateImages:true };
+const MINIMAL: PipelineSettings = { showBoxCounting:false, showIFS:false, showFourier:false, showLacunarity:false, showMultifractal:false, showCNN:false, showEnsemble:false, showTiebreak:false, showDepthSteps:true, showVerification:false, showComparison:false, showPipeline:false, showArchitecture:false, generateImages:false };
+const MATH_ONLY: PipelineSettings = { showBoxCounting:true, showIFS:true, showFourier:true, showLacunarity:true, showMultifractal:true, showCNN:false, showEnsemble:false, showTiebreak:false, showDepthSteps:false, showVerification:false, showComparison:false, showPipeline:false, showArchitecture:false, generateImages:true };
+
+// ─── Toggle presentational component ─────────────────────────────────────────
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex items-center gap-2 cursor-pointer select-none text-xs"
+      style={{ color: checked ? "var(--text-primary)" : "var(--text-secondary)" }}>
+      <input
+        type="checkbox"
+        className="accent-cyan-500"
+        checked={checked}
+        onChange={e => onChange(e.target.checked)}
+      />
+      {label}
+    </label>
+  );
+}
+
+// ─── Step visibility map ──────────────────────────────────────────────────────
+const STEP_VISIBLE: Record<string, (s: PipelineSettings) => boolean> = {
+  box_counting:  s => s.showBoxCounting,
+  ifs_recovery:  s => s.showIFS,
+  fourier:       s => s.showFourier,
+  lacunarity:    s => s.showLacunarity,
+  multifractal:  s => s.showMultifractal,
+  cnn:           s => s.showCNN,
+  fusion:        s => s.showEnsemble,
+  tiebreak:      s => s.showTiebreak,
+  depth:         s => s.showDepthSteps,
+  verification:  s => s.showVerification,
+};
 
 export default function FractalCNN() {
   const { lang } = useLang();
@@ -858,9 +1085,28 @@ export default function FractalCNN() {
   const [cnnLoading, setCnnLoading]       = useState(false);
   const [cnnError, setCnnError]           = useState<string | null>(null);
   const [showCnnParams, setShowCnnParams] = useState(false);
+  const [steps, setSteps]                 = useState<AnalyzeStepsResponse | null>(null);
+  const [stepsLoading, setStepsLoading]   = useState(false);
+  const [stepsError, setStepsError]       = useState<string | null>(null);
+  const [depthMethod, setDepthMethod]     = useState<"auto" | "neural" | "mathematical">("auto");
+  const [crfStrength, setCrfStrength]     = useState<"auto" | "none" | "light" | "full">("auto");
+  const [revealedSteps, setRevealedSteps] = useState(0);
+  const [showAllTransforms, setShowAllTransforms] = useState(false);
+  const [showAllEvidence, setShowAllEvidence]     = useState(false);
+  const [build3dLoading, setBuild3dLoading] = useState(false);
+  const [meshSource, setMeshSource]         = useState<"backend" | "template" | null>(null);
+  const [settings, setSettings]             = useState<PipelineSettings>(ALL_ON);
+  const [settingsOpen, setSettingsOpen]     = useState(false);
+  const [comparisonGrid, setComparisonGrid] = useState<string | null>(null);
+  const [comparisonMetrics, setComparisonMetrics] = useState<ComparisonMetrics | null>(null);
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [previewUrl, setPreviewUrl]         = useState<string | null>(null);
 
   const fileInputRef   = useRef<HTMLInputElement>(null);
   const srcCanvasRef   = useRef<HTMLCanvasElement>(null);
+  // Full-resolution (<=1024) copy of the upload — used for the crisp preview and
+  // for what we send to the backend (srcCanvasRef stays 128px for the local mesh).
+  const hiResCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const depthCanvasRef = useRef<HTMLCanvasElement>(null);
   const threeCanvasRef = useRef<HTMLCanvasElement>(null);
   const pipeSrcRef     = useRef<HTMLCanvasElement>(null);
@@ -894,6 +1140,10 @@ export default function FractalCNN() {
   useEffect(() => { hasImageRef.current    = hasImage;    }, [hasImage]);
   // CNN override: when set, rebuildFractal uses this kind instead of heuristic
   const forcedKindRef = useRef<FractalKind | null>(null);
+  // Real backend-reconstructed mesh (from /reconstruct OBJ). When set + enabled,
+  // rebuildFractal renders THIS geometry instead of a client-side template.
+  const backendGeoRef    = useRef<THREE.BufferGeometry | null>(null);
+  const useBackendMeshRef = useRef(false);
 
   // ── Three.js initialisation (runs once) ─────────────────────────────────────
   useEffect(() => {
@@ -1017,6 +1267,17 @@ export default function FractalCNN() {
     const sCtx = src.getContext("2d")!;
     sCtx.drawImage(img, 0, 0, MESH_RES, MESH_RES);
 
+    // High-resolution copy (<=1024, aspect preserved) for the preview + backend.
+    const HIRES_MAX = 1024;
+    const iw = img.naturalWidth || img.width || MESH_RES;
+    const ih = img.naturalHeight || img.height || MESH_RES;
+    const scale = Math.min(1, HIRES_MAX / Math.max(iw, ih));
+    if (!hiResCanvasRef.current) hiResCanvasRef.current = document.createElement("canvas");
+    const hi = hiResCanvasRef.current;
+    hi.width = Math.max(1, Math.round(iw * scale));
+    hi.height = Math.max(1, Math.round(ih * scale));
+    hi.getContext("2d")!.drawImage(img, 0, 0, hi.width, hi.height);
+
     const imgData = sCtx.getImageData(0, 0, MESH_RES, MESH_RES);
     const depth = buildDepth(imgData, smoothing);
     depthDataRef.current = depth;
@@ -1056,6 +1317,21 @@ export default function FractalCNN() {
       meshRef.current.geometry.dispose();
       (meshRef.current.material as THREE.Material).dispose();
       meshRef.current = null;
+    }
+
+    // ── Priority: real mesh reconstructed by the Python backend (no template) ──
+    if (useBackendMeshRef.current && backendGeoRef.current) {
+      isMandelbulbRef.current = false;
+      mandelbulbUniformsRef.current = null;
+      const bgeo = backendGeoRef.current.clone();  // clone so future rebuilds don't dispose the source
+      const bmat = new THREE.MeshNormalMaterial({ side: THREE.DoubleSide, wireframe: wireframeRef.current });
+      const bmesh = new THREE.Mesh(bgeo, bmat);
+      scene.add(bmesh);
+      meshRef.current = bmesh;
+      orbit.current.radius = 4.5;
+      orbit.current.phi    = 0.4;
+      setPolyCount(bgeo.attributes.position.count / 3);
+      return;
     }
 
     const depth = depthDataRef.current;
@@ -1243,24 +1519,32 @@ export default function FractalCNN() {
   const loadFile = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) return;
     forcedKindRef.current = null; // new image → clear CNN override
+    useBackendMeshRef.current = false; backendGeoRef.current = null; setMeshSource(null);
+    setSteps(null); setStepsError(null); setRevealedSteps(0);
     setCnnApiResult(null);
     setCnnError(null);
     const url = URL.createObjectURL(file);
+    // Keep the object URL alive so the preview shows the ORIGINAL (full-res) image.
+    setPreviewUrl((prev) => { if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev); return url; });
     const img = new Image();
-    img.onload = () => { processImage(img); URL.revokeObjectURL(url); };
+    img.onload = () => { processImage(img); };
     img.src = url;
   }, [processImage]);
 
   const loadSample = useCallback((type: SampleType) => {
     forcedKindRef.current = null;
+    useBackendMeshRef.current = false; backendGeoRef.current = null; setMeshSource(null);
+    setSteps(null); setStepsError(null); setRevealedSteps(0);
     setCnnApiResult(null);
     setCnnError(null);
     const off = document.createElement("canvas");
     off.width = MESH_RES; off.height = MESH_RES;
     drawSample(off, type);
+    const dataUrl = off.toDataURL();
+    setPreviewUrl((prev) => { if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev); return dataUrl; });
     const img = new Image();
     img.onload = () => processImage(img);
-    img.src = off.toDataURL();
+    img.src = dataUrl;
   }, [processImage]);
 
   // ── Three.js orbit controls (mouse) ───────────────────────────────────────
@@ -1290,7 +1574,7 @@ export default function FractalCNN() {
     setCnnError(null);
     try {
       // Get image as base64 JPEG (smaller than PNG)
-      const b64 = src.toDataURL("image/jpeg", 0.92).split(",")[1];
+      const b64 = (hiResCanvasRef.current ?? src).toDataURL("image/png").split(",")[1];
       const res = await fetch("http://localhost:8000/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1305,6 +1589,39 @@ export default function FractalCNN() {
       setCnnLoading(false);
     }
   }, []);
+
+  // ── Step-by-step reconstruction (4-layer pipeline) ──────────────────────────
+  const runSteps = useCallback(async () => {
+    const src = srcCanvasRef.current;
+    if (!src) return;
+    setStepsLoading(true);
+    setStepsError(null);
+    setSteps(null);
+    setRevealedSteps(0);
+    try {
+      const b64 = (hiResCanvasRef.current ?? src).toDataURL("image/png").split(",")[1];
+      const res = await fetch("http://localhost:8000/analyze_steps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: b64, depth_method: depthMethod, crf_strength: crfStrength, generate_images: settings.generateImages }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: AnalyzeStepsResponse = await res.json();
+      setSteps(data);
+      // Staggered reveal animation
+      let n = 0;
+      const total = data.steps.length;
+      const timer = setInterval(() => {
+        n += 1;
+        setRevealedSteps(n);
+        if (n >= total) clearInterval(timer);
+      }, 250);
+    } catch {
+      setStepsError("offline");
+    } finally {
+      setStepsLoading(false);
+    }
+  }, [depthMethod, crfStrength, settings]);
 
   // Apply CNN result with heuristic cross-check
   const applyCNNto3D = useCallback(() => {
@@ -1331,12 +1648,88 @@ export default function FractalCNN() {
     }
 
     forcedKindRef.current = finalKind;
+    useBackendMeshRef.current = false; backendGeoRef.current = null; setMeshSource("template");
     if (fractalMode) {
       rebuildFractal();
     } else {
       setFractalMode(true);
     }
   }, [cnnApiResult, fractalMode, rebuildFractal]);
+
+  // Build the 3D model from the step-by-step pipeline verdict.
+  // Primary path: fetch the REAL mesh reconstructed by the backend (/reconstruct,
+  // built from the image's IFS transforms / depth map — NOT a class template).
+  // Fallback: if the backend is unreachable or returns no mesh, use the client-side
+  // template generator. Always builds — even on low_confidence (best-effort, per TZ).
+  const buildTemplate = useCallback(() => {
+    if (!steps) return;
+    useBackendMeshRef.current = false;
+    backendGeoRef.current = null;
+    forcedKindRef.current = apiTypeToKind(steps.final.type);
+    setMeshSource("template");
+    if (fractalMode) rebuildFractal();
+    else setFractalMode(true);
+  }, [steps, fractalMode, rebuildFractal]);
+
+  const applyStepsTo3D = useCallback(async () => {
+    if (!steps) return;
+    const src = srcCanvasRef.current;
+    setBuild3dLoading(true);
+    try {
+      if (!src) throw new Error("no canvas");
+      const b64 = (hiResCanvasRef.current ?? src).toDataURL("image/png").split(",")[1];
+      const res = await fetch("http://localhost:8000/reconstruct", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: b64, quality: "fast", depth_method: depthMethod, crf_strength: crfStrength }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: { obj_file?: string } = await res.json();
+      if (!data.obj_file) throw new Error("no obj");
+
+      const objText = atob(data.obj_file);
+      const group = new OBJLoader().parse(objText);
+      let geo: THREE.BufferGeometry | null = null;
+      group.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!geo && m.isMesh && (m.geometry as THREE.BufferGeometry)?.attributes?.position) {
+          geo = m.geometry as THREE.BufferGeometry;
+        }
+      });
+      if (!geo) throw new Error("empty mesh");
+
+      // recenter + normalise scale so it fits the orbit camera, recompute normals for shading
+      const g: THREE.BufferGeometry = geo;
+      g.computeBoundingBox();
+      const bb = g.boundingBox!;
+      const center = new THREE.Vector3();
+      bb.getCenter(center);
+      g.translate(-center.x, -center.y, -center.z);
+      const size = new THREE.Vector3();
+      bb.getSize(size);
+      const maxd = Math.max(size.x, size.y, size.z) || 1;
+      const s = 3.2 / maxd;
+      g.scale(s, s, s);
+      g.computeVertexNormals();
+
+      backendGeoRef.current = g;
+      useBackendMeshRef.current = true;
+      setMeshSource("backend");
+      setDetection({
+        kind: apiTypeToKind(steps.final.type),
+        name3d: steps.final.type_3d,
+        confidence: Math.round(steps.final.confidence),
+        reason: "Backend reconstruction (real mesh from image)",
+      });
+      if (fractalMode) rebuildFractal();
+      else setFractalMode(true);
+    } catch {
+      // backend unavailable → graceful fallback to template generator
+      buildTemplate();
+    } finally {
+      setBuild3dLoading(false);
+    }
+  }, [steps, fractalMode, rebuildFractal, buildTemplate, depthMethod, crfStrength]);
 
   const exportOBJ = useCallback(() => {
     const mesh = meshRef.current;
@@ -1358,9 +1751,83 @@ export default function FractalCNN() {
     URL.revokeObjectURL(a.href);
   }, [detection]);
 
+  // ── Depth-method comparison grid ────────────────────────────────────────────
+  const compareDepth = useCallback(async () => {
+    const src = srcCanvasRef.current;
+    if (!src || compareLoading) return;
+    setCompareLoading(true);
+    setComparisonGrid(null);
+    try {
+      const b64 = (hiResCanvasRef.current ?? src).toDataURL("image/png").split(",")[1];
+      const res = await fetch("http://localhost:8000/compare_depth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: b64, depth_method: depthMethod }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: { comparison_grid: string; metrics?: ComparisonMetrics } = await res.json();
+      setComparisonGrid(data.comparison_grid || null);
+      setComparisonMetrics(data.metrics ?? null);
+    } catch {
+      setComparisonGrid(null);
+      setComparisonMetrics(null);
+    } finally {
+      setCompareLoading(false);
+    }
+  }, [compareLoading, depthMethod]);
+
   // ── render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
+
+      {/* ── Display settings panel ── */}
+      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border-color)", background: "var(--bg-card)" }}>
+        <button
+          onClick={() => setSettingsOpen(v => !v)}
+          className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-semibold transition-all"
+          style={{ color: "var(--text-primary)", background: "var(--bg-card)" }}
+        >
+          <span>⚙️ Настройки отображения</span>
+          <span style={{ color: "var(--text-secondary)" }}>{settingsOpen ? "▲" : "▼"}</span>
+        </button>
+        {settingsOpen && (
+          <div className="px-4 pb-4 space-y-3" style={{ borderTop: "1px solid var(--border-color)" }}>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-3">
+              <Toggle label="Box-counting"        checked={settings.showBoxCounting}  onChange={v => setSettings(s => ({ ...s, showBoxCounting: v }))} />
+              <Toggle label="IFS recovery"        checked={settings.showIFS}          onChange={v => setSettings(s => ({ ...s, showIFS: v }))} />
+              <Toggle label="Фурье-спектр"        checked={settings.showFourier}      onChange={v => setSettings(s => ({ ...s, showFourier: v }))} />
+              <Toggle label="Лакунарность"        checked={settings.showLacunarity}   onChange={v => setSettings(s => ({ ...s, showLacunarity: v }))} />
+              <Toggle label="Мультифрактал"       checked={settings.showMultifractal} onChange={v => setSettings(s => ({ ...s, showMultifractal: v }))} />
+              <Toggle label="CNN"                 checked={settings.showCNN}          onChange={v => setSettings(s => ({ ...s, showCNN: v }))} />
+              <Toggle label="Ансамбль"            checked={settings.showEnsemble}     onChange={v => setSettings(s => ({ ...s, showEnsemble: v }))} />
+              <Toggle label="Тай-брейк"           checked={settings.showTiebreak}     onChange={v => setSettings(s => ({ ...s, showTiebreak: v }))} />
+              <Toggle label="Карта глубины"       checked={settings.showDepthSteps}   onChange={v => setSettings(s => ({ ...s, showDepthSteps: v }))} />
+              <Toggle label="Верификация"         checked={settings.showVerification} onChange={v => setSettings(s => ({ ...s, showVerification: v }))} />
+              <Toggle label="Сравнение методов"   checked={settings.showComparison}   onChange={v => setSettings(s => ({ ...s, showComparison: v }))} />
+              <Toggle label="Пайплайн 2D→3D"      checked={settings.showPipeline}     onChange={v => setSettings(s => ({ ...s, showPipeline: v }))} />
+              <Toggle label="Архитектура CNN"     checked={settings.showArchitecture} onChange={v => setSettings(s => ({ ...s, showArchitecture: v }))} />
+              <Toggle label="Промежут. картинки"  checked={settings.generateImages}   onChange={v => setSettings(s => ({ ...s, generateImages: v }))} />
+            </div>
+            <div className="flex gap-2 flex-wrap pt-1">
+              <button
+                onClick={() => setSettings(ALL_ON)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={{ background: "#00E5FF22", border: "1px solid #00E5FF66", color: "#00E5FF" }}
+              >Показать всё</button>
+              <button
+                onClick={() => setSettings(MINIMAL)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}
+              >Минимум</button>
+              <button
+                onClick={() => setSettings(MATH_ONLY)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={{ background: "#FFB30022", border: "1px solid #FFB30066", color: "#FFB300" }}
+              >Только математика</button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* ── Header ── */}
       <div>
@@ -1434,10 +1901,18 @@ export default function FractalCNN() {
         {/* Source image canvas — always mounted */}
         <div className="rounded-xl p-3 shrink-0" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
           <div className="text-xs font-bold mb-2" style={{ color: "#00E5FF" }}>{TX.sourceImg[lang]}</div>
-          <canvas
-            ref={srcCanvasRef}
-            style={{ display: "block", width: 160, height: 160, imageRendering: "pixelated", borderRadius: 6 }}
-          />
+          {/* Crisp preview = the ORIGINAL upload (not the 128px mesh canvas). */}
+          {previewUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewUrl}
+              alt={TX.sourceImg[lang]}
+              style={{ display: "block", width: 160, height: 160, objectFit: "contain",
+                       imageRendering: "auto", borderRadius: 6, background: "#000" }}
+            />
+          )}
+          {/* 128px canvas kept mounted (hidden) — feeds the local depth heightmap mesh. */}
+          <canvas ref={srcCanvasRef} style={{ display: "none" }} />
         </div>
 
         {/* Depth map canvas — always mounted */}
@@ -1620,6 +2095,489 @@ export default function FractalCNN() {
         </div>
       )}
 
+      {/* ── Step-by-step Reconstruction Panel ── */}
+      {hasImage && (
+        <div className="rounded-xl p-4 space-y-3"
+          style={{ background: "var(--bg-secondary)", border: "1px solid #00E5FF44" }}
+        >
+          {/* Depth method selector */}
+          <div className="flex items-center gap-2 flex-wrap mb-2">
+            <span className="text-xs" style={{ color: "var(--text-secondary)" }}>Глубина:</span>
+            {([
+              { key: "auto", label: "🧠 Авто" },
+              { key: "neural", label: "🔬 Neural (DCNF CRF)" },
+              { key: "mathematical", label: "📐 Математический" },
+            ] as const).map((m) => (
+              <button
+                key={m.key}
+                onClick={() => setDepthMethod(m.key)}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold transition-all"
+                style={{
+                  background: depthMethod === m.key ? "#06b6d422" : "var(--bg-card)",
+                  border: `1px solid ${depthMethod === m.key ? "#06b6d4" : "var(--border-color)"}`,
+                  color: depthMethod === m.key ? "#06b6d4" : "var(--text-secondary)",
+                }}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          {/* CRF sub-method (only meaningful for neural depth) */}
+          {depthMethod !== "mathematical" && (
+            <div className="flex items-center gap-2 flex-wrap mb-2">
+              <span className="text-xs" style={{ color: "var(--text-secondary)" }}>CRF:</span>
+              {([
+                { key: "auto", label: "Авто" },
+                { key: "none", label: "DA V2 (чистый)" },
+                { key: "light", label: "+ лёгкий CRF" },
+                { key: "full", label: "CRF-style (детальный)" },
+              ] as const).map((m) => (
+                <button
+                  key={m.key}
+                  onClick={() => setCrfStrength(m.key)}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                  style={{
+                    background: crfStrength === m.key ? "#10B98122" : "var(--bg-card)",
+                    border: `1px solid ${crfStrength === m.key ? "#10B981" : "var(--border-color)"}`,
+                    color: crfStrength === m.key ? "#34D399" : "var(--text-secondary)",
+                  }}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Comparison grid button */}
+          {settings.showComparison && hasImage && (
+            <div className="space-y-2">
+              <button
+                onClick={compareDepth}
+                disabled={compareLoading}
+                className="px-4 py-2 rounded-lg text-sm font-bold transition-all"
+                style={{
+                  background: compareLoading ? "#1E3A5F" : "#9C27B022",
+                  border: "1px solid #9C27B088",
+                  color: compareLoading ? "#546E7A" : "#CE93D8",
+                  cursor: compareLoading ? "wait" : "pointer",
+                }}
+              >
+                {compareLoading ? "Сравниваю..." : "📊 Сравнить методы depth"}
+              </button>
+              {comparisonGrid && (
+                <div className="rounded-lg p-3 space-y-2" style={{ background: "var(--bg-card)", border: "1px solid #9C27B044" }}>
+                  <div className="text-xs font-semibold" style={{ color: "#CE93D8" }}>
+                    Сравнение методов (Liu et al. CVPR 2015)
+                  </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={comparisonGrid} className="w-full rounded" alt="Comparison grid" />
+                  <div className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
+                    Unary only (y*=z) vs Full CRF (y*=A⁻¹z, A=I+D−R)
+                  </div>
+                  {comparisonMetrics && (
+                    <div className="space-y-3 pt-1">
+                      <div className="text-xs font-semibold" style={{ color: "#06b6d4" }}>Числовое сравнение</div>
+                      <table className="w-full text-sm border-collapse">
+                        <thead>
+                          <tr>
+                            <th className="text-left py-1 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>Метрика</th>
+                            <th className="text-center py-1 text-xs font-semibold" style={{ color: "#06b6d4" }}>Unary only</th>
+                            <th className="text-center py-1 text-xs font-semibold" style={{ color: "#34D399" }}>Full CRF</th>
+                            <th className="text-center py-1 text-xs font-semibold" style={{ color: "#a855f7" }}>DA V2</th>
+                          </tr>
+                        </thead>
+                        <tbody className="font-mono">
+                          <MetricRow label="Детализация (gradient)" values={comparisonMetrics.gradient_energy} />
+                          <MetricRow label="Гладкость" values={comparisonMetrics.smoothness} />
+                          <MetricRow label="Совпадение границ" values={comparisonMetrics.edge_alignment} />
+                          <MetricRow label="Диапазон глубины" values={comparisonMetrics.depth_range} />
+                        </tbody>
+                      </table>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="rounded p-2" style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)" }}>
+                          <div className="text-[10px] mb-0.5" style={{ color: "var(--text-secondary)" }}>CRF изменил Unary</div>
+                          <div className="text-sm font-mono font-bold" style={{ color: "#FBBF24" }}>{(comparisonMetrics.differences.crf_vs_unary * 100).toFixed(1)}%</div>
+                        </div>
+                        <div className="rounded p-2" style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)" }}>
+                          <div className="text-[10px] mb-0.5" style={{ color: "var(--text-secondary)" }}>DA V2 vs CRF</div>
+                          <div className="text-sm font-mono font-bold" style={{ color: "#FBBF24" }}>{comparisonMetrics.differences.da_vs_crf}</div>
+                        </div>
+                        <div className="rounded p-2" style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)" }}>
+                          <div className="text-[10px] mb-0.5" style={{ color: "var(--text-secondary)" }}>DA V2 vs Unary</div>
+                          <div className="text-sm font-mono font-bold" style={{ color: "#FBBF24" }}>{comparisonMetrics.differences.da_vs_unary}</div>
+                        </div>
+                      </div>
+                      <div className="text-xs" style={{ color: "var(--text-secondary)" }}>Относительные метрики (без ground truth). Зелёным — лучший по столбцу.</div>
+                      <div className="text-sm" style={{ color: "var(--text-secondary)" }}>{interpretMetrics(comparisonMetrics)}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Header + Run button */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm font-bold" style={{ color: "#00E5FF" }}>
+              {TX.stepsTitle[lang]}
+              <span className="ml-2 text-xs font-normal" style={{ color: "#546E7A" }}>
+                (Python API · localhost:8000)
+              </span>
+            </span>
+            <button
+              onClick={runSteps}
+              disabled={stepsLoading}
+              className="px-4 py-2 rounded-lg text-sm font-bold transition-all ml-auto"
+              style={{
+                background: stepsLoading ? "#1E3A5F" : "#00E5FF22",
+                border: "1px solid #00E5FF88",
+                color: stepsLoading ? "#546E7A" : "#00E5FF",
+                cursor: stepsLoading ? "wait" : "pointer",
+              }}
+            >
+              {stepsLoading ? TX.stepsLoading[lang] : TX.stepsBtn[lang]}
+            </button>
+          </div>
+
+          {/* Error state */}
+          {stepsError && (
+            <div className="rounded-lg px-3 py-2 text-xs" style={{ background: "#FF000011", border: "1px solid #FF444444", color: "#FF6666" }}>
+              {TX.stepsOffline[lang]}
+            </div>
+          )}
+
+          {/* Final verdict + depth + timeline */}
+          {steps && !stepsError && (
+            <div className="space-y-3">
+              {/* Final verdict card */}
+              <div className="rounded-lg p-3" style={{ background: "var(--bg-card)", border: "1px solid #69F0AE44" }}>
+                <div className="text-xs font-semibold mb-2 flex items-center gap-2" style={{ color: "#69F0AE" }}>
+                  ✅ {TX.finalVerdict[lang]}
+                  {steps.final.low_confidence && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                      style={{ background: "#FFB30022", color: "#FFB300", border: "1px solid #FFB30066" }}>
+                      ⚠ low confidence
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  <div>
+                    <div style={{ color: "var(--text-secondary)" }}>3D</div>
+                    <div className="font-bold" style={{ color: "#00E5FF" }}>{steps.final.type_3d}</div>
+                  </div>
+                  <div>
+                    <div style={{ color: "var(--text-secondary)" }}>type</div>
+                    <div className="font-bold" style={{ color: "#E8EAF6" }}>{steps.final.type}</div>
+                  </div>
+                  <div>
+                    <div style={{ color: "var(--text-secondary)" }}>confidence</div>
+                    <div className="font-bold" style={{ color: steps.final.confidence > 80 ? "#69F0AE" : steps.final.confidence > 60 ? "#FFB300" : "#FF6666" }}>
+                      {steps.final.confidence.toFixed(1)}%
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: "var(--text-secondary)" }}>category</div>
+                    <div className="font-semibold" style={{ color: "#9C27B0" }}>{steps.final.category}</div>
+                  </div>
+                  <div>
+                    <div style={{ color: "var(--text-secondary)" }}>fractal_dim</div>
+                    <div className="font-mono font-semibold" style={{ color: "#FFB300" }}>{steps.final.fractal_dimension.toFixed(3)}</div>
+                  </div>
+                  <div>
+                    <div style={{ color: "var(--text-secondary)" }}>escape-time</div>
+                    <div className="font-semibold" style={{ color: steps.final.is_escape_time ? "#69F0AE" : "#546E7A" }}>
+                      {steps.final.is_escape_time ? "yes" : "no"}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: "var(--text-secondary)" }}>agreement</div>
+                    <div className="font-mono font-semibold" style={{ color: "#00E5FF" }}>{steps.final.agreement.toFixed(0)}%</div>
+                  </div>
+                </div>
+
+                {/* Neural depth routing notice (photo / non-fractal → DCNF CRF) */}
+                {steps.final.photo_detection?.is_photo && (
+                  <div className="rounded-lg p-2 mt-3 text-xs" style={{ background: "#78350F33", border: "1px solid #D97706" }}>
+                    📷 {lang === "ru"
+                      ? "Обнаружено фото / природный объект → Neural Depth (DCNF CRF)"
+                      : "Foto / tabiiy obyekt aniqlandi → Neural Depth (DCNF CRF)"}
+                    {steps.final.depth_routing_reason && (
+                      <span className="ml-2" style={{ color: "#FBBF24" }}>{steps.final.depth_routing_reason}</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Recovery-method + generation badges */}
+                <div className="flex items-center gap-2 flex-wrap mt-3">
+                  {steps.final.recovery_method && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                      style={{
+                        background: steps.final.recovery_method === "canonical_fitted" ? "#00E5FF22"
+                          : steps.final.recovery_method === "full_affine" ? "#9C27B022" : "#37474F44",
+                        color: steps.final.recovery_method === "canonical_fitted" ? "#00E5FF"
+                          : steps.final.recovery_method === "full_affine" ? "#CE93D8" : "#90A4AE",
+                        border: `1px solid ${steps.final.recovery_method === "canonical_fitted" ? "#00E5FF66"
+                          : steps.final.recovery_method === "full_affine" ? "#9C27B066" : "#546E7A55"}`,
+                      }}>
+                      {steps.final.recovery_method === "canonical_fitted" ? TX.recCanonical[lang]
+                        : steps.final.recovery_method === "full_affine" ? TX.recBlind[lang]
+                        : TX.recSkipped[lang]}
+                    </span>
+                  )}
+                  {steps.final.generation_method && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                      style={{ background: "#1E3A5F", color: "#90CAF9", border: "1px solid #2E4A6F" }}>
+                      {steps.final.generation_method === "recursive_boundary" ? TX.genBoundary[lang]
+                        : steps.final.generation_method === "escape_depth" ? TX.genEscape[lang]
+                        : TX.genChaos[lang]}
+                    </span>
+                  )}
+                </div>
+
+                {/* Tie-break plaque (amber) — geometry overrode the CNN */}
+                {steps.final.tiebreak_applied && (
+                  <div className="rounded-lg px-3 py-2 mt-3 text-xs"
+                    style={{ background: "#F59E0B14", border: "1px solid #F59E0B66" }}>
+                    <div className="font-bold mb-1" style={{ color: "#F59E0B" }}>
+                      🔄 {TX.tbTitle[lang]}
+                    </div>
+                    {steps.final.tiebreak_reason && (
+                      <div className="mb-0.5" style={{ color: "#E8EAF6" }}>
+                        <span style={{ color: "var(--text-secondary)" }}>{TX.tbReason[lang]}: </span>
+                        {steps.final.tiebreak_reason}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 flex-wrap font-mono">
+                      {steps.final.cnn_original_class && (
+                        <span style={{ color: "#90A4AE" }}>
+                          {TX.tbCnnThought[lang]}: <span style={{ color: "#FF8A65" }}>{steps.final.cnn_original_class}</span>
+                        </span>
+                      )}
+                      <span style={{ color: "#546E7A" }}>→</span>
+                      <span style={{ color: "#90A4AE" }}>
+                        {TX.tbGeoDecided[lang]}: <span style={{ color: "#69F0AE" }}>{steps.final.type}</span>
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Final step → actually build the 3D object from the verdict */}
+                <div className="mt-3 pt-3 flex flex-col gap-1.5" style={{ borderTop: "1px solid var(--border-color)" }}>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={applyStepsTo3D}
+                      disabled={build3dLoading}
+                      className="px-4 py-2 rounded-lg text-sm font-bold transition-all"
+                      style={{
+                        background: build3dLoading ? "#1E3A5F" : "#00E5FF22",
+                        border: "1px solid #00E5FF88",
+                        color: build3dLoading ? "#546E7A" : "#00E5FF",
+                        cursor: build3dLoading ? "wait" : "pointer",
+                      }}
+                    >
+                      {build3dLoading ? TX.build3dLoad[lang] : `${TX.build3dBtn[lang]} → ${steps.final.type_3d}`}
+                    </button>
+                    <button
+                      onClick={buildTemplate}
+                      disabled={build3dLoading}
+                      className="px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+                      style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)", color: "var(--text-secondary)", cursor: build3dLoading ? "wait" : "pointer" }}
+                    >
+                      {TX.build3dTpl[lang]}
+                    </button>
+                    {meshSource && (
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{
+                          background: meshSource === "backend" ? "#69F0AE22" : "#1E3A5F",
+                          color: meshSource === "backend" ? "#69F0AE" : "#90A4AE",
+                          border: `1px solid ${meshSource === "backend" ? "#69F0AE66" : "var(--border-color)"}`,
+                        }}>
+                        {meshSource === "backend" ? TX.meshBackend[lang] : TX.meshTemplate[lang]}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>{TX.build3dHint[lang]}</span>
+                  {steps.final.low_confidence && (
+                    <span className="text-[11px] font-semibold" style={{ color: "#FFB300" }}>{TX.build3dLow[lang]}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Depth map from backend */}
+              {steps.depth_image && (
+                <div className="rounded-lg p-3 flex flex-col items-center" style={{ background: "var(--bg-card)", border: "1px solid #FFB30033" }}>
+                  <div className="text-xs font-semibold mb-2 self-start" style={{ color: "var(--text-secondary)" }}>{TX.depthTitle[lang]}</div>
+                  <img
+                    src={"data:image/png;base64," + steps.depth_image}
+                    alt={TX.depthTitle[lang]}
+                    style={{ height: 160, width: "auto", imageRendering: "pixelated", borderRadius: 8, border: "1px solid #FFB30044" }}
+                  />
+                  {/* Escape-time params: estimated Julia c + search diagnostics
+                      (only present for escape-time fractals). */}
+                  {steps.escape_params && (
+                    <div className="mt-3 w-full rounded-lg p-3 text-xs space-y-1"
+                      style={{ background: "#00E5FF0D", border: "1px solid #00E5FF22" }}>
+                      <div className="font-semibold mb-1" style={{ color: "#00E5FF" }}>{TX.escParams[lang]}</div>
+                      <div className="font-mono" style={{ color: "#E8EAF6" }}>
+                        c = ({steps.escape_params.c_real >= 0 ? "" : "−"}{Math.abs(steps.escape_params.c_real).toFixed(4)}
+                        {steps.escape_params.c_imag >= 0 ? " + " : " − "}{Math.abs(steps.escape_params.c_imag).toFixed(4)}i)
+                      </div>
+                      <div style={{ color: "var(--text-secondary)" }}>
+                        {TX.escSsim[lang]}: <span className="font-mono" style={{ color: steps.escape_params.similarity > 0.5 ? "#69F0AE" : "#FFB300" }}>
+                          {steps.escape_params.similarity.toFixed(3)}
+                        </span>
+                      </div>
+                      <div style={{ color: "var(--text-secondary)" }}>
+                        {TX.escMethod[lang]}: <span style={{ color: "#90A4AE" }}>{steps.escape_params.optimization_method}</span>
+                      </div>
+                      {(steps.escape_params.zoom !== 1 || steps.escape_params.center_x !== 0 || steps.escape_params.center_y !== 0) && (
+                        <div className="font-mono" style={{ color: "var(--text-secondary)" }}>
+                          {TX.escView[lang]}: zoom {steps.escape_params.zoom.toFixed(2)}, c=({steps.escape_params.center_x.toFixed(2)}, {steps.escape_params.center_y.toFixed(2)})
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Step timeline */}
+              <div className="space-y-2">
+                {steps.steps.slice(0, revealedSteps).filter(st => (STEP_VISIBLE[st.id]?.(settings)) ?? true).map((step, i) => {
+                  const layerColor = step.layer === 1 ? "#00E5FF" : step.layer === 2 ? "#9C27B0" : step.layer === 3 ? "#FFB300" : "#69F0AE";
+                  const confColor  = step.confidence > 80 ? "#69F0AE" : step.confidence > 60 ? "#FFB300" : "#FF6666";
+                  // Tie-break card: orange frame if it changed the decision, green if it confirmed.
+                  const isTiebreak = step.id === "tiebreak";
+                  const tbColor = step.tiebreak_applied ? "#F59E0B" : "#10B981";
+                  return (
+                    <div
+                      key={step.id}
+                      className="rounded-lg p-3 transition-all duration-300"
+                      style={{
+                        background: "var(--bg-card)",
+                        borderLeft: `3px solid ${layerColor}`,
+                        border: `1px solid ${isTiebreak ? tbColor + "88" : "var(--border-color)"}`,
+                        borderLeftWidth: 3,
+                        borderLeftColor: layerColor,
+                        opacity: 1,
+                        transform: "translateY(0)",
+                      }}
+                    >
+                      <div className="flex items-center gap-2 flex-wrap mb-2">
+                        <span className="flex items-center justify-center rounded-full text-[10px] font-bold shrink-0"
+                          style={{ width: 20, height: 20, background: layerColor + "22", color: layerColor, border: `1px solid ${layerColor}66` }}>
+                          {i + 1}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                          style={{ background: layerColor + "22", color: layerColor, border: `1px solid ${layerColor}66` }}>
+                          {TX.layerLbl[lang]} {step.layer}
+                        </span>
+                        <span className="text-sm font-bold" style={{ color: "#E8EAF6" }}>{step.title[lang]}</span>
+                        <span className="text-xs font-mono font-bold ml-auto" style={{ color: confColor }}>
+                          {step.confidence.toFixed(1)}%
+                        </span>
+                      </div>
+
+                      {/* Confidence mini-bar */}
+                      <div className="rounded-full overflow-hidden mb-2" style={{ height: 5, background: "#1E3A5F" }}>
+                        <div className="h-full rounded-full transition-all duration-500"
+                          style={{ width: `${Math.max(0, Math.min(100, step.confidence))}%`, background: confColor }}
+                        />
+                      </div>
+
+                      {/* Hint chip */}
+                      {step.hint && (
+                        <div className="inline-block px-2 py-0.5 rounded-full text-[10px] mb-2"
+                          style={{ background: "#1E3A5F", color: "var(--text-secondary)" }}>
+                          {step.hint}
+                        </div>
+                      )}
+
+                      {/* Metrics grid */}
+                      {step.metrics.length > 0 && (
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                          {step.metrics.map((m, mi) => (
+                            <div key={mi} className="flex items-baseline gap-1 min-w-0">
+                              <span className="shrink-0" style={{ color: "var(--text-secondary)" }}>{m.label[lang]}:</span>
+                              <span className="font-mono font-semibold truncate" style={{ color: "#E8EAF6" }}>{m.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* IFS recovery: pose-fitting sub-box */}
+                      {step.pose && (
+                        <div className="rounded-lg px-3 py-2 mt-2 text-xs" style={{ background: "#00E5FF0D", border: "1px solid #00E5FF33" }}>
+                          <div className="font-semibold mb-1" style={{ color: "#00E5FF" }}>{TX.poseTitle[lang]}</div>
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 font-mono">
+                            <div><span style={{ color: "var(--text-secondary)" }}>{TX.poseScale[lang]}: </span><span style={{ color: "#E8EAF6" }}>{step.pose.scale.toFixed(2)}</span></div>
+                            <div><span style={{ color: "var(--text-secondary)" }}>{TX.poseAngle[lang]}: </span><span style={{ color: "#E8EAF6" }}>{step.pose.angle_deg.toFixed(1)}°</span></div>
+                            <div><span style={{ color: "var(--text-secondary)" }}>{TX.poseShift[lang]}: </span><span style={{ color: "#E8EAF6" }}>({step.pose.tx.toFixed(2)}, {step.pose.ty.toFixed(2)})</span></div>
+                            <div><span style={{ color: "var(--text-secondary)" }}>{TX.poseFit[lang]}: </span><span style={{ color: "#69F0AE" }}>{step.pose.fit_score.toFixed(2)}</span></div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* IFS recovery: collapsible transform matrices */}
+                      {step.transforms && step.transforms.length > 0 && (
+                        <div className="mt-2 text-xs">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-semibold" style={{ color: "var(--text-secondary)" }}>{TX.transformsLbl[lang]}</span>
+                            {step.transforms.length > 4 && (
+                              <button onClick={() => setShowAllTransforms(v => !v)}
+                                className="text-[10px] px-2 py-0.5 rounded-full"
+                                style={{ background: "#1E3A5F", color: "#00E5FF", border: "1px solid #00E5FF44" }}>
+                                {showAllTransforms ? TX.collapse[lang] : `${TX.showAll[lang]} (${step.transforms.length})`}
+                              </button>
+                            )}
+                          </div>
+                          <div className="space-y-0.5 font-mono" style={{ color: "#90CAF9" }}>
+                            {(showAllTransforms ? step.transforms : step.transforms.slice(0, 4)).map((t, ti) => (
+                              <div key={ti} className="truncate">
+                                T{ti + 1}: [[{t.matrix[0][0]}, {t.matrix[0][1]}], [{t.matrix[1][0]}, {t.matrix[1][1]}]] + [{t.translation[0]}, {t.translation[1]}]
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tie-break: evidence list (max 5, "ещё N") */}
+                      {step.evidence && step.evidence.length > 0 && (
+                        <div className="mt-2 text-xs">
+                          <div className="font-semibold mb-1" style={{ color: "var(--text-secondary)" }}>{TX.evidenceLbl[lang]}:</div>
+                          <ul className="space-y-0.5" style={{ color: "#E8EAF6" }}>
+                            {(showAllEvidence ? step.evidence : step.evidence.slice(0, 5)).map((e, ei) => (
+                              <li key={ei} className="flex gap-1.5"><span style={{ color: tbColor }}>•</span><span className="font-mono">{e}</span></li>
+                            ))}
+                          </ul>
+                          {step.evidence.length > 5 && (
+                            <button onClick={() => setShowAllEvidence(v => !v)}
+                              className="text-[10px] mt-1 px-2 py-0.5 rounded-full"
+                              style={{ background: "#1E3A5F", color: tbColor, border: `1px solid ${tbColor}44` }}>
+                              {showAllEvidence ? TX.collapse[lang] : `${TX.moreN[lang]} ${step.evidence.length - 5}`}
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Formula */}
+                      {step.formula && (
+                        <div className="rounded px-3 py-2 mt-2 font-mono text-xs" style={{ background: "#0a0e1a", border: "1px solid var(--border-color)", color: "#fcd34d" }}>
+                          {step.formula}
+                        </div>
+                      )}
+
+                      {/* Debug images */}
+                      {step.images && step.images.length > 0 && <StepImages images={step.images} />}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Mode switcher ── */}
       <div className="flex items-center gap-3 flex-wrap">
         <button
@@ -1684,6 +2642,14 @@ export default function FractalCNN() {
         <div className="absolute bottom-2 right-3 text-xs" style={{ color: "#546E7A" }}>
           {TX.dragHint[lang]}
         </div>
+        {steps?.final.generation_method && (
+          <div className="absolute bottom-2 left-3 text-[11px] font-semibold px-2 py-0.5 rounded-full z-10"
+            style={{ background: "#060B18CC", color: "#90CAF9", border: "1px solid #2E4A6F" }}>
+            {steps.final.generation_method === "recursive_boundary" ? TX.genBoundary[lang]
+              : steps.final.generation_method === "escape_depth" ? TX.genEscape[lang]
+              : TX.genChaos[lang]}
+          </div>
+        )}
       </div>
 
       {/* ── Detection result panel (fractal mode + image) ── */}
@@ -1710,7 +2676,17 @@ export default function FractalCNN() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div className="rounded-lg p-3" style={{ background: "var(--bg-card)", border: "1px solid #FFB30033" }}>
                 <div className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>{TX.detType[lang]}</div>
-                <div className="text-sm font-bold" style={{ color: "#FFB300" }}>{detection.kind.toUpperCase()}</div>
+                {/* Show the final fractal TYPE (after tie-break) — not the 3D render-kind,
+                    which maps e.g. spiral_julia → "mandelbrot" shader and misled the display. */}
+                <div className="text-sm font-bold" style={{ color: "#FFB300" }}>
+                  {(steps?.final.type ?? detection.kind).toUpperCase()}
+                </div>
+                {steps?.final.tiebreak_applied && steps.final.cnn_original_class && (
+                  <div className="text-[10px] mt-0.5" style={{ color: "#90A4AE" }}>
+                    CNN предсказал: <span style={{ color: "#FF8A65" }}>{steps.final.cnn_original_class}</span>
+                    {" → "}геометрия: <span style={{ color: "#69F0AE" }}>{steps.final.type}</span>
+                  </div>
+                )}
               </div>
               <div className="rounded-lg p-3" style={{ background: "var(--bg-card)", border: "1px solid #69F0AE33" }}>
                 <div className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>{TX.detConf[lang]}</div>
@@ -1724,12 +2700,40 @@ export default function FractalCNN() {
               </div>
               <div className="rounded-lg p-3 col-span-2" style={{ background: "var(--bg-card)", border: "1px solid #00E5FF22" }}>
                 <div className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>{TX.det3d[lang]}</div>
-                <div className="text-sm font-semibold" style={{ color: "#00E5FF" }}>{detection.name3d}</div>
+                <div className="text-sm font-semibold" style={{ color: "#00E5FF" }}>{steps?.final.type_3d ?? detection.name3d}</div>
               </div>
               <div className="rounded-lg p-3" style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)" }}>
                 <div className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>{TX.detRecur[lang]}</div>
                 <div className="text-sm font-bold" style={{ color: "#E8EAF6" }}>{fractalLevel}</div>
               </div>
+              {/* ── stage-5: backend recovery / pose / dimensions ── */}
+              {steps?.final.recovery_method && (
+                <div className="rounded-lg p-3" style={{ background: "var(--bg-card)", border: "1px solid #00E5FF33" }}>
+                  <div className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>{TX.recMethodLbl[lang]}</div>
+                  <div className="text-sm font-semibold" style={{ color: "#00E5FF" }}>
+                    {steps.final.recovery_method === "canonical_fitted" ? TX.recCanonical[lang]
+                      : steps.final.recovery_method === "full_affine" ? TX.recBlind[lang] : TX.recSkipped[lang]}
+                  </div>
+                </div>
+              )}
+              {steps?.final.pose_fit_score != null && (
+                <div className="rounded-lg p-3" style={{ background: "var(--bg-card)", border: "1px solid #69F0AE33" }}>
+                  <div className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>{TX.poseTitle[lang]}</div>
+                  <div className="text-sm font-bold font-mono" style={{ color: "#69F0AE" }}>IoU {steps.final.pose_fit_score.toFixed(2)}</div>
+                </div>
+              )}
+              {steps?.final.theoretical_dimension != null && (
+                <div className="rounded-lg p-3" style={{ background: "var(--bg-card)", border: "1px solid #FFB30033" }}>
+                  <div className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>{TX.theoDim[lang]}</div>
+                  <div className="text-sm font-bold font-mono" style={{ color: "#FFB300" }}>{steps.final.theoretical_dimension.toFixed(3)}</div>
+                </div>
+              )}
+              {steps?.final.fractal_dimension != null && (
+                <div className="rounded-lg p-3" style={{ background: "var(--bg-card)", border: "1px solid #9C27B033" }}>
+                  <div className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>D (измер.)</div>
+                  <div className="text-sm font-bold font-mono" style={{ color: "#CE93D8" }}>{steps.final.fractal_dimension.toFixed(3)}</div>
+                </div>
+              )}
               <div className="rounded-lg p-3 col-span-full" style={{ background: "#FFB3000D", border: "1px solid #FFB30022" }}>
                 <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{TX.detReason[lang]} </span>
                 <span className="text-xs" style={{ color: "#FFB300" }}>{detection.reason}</span>
@@ -1755,7 +2759,7 @@ export default function FractalCNN() {
       />
 
       {/* ── 2D → 3D Pipeline (step-by-step with formulas + pictures) ── */}
-      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #00E5FF44" }}>
+      {settings.showPipeline && <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #00E5FF44" }}>
         <div className="px-5 py-4" style={{ background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)" }}>
           <div className="font-bold text-base" style={{ color: "#00E5FF" }}>🔬 {TX.pipeTitle[lang]}</div>
           <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>{TX.pipeHint[lang]}</div>
@@ -1778,15 +2782,42 @@ export default function FractalCNN() {
               voxel: "пиксель → воксель (высота ∝ яркость)",
             };
             const detName = detection ? (CLASS_LABELS[cnnApiResult?.type ?? ""] ?? detType) : null;
-            const steps = [
+            // Step-5 generation formula/description reflect the REAL backend method
+            // (canonical IFS / Koch recursive boundary / escape-time depth) when known.
+            const beFinal = steps?.final ?? null;
+            const genMethod = beFinal?.generation_method;
+            let step5formula = gen3dFormula[detType] ?? "—";
+            let step5desc = "По типу фрактала выбирается математический 3D-генератор (Three.js).";
+            if (genMethod === "recursive_boundary") {
+              step5formula = "Koch(p₀,p₁,d) = Koch(p₀,a,d−1) ∪ Koch(a,b,d−1) ∪ …";
+              step5desc = "Рекурсивная граница depth=6, 12288 сегментов → extrusion.";
+            } else if (genMethod === "escape_depth") {
+              step5formula = "z → z² + c,  depth = smooth_iter";
+              step5desc = "Escape-time карта глубины → marching cubes.";
+            } else if (genMethod === "chaos_game") {
+              const nT = beFinal?.recovery_method === "canonical_fitted" ? " (canonical)" : "";
+              step5formula = "Tᵢ(x) = Aᵢ·x + tᵢ,  i = 1..N  (Canonical IFS)";
+              step5desc = `Каноничные аффинные преобразования${beFinal?.recovery_method === "canonical_fitted" ? " + подгонка позы" : " (blind recovery)"}. Chaos game 100K точек → marching cubes → mesh.${nT}`;
+            }
+            const step5out = beFinal
+              ? `✓ ${beFinal.type} (${genMethod === "recursive_boundary" ? "recursive boundary" : genMethod === "escape_depth" ? "escape depth" : beFinal.recovery_method === "canonical_fitted" ? "canonical" : "chaos game"})`
+              : detection ? `✓ ${detection.name3d}` : "ожидание классификации";
+            // Step 4 = RAW CNN classification (BEFORE the geometric tie-break). Make that
+            // explicit so it isn't confused with the post-tie-break final_type.
+            const cnnRaw = cnnApiResult ? (CLASS_LABELS[cnnApiResult.type] ?? cnnApiResult.type) : null;
+            const step4out = cnnRaw
+              ? `✓ ${cnnRaw} — ${cnnApiResult!.confidence.toFixed(0)}%  (RAW CNN, до тай-брейка)`
+                + (beFinal?.tiebreak_applied ? `  → геометрия: ${beFinal.type}` : "")
+              : detName ? `✓ ${detName} — ${detection!.confidence}%` : "нажмите «CNN Анализ»";
+            const pipeSteps = [
               { n: 1, color: "#00E5FF", title: "Вход — 2D изображение", io: "вход", formula: "I(x, y) ∈ ℝ^(W×H)", desc: "Загруженная картинка фрактала (PNG / JPG).", out: hasImage ? "✓ изображение загружено" : "ожидание загрузки", canvas: "src", icon: "🖼️" },
               { n: 2, color: "#FFB300", title: "Препроцессинг", io: "обработка", formula: "x' = (x − μ) / σ   ·   resize 128×128 RGB", desc: "Нормализация пикселей + построение карты глубины по яркости.", out: hasImage ? "✓ тензор 3×128×128" : "—", canvas: "depth", icon: "⚙️" },
               { n: 3, color: "#9C27B0", title: "CNN — извлечение признаков", io: "нейросеть", formula: "f = Conv2D×4(x') → AvgPool → f ∈ ℝ²⁵⁶", desc: "4 свёрточных блока (Conv→BN→ReLU→Pool) сжимают картинку в вектор признаков. Слева — карта активаций.", out: "✓ вектор признаков 256-D", canvas: "feat", icon: "🧠" },
-              { n: 4, color: "#69F0AE", title: "Классификация", io: "решение", formula: "P(class) = softmax(W·f) = exp(zᵢ) / Σ exp(zⱼ)", desc: "Полносвязный слой → вероятности по 17 классам. Справа — реальные оценки.", out: detName ? `✓ ${detName} — ${detection!.confidence}%` : "нажмите «CNN Анализ»", icon: "🎯", bars: true },
-              { n: 5, color: "#FF6E40", title: "Генерация 3D-модели", io: "построение", formula: gen3dFormula[detType] ?? "—", desc: "По типу фрактала выбирается математический 3D-генератор (Three.js).", out: detection ? `✓ ${detection.name3d}` : "ожидание классификации", canvas: "three", icon: "🔮" },
+              { n: 4, color: "#69F0AE", title: "Классификация (CNN, raw)", io: "решение", formula: "P(class) = softmax(W·f) = exp(zᵢ) / Σ exp(zⱼ)", desc: "Полносвязный слой → вероятности по 17 классам (сырой выход CNN, ДО геометрического тай-брейка). Справа — реальные оценки.", out: step4out, icon: "🎯", bars: true },
+              { n: 5, color: "#FF6E40", title: "Генерация 3D-модели", io: "построение", formula: step5formula, desc: step5desc, out: step5out, canvas: "three", icon: "🔮" },
               { n: 6, color: "#E040FB", title: "Выход — 3D mesh", io: "результат", formula: `${Math.round(polyCount).toLocaleString()} полигонов · экспорт .OBJ`, desc: "Готовая трёхмерная модель: вращение, масштаб, скачивание.", out: polyCount > 0 ? "✓ модель построена" : "—", canvas: "three", icon: "📦" },
             ];
-            return steps.map((s, i) => (
+            return pipeSteps.map((s, i) => (
               <div key={s.n}>
                 <div className="rounded-xl flex flex-col sm:flex-row items-stretch gap-4 p-4" style={{ background: "var(--bg-secondary)", border: `1px solid ${s.color}44` }}>
                   {/* Left: number + picture */}
@@ -1830,7 +2861,7 @@ export default function FractalCNN() {
                   </div>
                 </div>
                 {/* Arrow between steps */}
-                {i < steps.length - 1 && (
+                {i < pipeSteps.length - 1 && (
                   <div className="flex justify-center py-1" style={{ color: s.color }}>
                     <span style={{ fontSize: 20 }}>↓</span>
                   </div>
@@ -1839,10 +2870,10 @@ export default function FractalCNN() {
             ));
           })()}
         </div>
-      </div>
+      </div>}
 
       {/* ── CNN Architecture steps ── */}
-      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border-color)" }}>
+      {settings.showArchitecture && <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border-color)" }}>
         <div
           className="px-5 py-4 flex items-center justify-between"
           style={{ background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)" }}
@@ -1857,12 +2888,21 @@ export default function FractalCNN() {
         <div className="px-5 py-3 overflow-x-auto" style={{ background: "var(--bg-card)" }}>
           <div className="flex items-center gap-1 min-w-max text-xs font-mono" style={{ color: "#546E7A" }}>
             <span style={{ color: "#90A4AE" }}>{TX.pipeline[lang]}</span>
-            {["3D Voxel", "Indicator", "Mask", "Conv 1", "Attention", "Conv 2", "FractalConv", "Conv 3", "Pooling", "FC", "Output"].map((s, i, arr) => (
-              <span key={s} className="flex items-center gap-1">
-                <span className="px-2 py-0.5 rounded text-xs" style={{ background: "#0D1526", border: "1px solid #1E3A5F", color: "#E8EAF6", whiteSpace: "nowrap" }}>{s}</span>
-                {i < arr.length - 1 && <span style={{ color: "#1E3A5F" }}>→</span>}
-              </span>
-            ))}
+            {["3D Voxel", "Indicator", "Mask", "Conv 1", "Attention", "Conv 2", "FractalConv", "Conv 3", "Pooling", "FC", "Output", "Tiebreak", "Canonical IFS", "Pose Fit", "Mesh"].map((s, i, arr) => {
+              // Geometric post-processing blocks (after the CNN Output) get an amber tint.
+              const isGeo = i >= 11;
+              return (
+                <span key={s} className="flex items-center gap-1">
+                  <span className="px-2 py-0.5 rounded text-xs" style={{
+                    background: isGeo ? "#F59E0B14" : "#0D1526",
+                    border: `1px solid ${isGeo ? "#F59E0B55" : "#1E3A5F"}`,
+                    color: isGeo ? "#F5B544" : "#E8EAF6",
+                    whiteSpace: "nowrap",
+                  }}>{s}</span>
+                  {i < arr.length - 1 && <span style={{ color: isGeo ? "#F59E0B55" : "#1E3A5F" }}>→</span>}
+                </span>
+              );
+            })}
           </div>
         </div>
 
@@ -1910,7 +2950,7 @@ export default function FractalCNN() {
             </div>
           );
         })()}
-      </div>
+      </div>}
 
     </div>
   );

@@ -63,3 +63,8 @@ __pycache__/
 
 /dataset.zip
 /fractal_3d_TZ.md
+# fractal_3d runtime artifacts
+fractal_3d/output/
+fractal_3d/logs/
+fractal_3d/feedback_dataset/
+fractal_3d/**/__pycache__/
