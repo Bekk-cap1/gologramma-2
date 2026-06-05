@@ -5,70 +5,14 @@ import { useLang } from "@/components/LanguageContext";
 import { t } from "@/lib/translations";
 
 const EQUIPMENT_DATA = [
-  {
-    emoji: "🔴",
-    color: "#FF5252",
-    spec: "He-Ne (632.8 нм) / Ar⁺ (488 нм) / Nd:YAG×2 (532 нм)",
-    nameKey: "eq0name" as const,
-    descKey: "eq0desc" as const,
-    whyKey: "eq0why" as const,
-  },
-  {
-    emoji: "🔷",
-    color: "#00E5FF",
-    spec: "50/50 или 1:3, угол 45°",
-    nameKey: "eq1name" as const,
-    descKey: "eq1desc" as const,
-    whyKey: "eq1why" as const,
-  },
-  {
-    emoji: "🪞",
-    color: "#90A4AE",
-    spec: "Отражение >99%, микроюстировка",
-    nameKey: "eq2name" as const,
-    descKey: "eq2desc" as const,
-    whyKey: "eq2why" as const,
-  },
-  {
-    emoji: "🔭",
-    color: "#69F0AE",
-    spec: "f = −10...−50 мм, расширение до 30 см",
-    nameKey: "eq3name" as const,
-    descKey: "eq3desc" as const,
-    whyKey: "eq3why" as const,
-  },
-  {
-    emoji: "🎲",
-    color: "#FFB300",
-    spec: "3D, диффузная поверхность, неподвижный",
-    nameKey: "eq4name" as const,
-    descKey: "eq4desc" as const,
-    whyKey: "eq4why" as const,
-  },
-  {
-    emoji: "🎞️",
-    color: "#9C27B0",
-    spec: "1000–5000 линий/мм, эмульсия 5–15 мкм",
-    nameKey: "eq5name" as const,
-    descKey: "eq5desc" as const,
-    whyKey: "eq5why" as const,
-  },
-  {
-    emoji: "🏗️",
-    color: "#FF9800",
-    spec: "200–500 кг, пневмоопоры, допуск < λ/4",
-    nameKey: "eq6name" as const,
-    descKey: "eq6desc" as const,
-    whyKey: "eq6why" as const,
-  },
-  {
-    emoji: "🌑",
-    color: "#546E7A",
-    spec: "Абсолютная темнота, зелёный/тёмно-красный фонарь",
-    nameKey: "eq7name" as const,
-    descKey: "eq7desc" as const,
-    whyKey: "eq7why" as const,
-  },
+  { emoji: "🔴", color: "#FF5252", specKey: "spec0" as const, nameKey: "eq0name" as const, descKey: "eq0desc" as const, whyKey: "eq0why" as const },
+  { emoji: "🔷", color: "#00E5FF", specKey: "spec1" as const, nameKey: "eq1name" as const, descKey: "eq1desc" as const, whyKey: "eq1why" as const },
+  { emoji: "🪞", color: "#90A4AE", specKey: "spec2" as const, nameKey: "eq2name" as const, descKey: "eq2desc" as const, whyKey: "eq2why" as const },
+  { emoji: "🔭", color: "#69F0AE", specKey: "spec3" as const, nameKey: "eq3name" as const, descKey: "eq3desc" as const, whyKey: "eq3why" as const },
+  { emoji: "🎲", color: "#FFB300", specKey: "spec4" as const, nameKey: "eq4name" as const, descKey: "eq4desc" as const, whyKey: "eq4why" as const },
+  { emoji: "🎞️", color: "#9C27B0", specKey: "spec5" as const, nameKey: "eq5name" as const, descKey: "eq5desc" as const, whyKey: "eq5why" as const },
+  { emoji: "🏗️", color: "#FF9800", specKey: "spec6" as const, nameKey: "eq6name" as const, descKey: "eq6desc" as const, whyKey: "eq6why" as const },
+  { emoji: "🌑", color: "#546E7A", specKey: "spec7" as const, nameKey: "eq7name" as const, descKey: "eq7desc" as const, whyKey: "eq7why" as const },
 ];
 
 export default function Equipment() {
@@ -120,7 +64,7 @@ export default function Equipment() {
                   {t[item.nameKey][lang]}
                 </h3>
                 <p className="text-xs mt-0.5 font-mono" style={{ color: item.color }}>
-                  {item.spec}
+                  {t[item.specKey][lang]}
                 </p>
               </div>
             </div>

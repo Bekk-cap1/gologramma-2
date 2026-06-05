@@ -110,15 +110,15 @@ const FORMULA_GUIDE = [
   },
 ] as const;
 
-const FORMULAS = [
-  { label: "Опорный луч:", formula: "Eᵣ = Aᵣ · exp(i·k·r)" },
-  { label: "Объектный луч:", formula: "E₀ = A₀ · exp(i·k·r + i·φ(x,y))" },
-  { label: "Интенсивность:", formula: "I = |Eᵣ + E₀|² = Aᵣ² + A₀² + 2·Aᵣ·A₀·cos(φ)" },
-  { label: "Период полос:", formula: "d = λ / (2·sin(θ/2))" },
-  { label: "Разрешение:", formula: "N = 10⁶ / d  [линий/мм]" },
-  { label: "Длина когерентности:", formula: "Lc = λ² / Δλ" },
-  { label: "Угол дифракции:", formula: "α = arcsin(λ/d)" },
-  { label: "Пропускание:", formula: "T(x,y) = T₀ + β·I(x,y)" },
+const FORMULA_DATA = [
+  { labelKey: "formulaRef"   as const, formula: "Eᵣ = Aᵣ · exp(i·k·r)" },
+  { labelKey: "formulaObj"   as const, formula: "E₀ = A₀ · exp(i·k·r + i·φ(x,y))" },
+  { labelKey: "formulaInt"   as const, formula: "I = |Eᵣ + E₀|² = Aᵣ² + A₀² + 2·Aᵣ·A₀·cos(φ)" },
+  { labelKey: "formulaPer"   as const, formula: "d = λ / (2·sin(θ/2))" },
+  { labelKey: "formulaRes"   as const, formula: "N = 10⁶ / d  [линий/мм]" },
+  { labelKey: "formulaLc"    as const, formula: "Lc = λ² / Δλ" },
+  { labelKey: "formulaDif"   as const, formula: "α = arcsin(λ/d)" },
+  { labelKey: "formulaTrans" as const, formula: "T(x,y) = T₀ + β·I(x,y)" },
 ];
 
 function toRad(deg: number) { return deg * Math.PI / 180; }
@@ -193,9 +193,9 @@ export default function MathTab() {
           {t.blockATitle[lang]}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {FORMULAS.map((f, i) => (
+          {FORMULA_DATA.map((f, i) => (
             <div key={i} className="formula-box">
-              <div className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>{f.label}</div>
+              <div className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>{t[f.labelKey][lang]}</div>
               <div className="text-sm font-mono" style={{ color: 'var(--accent-cyan)' }}>{f.formula}</div>
             </div>
           ))}
@@ -296,7 +296,7 @@ export default function MathTab() {
           <div className="rounded-lg p-4" style={{ background: 'var(--bg-card)', border: '1px solid #00E5FF33' }}>
             <div className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>{t.resultD[lang]}</div>
             <div className="text-lg font-bold font-mono" style={{ color: '#00E5FF' }}>{calc.d_nm.toFixed(1)} {t.nmUnit[lang]}</div>
-            <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>{calc.d_um.toFixed(3)} мкм</div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>{calc.d_um.toFixed(3)} {t.umUnit[lang]}</div>
           </div>
           <div className="rounded-lg p-4" style={{ background: 'var(--bg-card)', border: '1px solid #9C27B033' }}>
             <div className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>{t.resultN[lang]}</div>

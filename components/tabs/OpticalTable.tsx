@@ -524,43 +524,47 @@ function computeInterference(filmHits: FilmHit[]): {
 }
 
 const PALETTE_TYPES: ComponentType[] = ['laser', 'beamsplitter', 'mirror', 'lens', 'film', 'object'];
-const PALETTE_LABELS: Record<ComponentType, string> = {
-  laser: 'Лазер',
-  beamsplitter: 'БС',
-  mirror: 'Зеркало',
-  lens: 'Линза',
-  film: 'Плёнка',
-  object: 'Объект',
-};
 
-const TUTORIAL_STEPS = [
-  {
-    title: 'Добавьте лазер',
-    desc: 'Перетащите лазер на стол или нажмите на него в палитре.',
-    done: (comps: OpticalComponent[], _ifilm: boolean) => comps.some(c => c.type === 'laser'),
-  },
-  {
-    title: 'Добавьте светоделитель',
-    desc: 'Светоделитель разделит луч на опорный и объектный.',
-    done: (comps: OpticalComponent[], _ifilm: boolean) =>
-      comps.some(c => c.type === 'beamsplitter'),
-  },
-  {
-    title: 'Добавьте плёнку',
-    desc: 'Голографическая плёнка записывает интерференционную картину.',
-    done: (comps: OpticalComponent[], _ifilm: boolean) => comps.some(c => c.type === 'film'),
-  },
-  {
-    title: 'Добавьте объект',
-    desc: 'Объект рассеивает объектный луч, создавая объектную волну.',
-    done: (comps: OpticalComponent[], _ifilm: boolean) => comps.some(c => c.type === 'object'),
-  },
-  {
-    title: 'Добейтесь интерференции',
-    desc: 'Оба луча должны попасть на плёнку одновременно для записи голограммы.',
-    done: (_comps: OpticalComponent[], interferenceOnFilm: boolean) => interferenceOnFilm,
-  },
-];
+function getPaletteLabels(lang: import("@/lib/translations").Lang): Record<ComponentType, string> {
+  return {
+    laser:        t.paletteLaser[lang],
+    beamsplitter: t.paletteBS[lang],
+    mirror:       t.paletteMirror[lang],
+    lens:         t.paletteLens[lang],
+    film:         t.paletteFilm[lang],
+    object:       t.paletteObject[lang],
+  };
+}
+
+function getTutorialSteps(lang: import("@/lib/translations").Lang) {
+  return [
+    {
+      title: t.tutStep1title[lang],
+      desc:  t.tutStep1desc[lang],
+      done:  (comps: OpticalComponent[], _: boolean) => comps.some(c => c.type === 'laser'),
+    },
+    {
+      title: t.tutStep2title[lang],
+      desc:  t.tutStep2desc[lang],
+      done:  (comps: OpticalComponent[], _: boolean) => comps.some(c => c.type === 'beamsplitter'),
+    },
+    {
+      title: t.tutStep3title[lang],
+      desc:  t.tutStep3desc[lang],
+      done:  (comps: OpticalComponent[], _: boolean) => comps.some(c => c.type === 'film'),
+    },
+    {
+      title: t.tutStep4title[lang],
+      desc:  t.tutStep4desc[lang],
+      done:  (comps: OpticalComponent[], _: boolean) => comps.some(c => c.type === 'object'),
+    },
+    {
+      title: t.tutStep5title[lang],
+      desc:  t.tutStep5desc[lang],
+      done:  (_: OpticalComponent[], interferenceOnFilm: boolean) => interferenceOnFilm,
+    },
+  ];
+}
 
 function makeStandardPreset(): OpticalComponent[] {
   // Leith-Upatnieks off-axis holography:
@@ -638,10 +642,10 @@ const CANVAS_H = 550;
 const PALETTE_W = 90;
 
 type HologramObject = 'cube' | 'sphere' | 'pyramid';
-const HOLO_OBJECTS: { id: HologramObject; name: string; icon: string }[] = [
-  { id: 'cube',    name: 'Куб',      icon: '⬜' },
-  { id: 'sphere',  name: 'Сфера',    icon: '⚪' },
-  { id: 'pyramid', name: 'Пирамида', icon: '🔺' },
+const HOLO_OBJECTS_BASE: { id: HologramObject; nameKey: 'holoCube' | 'holoSphere' | 'holoPyramid'; icon: string }[] = [
+  { id: 'cube',    nameKey: 'holoCube',    icon: '⬜' },
+  { id: 'sphere',  nameKey: 'holoSphere',  icon: '⚪' },
+  { id: 'pyramid', nameKey: 'holoPyramid', icon: '🔺' },
 ];
 
 function drawHologramPreview(
@@ -893,8 +897,9 @@ export default function OpticalTable() {
     ctx.font = 'bold 9px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('ПАЛИТРА', PALETTE_W / 2, 14);
+    ctx.fillText(lang === 'uz' ? 'PALITRA' : 'ПАЛИТРА', PALETTE_W / 2, 14);
 
+    const paletteLabels = getPaletteLabels(lang);
     PALETTE_TYPES.forEach((type, i) => {
       const cy = 40 + i * 80;
       // Hover zone bg
@@ -912,9 +917,9 @@ export default function OpticalTable() {
       ctx.font = '8px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(PALETTE_LABELS[type], PALETTE_W / 2, cy + 22);
+      ctx.fillText(paletteLabels[type], PALETTE_W / 2, cy + 22);
     });
-  }, []);
+  }, [lang]);
 
   // Draw fringe preview mini-canvas — proper sinusoidal I(y) = (1+cos(2πy/T))/2
   useEffect(() => {
@@ -1177,18 +1182,21 @@ export default function OpticalTable() {
   const coherenceLength = 40000;
   const pathOk = pathDiff < coherenceLength;
 
+  const holoObjects = HOLO_OBJECTS_BASE.map(o => ({ ...o, name: t[o.nameKey][lang] }));
+
   // Setup checklist
   const checks = [
-    { label: 'Лазер', ok: components.some(c => c.type === 'laser') },
-    { label: 'Светоделитель', ok: components.some(c => c.type === 'beamsplitter') },
-    { label: 'Зеркало', ok: components.some(c => c.type === 'mirror') },
-    { label: 'Линза', ok: components.some(c => c.type === 'lens') },
-    { label: 'Объект', ok: components.some(c => c.type === 'object') },
-    { label: 'Плёнка', ok: components.some(c => c.type === 'film') },
-    { label: 'Интерференция', ok: interferenceInfo.hasInterference },
+    { label: t.checkLaser[lang],  ok: components.some(c => c.type === 'laser') },
+    { label: t.checkBS[lang],     ok: components.some(c => c.type === 'beamsplitter') },
+    { label: t.checkMirror[lang], ok: components.some(c => c.type === 'mirror') },
+    { label: t.checkLens[lang],   ok: components.some(c => c.type === 'lens') },
+    { label: t.checkObject[lang], ok: components.some(c => c.type === 'object') },
+    { label: t.checkFilm[lang],   ok: components.some(c => c.type === 'film') },
+    { label: t.checkInterf[lang], ok: interferenceInfo.hasInterference },
   ];
 
-  const tutorialDone = TUTORIAL_STEPS.map(step =>
+  const tutorialSteps = getTutorialSteps(lang);
+  const tutorialDone = tutorialSteps.map(step =>
     step.done(components, interferenceInfo.hasInterference)
   );
 
@@ -1236,12 +1244,10 @@ export default function OpticalTable() {
           className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
           style={{ background: '#4CAF5022', border: '1px solid #4CAF5066', color: '#69F0AE' }}
         >
-          ✨ Расставить автоматически
+          {t.autoArrange[lang]}
         </button>
         <span className="ml-auto text-xs self-center" style={{ color: '#546E7A' }}>
-          {lang === 'ru'
-            ? 'Клик — выбрать · Тащить — двигать · Ручка/колёсико — вращать'
-            : 'Klik — tanlash · Sudrab — ko\'chirish · Tutqich/g\'ildirak — aylantirish'}
+          {t.dragHint[lang]}
         </span>
       </div>
 
@@ -1309,7 +1315,7 @@ export default function OpticalTable() {
           style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}
         >
           <div className="font-bold text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Статус голограммы
+            {t.holoStatus[lang]}
           </div>
           <div
             className="p-3 rounded-lg text-sm font-medium"
@@ -1331,22 +1337,22 @@ export default function OpticalTable() {
               <div>
                 <span style={{ color: '#90A4AE' }}>d = </span>
                 <span style={{ color: '#FFB300' }}>
-                  {isFinite(interferenceInfo.d_nm) ? interferenceInfo.d_nm.toFixed(1) : '∞'} нм
+                  {isFinite(interferenceInfo.d_nm) ? interferenceInfo.d_nm.toFixed(1) : '∞'} {t.nmUnit[lang]}
                 </span>
               </div>
               <div>
                 <span style={{ color: '#90A4AE' }}>N = </span>
                 <span style={{ color: '#9C27B0' }}>
-                  {isFinite(interferenceInfo.N) ? interferenceInfo.N.toFixed(0) : '0'} лин/мм
+                  {isFinite(interferenceInfo.N) ? interferenceInfo.N.toFixed(0) : '0'} {t.linesPerMm[lang]}
                 </span>
               </div>
             </div>
           )}
 
           <div className="pt-2 text-xs space-y-1" style={{ color: '#90A4AE', borderTop: '1px solid var(--border-color)' }}>
-            <div>Компонентов: <span style={{ color: '#E8EAF6' }}>{components.length}</span></div>
-            <div>Лучей: <span style={{ color: '#E8EAF6' }}>{rays.length}</span></div>
-            <div>Попаданий в плёнку: <span style={{ color: '#E8EAF6' }}>{filmHits.length}</span></div>
+            <div>{t.componentsCount[lang]} <span style={{ color: '#E8EAF6' }}>{components.length}</span></div>
+            <div>{t.raysCount[lang]} <span style={{ color: '#E8EAF6' }}>{rays.length}</span></div>
+            <div>{t.filmHitsCount[lang]} <span style={{ color: '#E8EAF6' }}>{filmHits.length}</span></div>
           </div>
         </div>
 
@@ -1355,11 +1361,11 @@ export default function OpticalTable() {
           className="rounded-xl p-4 space-y-3"
           style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', minWidth: 180 }}
         >
-          <div className="font-bold text-sm" style={{ color: '#9C27B0' }}>Что получится на голограмме</div>
+          <div className="font-bold text-sm" style={{ color: '#9C27B0' }}>{t.holoResult[lang]}</div>
 
           {/* Object selector */}
           <div className="flex gap-2">
-            {HOLO_OBJECTS.map(o => (
+            {holoObjects.map(o => (
               <button
                 key={o.id}
                 onClick={() => setSelectedObject(o.id)}
@@ -1389,9 +1395,9 @@ export default function OpticalTable() {
           }}>
             {interferenceInfo.hasInterference
               ? (pathOk
-                  ? `✓ Чёткая голограмма — ${HOLO_OBJECTS.find(o=>o.id===selectedObject)?.name} записан`
-                  : '△ Размыта — разность путей вне когерентности')
-              : 'Нет интерференции — голограмма не запишется'}
+                  ? `✓ ${holoObjects.find(o => o.id === selectedObject)?.name} — ${lang === 'uz' ? 'yozildi' : 'записан'}`
+                  : t.holoBlurry[lang])
+              : t.holoFail[lang]}
           </div>
         </div>
       </div>
@@ -1406,12 +1412,12 @@ export default function OpticalTable() {
 
             {/* Component type label */}
             <span className="text-sm font-bold" style={{ color: '#00E5FF' }}>
-              {PALETTE_LABELS[sel.type]}
+              {getPaletteLabels(lang)[sel.type]}
             </span>
 
             {/* Angle display + input */}
             <div className="flex items-center gap-2">
-              <span className="text-xs" style={{ color: '#90A4AE' }}>Угол:</span>
+              <span className="text-xs" style={{ color: '#90A4AE' }}>{t.angleLabel[lang]}</span>
               <input
                 type="number"
                 value={Math.round(sel.angle)}
@@ -1446,7 +1452,7 @@ export default function OpticalTable() {
 
             {/* Snap to common angles */}
             <div className="flex items-center gap-1">
-              <span className="text-xs" style={{ color: '#90A4AE' }}>Снапы:</span>
+              <span className="text-xs" style={{ color: '#90A4AE' }}>{t.snapsLabel[lang]}</span>
               {[0, 45, 90, 135, 180].map(a => (
                 <button key={a}
                   onClick={() => setComponents(prev => prev.map(c =>
@@ -1469,7 +1475,7 @@ export default function OpticalTable() {
               className="ml-auto px-3 py-1 text-xs rounded"
               style={{ background: '#330000', border: '1px solid #FF444444', color: '#FF6666' }}
             >
-              🗑 Удалить
+              {t.deleteBtn[lang]}
             </button>
           </div>
         );
@@ -1478,7 +1484,7 @@ export default function OpticalTable() {
       {/* Live Simulation Panel */}
       <div className="rounded-xl p-4 space-y-3" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
         <div className="font-bold text-sm" style={{ color: 'var(--accent-cyan)' }}>
-          Живая симуляция
+          {t.liveSimTitle[lang]}
         </div>
         <div className="flex gap-4 flex-wrap">
 
@@ -1486,23 +1492,23 @@ export default function OpticalTable() {
           <div className="flex-1 min-w-45 rounded-lg p-3 space-y-1"
             style={{ background: '#060B18', border: '1px solid #1E3A5F' }}>
             <div className="text-xs font-bold mb-2" style={{ color: '#90A4AE' }}>
-              Длины оптических путей
+              {t.optPathLengths[lang]}
             </div>
             <div className="font-mono text-xs space-y-1">
               <div>
-                <span style={{ color: '#90A4AE' }}>Опорный: </span>
-                <span style={{ color: '#00E5FF' }}>{refLength.toFixed(0)} пикс</span>
+                <span style={{ color: '#90A4AE' }}>{t.refPath[lang]} </span>
+                <span style={{ color: '#00E5FF' }}>{refLength.toFixed(0)} {t.pixUnit[lang]}</span>
               </div>
               <div>
-                <span style={{ color: '#90A4AE' }}>Объектный: </span>
-                <span style={{ color: '#9C27B0' }}>{objLength.toFixed(0)} пикс</span>
+                <span style={{ color: '#90A4AE' }}>{t.objPath[lang]} </span>
+                <span style={{ color: '#9C27B0' }}>{objLength.toFixed(0)} {t.pixUnit[lang]}</span>
               </div>
               <div>
-                <span style={{ color: '#90A4AE' }}>Разность: </span>
-                <span style={{ color: pathOk ? '#69F0AE' : '#FF6666' }}>{pathDiff.toFixed(0)} пикс</span>
+                <span style={{ color: '#90A4AE' }}>{t.pathDiffLabel[lang]} </span>
+                <span style={{ color: pathOk ? '#69F0AE' : '#FF6666' }}>{pathDiff.toFixed(0)} {t.pixUnit[lang]}</span>
               </div>
               <div className="pt-1" style={{ color: pathOk ? '#69F0AE' : '#FF6666' }}>
-                {pathOk ? '✓ В пределах когерентности' : '✗ Превышает когерентную длину'}
+                {pathOk ? t.pathOkMsg[lang] : t.pathFailMsg[lang]}
               </div>
             </div>
           </div>
@@ -1511,7 +1517,7 @@ export default function OpticalTable() {
           <div className="rounded-lg p-3 space-y-2"
             style={{ background: '#060B18', border: '1px solid #1E3A5F' }}>
             <div className="text-xs font-bold" style={{ color: '#90A4AE' }}>
-              Картина интерференции
+              {t.fringePreview[lang]}
             </div>
             <canvas
               ref={fringeCanvasRef}
@@ -1521,8 +1527,8 @@ export default function OpticalTable() {
             />
             <div className="text-xs font-mono text-center" style={{ color: '#FFB300' }}>
               {interferenceInfo.hasInterference && isFinite(interferenceInfo.d_nm)
-                ? `d = ${interferenceInfo.d_nm.toFixed(0)} нм | N = ${interferenceInfo.N.toFixed(0)} лин/мм`
-                : 'Нет интерференции'}
+                ? `d = ${interferenceInfo.d_nm.toFixed(0)} ${t.nmUnit[lang]} | N = ${interferenceInfo.N.toFixed(0)} ${t.linesPerMm[lang]}`
+                : t.noInterference[lang]}
             </div>
           </div>
 
@@ -1530,7 +1536,7 @@ export default function OpticalTable() {
           <div className="rounded-lg p-3"
             style={{ background: '#060B18', border: '1px solid #1E3A5F', minWidth: 140 }}>
             <div className="text-xs font-bold mb-2" style={{ color: '#90A4AE' }}>
-              Компоненты схемы
+              {t.schemeComps[lang]}
             </div>
             <div className="space-y-1">
               {checks.map(({ label, ok }) => (
@@ -1559,7 +1565,7 @@ export default function OpticalTable() {
         </button>
         {tutorialOpen && (
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-0" style={{ background: 'var(--bg-card)' }}>
-            {TUTORIAL_STEPS.map((step, i) => (
+            {tutorialSteps.map((step, i) => (
               <div
                 key={i}
                 className="p-4 border-r last:border-r-0"

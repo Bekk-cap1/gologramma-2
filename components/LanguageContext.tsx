@@ -31,21 +31,17 @@ function isTheme(value: string | null): value is Theme {
   return value === "dark" || value === "light";
 }
 
-function initialLang(): Lang {
-  if (typeof window === "undefined") return "ru";
-  const stored = localStorage.getItem(LANG_KEY);
-  return isLang(stored) ? stored : "ru";
-}
-
-function initialTheme(): Theme {
-  if (typeof window === "undefined") return "dark";
-  const stored = localStorage.getItem(THEME_KEY);
-  return isTheme(stored) ? stored : "dark";
-}
-
 export function LangProvider({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<Lang>(initialLang);
-  const [theme, setTheme] = useState<Theme>(initialTheme);
+  const [lang, setLang] = useState<Lang>("ru");
+  const [theme, setTheme] = useState<Theme>("dark");
+
+  // Sync from localStorage only after mount to avoid SSR/client hydration mismatch
+  useEffect(() => {
+    const storedLang = localStorage.getItem(LANG_KEY);
+    if (isLang(storedLang)) setLang(storedLang);
+    const storedTheme = localStorage.getItem(THEME_KEY);
+    if (isTheme(storedTheme)) setTheme(storedTheme);
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = lang;

@@ -287,4 +287,133 @@ export const t = {
 
   // Fractal CNN tab
   fractalTab: { ru: "2D → 3D", uz: "2D → 3D" },
+
+  // OpticalTable — palette labels (short, no subscripts)
+  paletteLaser:  { ru: "Лазер",   uz: "Lazer"       },
+  paletteBS:     { ru: "БС",      uz: "BS"           },
+  paletteMirror: { ru: "Зеркало", uz: "Ko'zgu"       },
+  paletteLens:   { ru: "Линза",   uz: "Linza"        },
+  paletteFilm:   { ru: "Плёнка",  uz: "Plyonka"      },
+  paletteObject: { ru: "Объект",  uz: "Ob'ekt"       },
+
+  // OpticalTable — tutorial steps
+  tutStep1title: { ru: "Добавьте лазер",         uz: "Lazer qo'shing"             },
+  tutStep1desc:  { ru: "Перетащите лазер на стол или нажмите на него в палитре.", uz: "Lazerni stolga torting yoki palitrada bosing." },
+  tutStep2title: { ru: "Добавьте светоделитель",  uz: "Nur bo'lgich qo'shing"      },
+  tutStep2desc:  { ru: "Светоделитель разделит луч на опорный и объектный.",      uz: "Nur bo'lgich nurni tayanch va ob'ekt nurlariga bo'ladi." },
+  tutStep3title: { ru: "Добавьте плёнку",          uz: "Plyonka qo'shing"           },
+  tutStep3desc:  { ru: "Голографическая плёнка записывает интерференционную картину.", uz: "Golografik plyonka interferensiya rasmini yozadi." },
+  tutStep4title: { ru: "Добавьте объект",          uz: "Ob'ekt qo'shing"             },
+  tutStep4desc:  { ru: "Объект рассеивает объектный луч, создавая объектную волну.", uz: "Ob'ekt nurini tarqatib, ob'ekt to'lqinini hosil qiladi." },
+  tutStep5title: { ru: "Добейтесь интерференции",  uz: "Interferensiyaga erishing"   },
+  tutStep5desc:  { ru: "Оба луча должны попасть на плёнку одновременно для записи голограммы.", uz: "Gologramma yozish uchun ikki nur bir vaqtda plyonkaga tushishi kerak." },
+
+  // OpticalTable — status / info panel
+  holoStatus:      { ru: "Статус голограммы",    uz: "Gologramma holati"       },
+  componentsCount: { ru: "Компонентов:",         uz: "Komponentlar:"           },
+  raysCount:       { ru: "Лучей:",               uz: "Nurlar:"                 },
+  filmHitsCount:   { ru: "Попаданий в плёнку:",  uz: "Plyonkaga tushishi:"     },
+
+  // OpticalTable — hologram result panel
+  holoResult:  { ru: "Что получится на голограмме", uz: "Gologrammada nima chiqadi" },
+  holoBlurry:  { ru: "△ Размыта — разность путей вне когерентности", uz: "△ Bulaniq — yo'l farqi koherentlikdan tashqarida" },
+  holoFail:    { ru: "Нет интерференции — голограмма не запишется",  uz: "Interferensiya yo'q — gologramma yozilmaydi"       },
+
+  // OpticalTable — holo object names
+  holoCube:    { ru: "Куб",      uz: "Kub"    },
+  holoSphere:  { ru: "Сфера",    uz: "Sfera"  },
+  holoPyramid: { ru: "Пирамида", uz: "Piramida" },
+
+  // OpticalTable — auto-arrange / selection bar
+  autoArrange: { ru: "✨ Расставить автоматически", uz: "✨ Avtomatik joylashtirish" },
+  angleLabel:  { ru: "Угол:",   uz: "Burchak:"  },
+  snapsLabel:  { ru: "Снапы:",  uz: "Sneplar:"  },
+  deleteBtn:   { ru: "🗑 Удалить", uz: "🗑 O'chirish" },
+
+  // OpticalTable — live simulation panel
+  liveSimTitle:   { ru: "Живая симуляция",           uz: "Jonli simulyatsiya"            },
+  optPathLengths: { ru: "Длины оптических путей",    uz: "Optik yo'l uzunliklari"        },
+  refPath:        { ru: "Опорный:",                  uz: "Tayanch:"                      },
+  objPath:        { ru: "Объектный:",                uz: "Ob'ekt:"                       },
+  pathDiffLabel:  { ru: "Разность:",                 uz: "Farq:"                         },
+  pixUnit:        { ru: "пикс",                      uz: "piksel"                        },
+  pathOkMsg:      { ru: "✓ В пределах когерентности", uz: "✓ Koherentlik chegarasida"    },
+  pathFailMsg:    { ru: "✗ Превышает когерентную длину", uz: "✗ Koherentlik uzunligidan oshdi" },
+  fringePreview:  { ru: "Картина интерференции",     uz: "Interferensiya rasmi"          },
+  noInterference: { ru: "Нет интерференции",         uz: "Interferensiya yo'q"           },
+  schemeComps:    { ru: "Компоненты схемы",          uz: "Sxema komponentlari"           },
+
+  // OpticalTable — checklist labels
+  checkLaser:      { ru: "Лазер",          uz: "Lazer"          },
+  checkBS:         { ru: "Светоделитель",  uz: "Nur bo'lgich"   },
+  checkMirror:     { ru: "Зеркало",        uz: "Ko'zgu"         },
+  checkLens:       { ru: "Линза",          uz: "Linza"          },
+  checkObject:     { ru: "Объект",         uz: "Ob'ekt"         },
+  checkFilm:       { ru: "Плёнка",         uz: "Plyonka"        },
+  checkInterf:     { ru: "Интерференция",  uz: "Interferensiya" },
+
+  // OpticalTable — drag/rotate hint
+  dragHint:  { ru: "Клик — выбрать · Тащить — двигать · Ручка/колёсико — вращать", uz: "Klik — tanlash · Sudrab — ko'chirish · Tutqich/g'ildirak — aylantirish" },
+
+  // Math — formula labels
+  formulaRef:   { ru: "Опорный луч:",           uz: "Tayanch nuri:"          },
+  formulaObj:   { ru: "Объектный луч:",         uz: "Ob'ekt nuri:"           },
+  formulaInt:   { ru: "Интенсивность:",         uz: "Intensivlik:"           },
+  formulaPer:   { ru: "Период полос:",          uz: "Chiziqlar davri:"       },
+  formulaRes:   { ru: "Разрешение:",            uz: "Aniqlik:"               },
+  formulaLc:    { ru: "Длина когерентности:",   uz: "Koherentlik uzunligi:"  },
+  formulaDif:   { ru: "Угол дифракции:",        uz: "Difraksiya burchagi:"   },
+  formulaTrans: { ru: "Пропускание:",           uz: "O'tkazuvchanlik:"       },
+  umUnit:       { ru: "мкм",                    uz: "mkm"                    },
+
+  // ReconstructionSim — LASER_TABLE names / view lasers
+  laserArgon:  { ru: "Аргоновый",  uz: "Argon"   },
+  laserDiode:  { ru: "Диодный",    uz: "Diod"    },
+  viewLaser0:  { ru: "He-Ne или красный 633нм",      uz: "He-Ne yoki qizil 633nm"       },
+  viewLaser1:  { ru: "Аргоновый или диод 488нм",     uz: "Argon yoki diod 488nm"        },
+  viewLaser2:  { ru: "Зелёная указка 532нм",         uz: "Yashil pointer 532nm"         },
+  viewLaser3:  { ru: "Фиолетовая указка 405нм",      uz: "Binafsha pointer 405nm"       },
+
+  // ReconstructionSim — slider labels
+  incidentAngle:        { ru: "Угол падения",                   uz: "Tushish burchagi"           },
+  recordingAngleMatch:  { ru: "✓ совпадает с углом записи",     uz: "✓ yozish burchagiga mos"    },
+  reconWavelength:      { ru: "λ восстановления",               uz: "λ tiklash"                  },
+  recordingLambdaMatch: { ru: "✓ совпадает с λ записи",         uz: "✓ yozish λ ga mos"          },
+
+  // ReconstructionSim — diffraction explanation boxes
+  diffBox1: { ru: "① Падающий луч — опорный лазер с длиной волны λ освещает плёнку под углом θ.", uz: "① Tushuvchi nur — λ to'lqin uzunligiga ega tayanch lazer plyonkani θ burchak ostida yoritadi." },
+  diffBox2: { ru: "② +1-й порядок = 3D — дифракция восстанавливает точную копию объектной волны. Мозг воспринимает её как объёмный предмет.", uz: "② +1-chi tartib = 3D — difraksiya ob'ekt to'lqinining aniq nusxasini tiklaydi. Miya uni hajmli ob'ekt sifatida idrok etadi." },
+  diffBox3: { ru: "③ -1-й порядок — сопряжённая волна. Создаёт псевдоскопическое (вывернутое) изображение.", uz: "③ -1-chi tartib — bog'liq to'lqin. Psevdoskopik (teskari) tasvir hosil qiladi." },
+
+  // ReconstructionSim — why-not-projector cards
+  laserCorrect: { ru: "Лазер (правильно)",      uz: "Lazer (to'g'ri)"       },
+  laserBullet1: { ru: "Монохроматический: одна λ → чёткая дифракция",                          uz: "Monoxromatik: bitta λ → aniq difraksiya"                              },
+  laserBullet2: { ru: "Когерентный: фазы совпадают → волновой фронт восстанавливается",        uz: "Koherent: fazalar mos keladi → to'lqin fronti tiklanadi"              },
+  laserResult3D:{ ru: "Результат: чёткое 3D-изображение",                                      uz: "Natija: aniq 3D-tasvir"                                               },
+  projWrong:    { ru: "Проектор (неправильно)", uz: "Proyektor (noto'g'ri)" },
+  projBullet1:  { ru: "Белый свет: много λ → каждая даёт свой угол дифракции",                 uz: "Oq yorug'lik: ko'p λ → har biri o'z difraksiya burchagini beradi"     },
+  projBullet2:  { ru: "Некогерентный: случайные фазы → волновой фронт разрушается",            uz: "Koherent emas: tasodifiy fazalar → to'lqin fronti buziladi"           },
+  projResult:   { ru: "Результат: радужное размытое пятно",                                    uz: "Natija: kamalak dog'"                                                 },
+  bulbWrong:    { ru: "Лампочка (неправильно)", uz: "Chiroq (noto'g'ri)"    },
+  bulbBullet1:  { ru: "Белый некогерентный свет → размытие + радуга",                          uz: "Oq koherent bo'lmagan yorug'lik → bulaniqlik + kamalak"               },
+  bulbBullet2:  { ru: "Для Reflection голограмм — частично работает",                          uz: "Reflection gologrammalari uchun — qisman ishlaydi"                     },
+  bulbResult:   { ru: "Для Transmission — не работает",                                        uz: "Transmission uchun — ishlamaydi"                                      },
+  blurSpot:     { ru: "размытое пятно",         uz: "loyqa dog'"            },
+
+  // ReconstructionSim — table headers + row current indicator + tip
+  colLaser:     { ru: "Лазер",                  uz: "Lazer"                 },
+  colViewLaser: { ru: "Лазер для просмотра",    uz: "Ko'rish uchun lazer"  },
+  colPrice:     { ru: "Цена",                   uz: "Narx"                  },
+  currentRow:   { ru: "← текущий",             uz: "← joriy"               },
+  laserTip:     { ru: "Не знаете чем записывали? Попробуйте зелёную указку 532 нм — самая доступная (от $10) и широко используется в лабораториях.", uz: "Qaysi bilan yozganingizni bilmaysizmi? Yashil pointer 532 nm sinab ko'ring — eng qulay (10$dan) va laboratoriyalarda keng qo'llaniladi." },
+
+  // Equipment — spec strings
+  spec0: { ru: "He-Ne (632.8 нм) / Ar⁺ (488 нм) / Nd:YAG×2 (532 нм)", uz: "He-Ne (632.8 nm) / Ar⁺ (488 nm) / Nd:YAG×2 (532 nm)" },
+  spec1: { ru: "50/50 или 1:3, угол 45°",                               uz: "50/50 yoki 1:3, burchak 45°" },
+  spec2: { ru: "Отражение >99%, микроюстировка",                         uz: "Aks ettirish >99%, mikrojustirovka" },
+  spec3: { ru: "f = −10...−50 мм, расширение до 30 см",                  uz: "f = −10...−50 mm, kengayish 30 sm gacha" },
+  spec4: { ru: "3D, диффузная поверхность, неподвижный",                 uz: "3D, diffuz sirt, harakatsiz" },
+  spec5: { ru: "1000–5000 линий/мм, эмульсия 5–15 мкм",                  uz: "1000–5000 chiziq/mm, emulsiya 5–15 mkm" },
+  spec6: { ru: "200–500 кг, пневмоопоры, допуск < λ/4",                  uz: "200–500 kg, pnevmo tayanch, ruxsat < λ/4" },
+  spec7: { ru: "Абсолютная темнота, зелёный/тёмно-красный фонарь",       uz: "Mutlaq qorong'ilik, yashil/to'q qizil fonar" },
 };

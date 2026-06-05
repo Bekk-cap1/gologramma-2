@@ -8,11 +8,11 @@ import { t } from "@/lib/translations";
 const RECORD_ANGLE = 30;
 const RECORD_LAMBDA = 632.8;
 
-const LASER_TABLE = [
-  { name: 'He-Ne', lambda: 632.8, color: '#FF4444', dot: '🔴', viewLaser: 'He-Ne или красный 633нм', price: '$50–200' },
-  { name: 'Аргоновый', lambda: 488, color: '#4488FF', dot: '🔵', viewLaser: 'Аргоновый или диод 488нм', price: '$100–500' },
-  { name: 'Nd:YAG×2', lambda: 532, color: '#44FF44', dot: '🟢', viewLaser: 'Зелёная указка 532нм', price: '$10–50' },
-  { name: 'Диодный', lambda: 405, color: '#AA44FF', dot: '🟣', viewLaser: 'Фиолетовая указка 405нм', price: '$5–20' },
+const LASER_TABLE_BASE = [
+  { nameKey: null,          nameStatic: 'He-Ne',   lambda: 632.8, color: '#FF4444', dot: '🔴', viewKey: 'viewLaser0' as const, price: '$50–200'   },
+  { nameKey: 'laserArgon' as const, nameStatic: null, lambda: 488, color: '#4488FF', dot: '🔵', viewKey: 'viewLaser1' as const, price: '$100–500' },
+  { nameKey: null,          nameStatic: 'Nd:YAG×2', lambda: 532, color: '#44FF44', dot: '🟢', viewKey: 'viewLaser2' as const, price: '$10–50'    },
+  { nameKey: 'laserDiode' as const, nameStatic: null, lambda: 405, color: '#AA44FF', dot: '🟣', viewKey: 'viewLaser3' as const, price: '$5–20'   },
 ];
 
 function getQuality(incidentAngle: number, reconLambda: number) {
@@ -26,7 +26,7 @@ function getQuality(incidentAngle: number, reconLambda: number) {
 function matchingLaserRow(reconLambda: number) {
   let best = -1;
   let bestDist = Infinity;
-  LASER_TABLE.forEach((row, i) => {
+  LASER_TABLE_BASE.forEach((row, i) => {
     const d = Math.abs(row.lambda - reconLambda);
     if (d < bestDist) { bestDist = d; best = i; }
   });
@@ -350,13 +350,13 @@ export default function ReconstructionSim() {
           {/* Explanation of where 3D comes from */}
           <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs" style={{ color: '#90A4AE' }}>
             <div className="rounded-lg p-2" style={{ background: '#0D1526', border: '1px solid #FF444433' }}>
-              <span style={{ color: '#FF6666', fontWeight: 600 }}>① Падающий луч</span> — опорный лазер с длиной волны λ освещает плёнку под углом θ.
+              {t.diffBox1[lang]}
             </div>
             <div className="rounded-lg p-2" style={{ background: '#0D1526', border: '1px solid #00E5FF33' }}>
-              <span style={{ color: '#00E5FF', fontWeight: 600 }}>② +1-й порядок = 3D</span> — дифракция восстанавливает точную копию объектной волны. Мозг воспринимает её как объёмный предмет.
+              {t.diffBox2[lang]}
             </div>
             <div className="rounded-lg p-2" style={{ background: '#0D1526', border: '1px solid #9C27B033' }}>
-              <span style={{ color: '#CE93D8', fontWeight: 600 }}>③ -1-й порядок</span> — сопряжённая волна. Создаёт псевдоскопическое (вывернутое) изображение.
+              {t.diffBox3[lang]}
             </div>
           </div>
         </div>
@@ -381,11 +381,11 @@ export default function ReconstructionSim() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>
-                Угол падения:{' '}
+                {t.incidentAngle[lang]}:{' '}
                 <span style={{ color: 'var(--accent-cyan)' }}>{incidentAngle}°</span>
                 {Math.abs(incidentAngle - RECORD_ANGLE) < 2 && (
                   <span className="ml-2 text-xs" style={{ color: '#69F0AE' }}>
-                    ✓ совпадает с углом записи
+                    {t.recordingAngleMatch[lang]}
                   </span>
                 )}
               </label>
@@ -399,18 +399,18 @@ export default function ReconstructionSim() {
               />
               <div className="flex justify-between text-xs mt-1" style={{ color: '#90A4AE' }}>
                 <span>0°</span>
-                <span className="font-bold" style={{ color: '#FFB300' }}>↑ θ_записи = {RECORD_ANGLE}°</span>
+                <span className="font-bold" style={{ color: '#FFB300' }}>↑ θ{lang === 'ru' ? '_записи' : '_yozish'} = {RECORD_ANGLE}°</span>
                 <span>60°</span>
               </div>
             </div>
 
             <div>
               <label className="block text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>
-                λ восстановления:{' '}
-                <span style={{ color: 'var(--accent-cyan)' }}>{reconLambda.toFixed(0)} нм</span>
+                {t.reconWavelength[lang]}:{' '}
+                <span style={{ color: 'var(--accent-cyan)' }}>{reconLambda.toFixed(0)} {t.nmUnit[lang]}</span>
                 {Math.abs(reconLambda - RECORD_LAMBDA) < 5 && (
                   <span className="ml-2 text-xs" style={{ color: '#69F0AE' }}>
-                    ✓ совпадает с λ записи
+                    {t.recordingLambdaMatch[lang]}
                   </span>
                 )}
               </label>
@@ -423,9 +423,9 @@ export default function ReconstructionSim() {
                 style={{ accentColor: '#9C27B0' }}
               />
               <div className="flex justify-between text-xs mt-1" style={{ color: '#90A4AE' }}>
-                <span>380 нм</span>
-                <span className="font-bold" style={{ color: '#FFB300' }}>↑ λ_записи = {RECORD_LAMBDA} нм</span>
-                <span>780 нм</span>
+                <span>380 {t.nmUnit[lang]}</span>
+                <span className="font-bold" style={{ color: '#FFB300' }}>↑ λ{lang === 'ru' ? '_записи' : '_yozish'} = {RECORD_LAMBDA} {t.nmUnit[lang]}</span>
+                <span>780 {t.nmUnit[lang]}</span>
               </div>
             </div>
           </div>
@@ -448,12 +448,12 @@ export default function ReconstructionSim() {
           >
             <div className="flex items-center gap-2">
               <span className="text-lg">✓</span>
-              <span className="font-bold text-sm" style={{ color: '#69F0AE' }}>Лазер (правильно)</span>
+              <span className="font-bold text-sm" style={{ color: '#69F0AE' }}>{t.laserCorrect[lang]}</span>
             </div>
             <ul className="text-xs space-y-1" style={{ color: 'var(--text-secondary)' }}>
-              <li>• Монохроматический: одна λ → чёткая дифракция</li>
-              <li>• Когерентный: фазы совпадают → волновой фронт восстанавливается</li>
-              <li style={{ color: '#69F0AE', fontWeight: 600 }}>• Результат: чёткое 3D-изображение</li>
+              <li>• {t.laserBullet1[lang]}</li>
+              <li>• {t.laserBullet2[lang]}</li>
+              <li style={{ color: '#69F0AE', fontWeight: 600 }}>• {t.laserResult3D[lang]}</li>
             </ul>
             <svg width="100%" height="60" viewBox="0 0 200 60">
               <rect x="2" y="20" width="36" height="20" rx="4" fill="#CC222255" stroke="#FF4444" strokeWidth="1.5" />
@@ -476,12 +476,12 @@ export default function ReconstructionSim() {
           >
             <div className="flex items-center gap-2">
               <span className="text-lg">✗</span>
-              <span className="font-bold text-sm" style={{ color: '#FF6666' }}>Проектор (неправильно)</span>
+              <span className="font-bold text-sm" style={{ color: '#FF6666' }}>{t.projWrong[lang]}</span>
             </div>
             <ul className="text-xs space-y-1" style={{ color: 'var(--text-secondary)' }}>
-              <li>• Белый свет: много λ → каждая даёт свой угол дифракции</li>
-              <li>• Некогерентный: случайные фазы → волновой фронт разрушается</li>
-              <li style={{ color: '#FF6666', fontWeight: 600 }}>• Результат: радужное размытое пятно</li>
+              <li>• {t.projBullet1[lang]}</li>
+              <li>• {t.projBullet2[lang]}</li>
+              <li style={{ color: '#FF6666', fontWeight: 600 }}>• {t.projResult[lang]}</li>
             </ul>
             <svg width="100%" height="60" viewBox="0 0 200 60">
               <rect x="2" y="14" width="40" height="32" rx="4" fill="#22222255" stroke="#888888" strokeWidth="1.5" />
@@ -504,12 +504,12 @@ export default function ReconstructionSim() {
           >
             <div className="flex items-center gap-2">
               <span className="text-lg">✗</span>
-              <span className="font-bold text-sm" style={{ color: '#FF6666' }}>Лампочка (неправильно)</span>
+              <span className="font-bold text-sm" style={{ color: '#FF6666' }}>{t.bulbWrong[lang]}</span>
             </div>
             <ul className="text-xs space-y-1" style={{ color: 'var(--text-secondary)' }}>
-              <li>• Белый некогерентный свет → размытие + радуга</li>
-              <li>• Для Reflection голограмм — частично работает</li>
-              <li style={{ color: '#FF6666', fontWeight: 600 }}>• Для Transmission — не работает</li>
+              <li>• {t.bulbBullet1[lang]}</li>
+              <li>• {t.bulbBullet2[lang]}</li>
+              <li style={{ color: '#FF6666', fontWeight: 600 }}>• {t.bulbResult[lang]}</li>
             </ul>
             <svg width="100%" height="60" viewBox="0 0 200 60">
               <circle cx="28" cy="30" r="14" fill="#33330055" stroke="#FFFF44" strokeWidth="1.5" />
@@ -518,8 +518,8 @@ export default function ReconstructionSim() {
                 <line key={i} x1="42" y1={30 + dy * 0.2} x2="88" y2={30 + dy * 1.8} stroke={['#FF4444','#FF8800','#FFFF00','#00FF00','#4444FF','#AA00FF'][i]} strokeWidth="1" opacity="0.5" />
               ))}
               <rect x="88" y="20" width="8" height="20" rx="1" fill="#1a0e00" stroke="#FFB300" strokeWidth="1.5" />
-              <text x="145" y="28" textAnchor="middle" fill="#666666" fontSize="6">размытое</text>
-              <text x="145" y="37" textAnchor="middle" fill="#666666" fontSize="6">пятно</text>
+              <text x="145" y="28" textAnchor="middle" fill="#666666" fontSize="6">{t.blurSpot[lang].split(' ')[0]}</text>
+              <text x="145" y="37" textAnchor="middle" fill="#666666" fontSize="6">{t.blurSpot[lang].split(' ')[1]}</text>
             </svg>
           </div>
         </div>
@@ -534,15 +534,16 @@ export default function ReconstructionSim() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
-                <th className="text-left px-4 py-3" style={{ color: 'var(--text-secondary)' }}>Лазер</th>
+                <th className="text-left px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{t.colLaser[lang]}</th>
                 <th className="text-left px-4 py-3" style={{ color: 'var(--text-secondary)' }}>λ</th>
-                <th className="text-left px-4 py-3" style={{ color: 'var(--text-secondary)' }}>Лазер для просмотра</th>
-                <th className="text-left px-4 py-3" style={{ color: 'var(--text-secondary)' }}>Цена</th>
+                <th className="text-left px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{t.colViewLaser[lang]}</th>
+                <th className="text-left px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{t.colPrice[lang]}</th>
               </tr>
             </thead>
             <tbody>
-              {LASER_TABLE.map((row, i) => {
+              {LASER_TABLE_BASE.map((row, i) => {
                 const isHighlighted = i === matchRow;
+                const name = row.nameKey ? t[row.nameKey][lang] : row.nameStatic;
                 return (
                   <tr
                     key={i}
@@ -553,16 +554,16 @@ export default function ReconstructionSim() {
                     }}
                   >
                     <td className="px-4 py-3 font-bold font-mono" style={{ color: isHighlighted ? row.color : 'var(--text-primary)' }}>
-                      {row.dot} {row.name}
+                      {row.dot} {name}
                       {isHighlighted && (
-                        <span className="ml-2 text-xs" style={{ color: '#69F0AE' }}>← текущий</span>
+                        <span className="ml-2 text-xs" style={{ color: '#69F0AE' }}>{t.currentRow[lang]}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 font-mono" style={{ color: row.color }}>
-                      {row.lambda} нм
+                      {row.lambda} {t.nmUnit[lang]}
                     </td>
                     <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>
-                      {row.viewLaser}
+                      {t[row.viewKey][lang]}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--accent-amber)' }}>
                       {row.price}
@@ -584,9 +585,7 @@ export default function ReconstructionSim() {
           }}
         >
           <span style={{ color: '#FFB300' }}>💡 </span>
-          Не знаете чем записывали? Попробуйте зелёную указку{' '}
-          <span style={{ color: '#44FF44', fontWeight: 600 }}>532 нм</span>{' '}
-          — самая доступная (от $10) и широко используется в лабораториях.
+          {t.laserTip[lang]}
         </div>
       </div>
     </div>
