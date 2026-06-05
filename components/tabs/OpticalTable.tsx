@@ -243,6 +243,7 @@ interface RaySource {
   rayType: 'reference' | 'object' | 'scattered';
   intensity: number;
   bounces: number;
+  skipId?: string; // skip the component we just interacted with (avoid re-entry)
 }
 
 function segmentsIntersect(
@@ -350,6 +351,7 @@ function traceRays(
 
     for (const comp of components) {
       if (comp.type === 'laser') continue;
+      if (comp.id === src.skipId) continue; // skip the component we just exited
       const edges = getComponentEdges(comp);
       edges.forEach((edge, idx) => {
         const hit = segmentsIntersect(
@@ -393,6 +395,7 @@ function traceRays(
           rayType: src.rayType,
           intensity: src.intensity * 0.5,
           bounces: src.bounces + 1,
+          skipId: comp.id,
         });
         // Reflected ray (perpendicular, 50% intensity) — reflect off diagonal (45°)
         const bsRad = toRad(comp.angle + 45);
@@ -406,6 +409,7 @@ function traceRays(
           rayType: 'object',
           intensity: src.intensity * 0.5,
           bounces: src.bounces + 1,
+          skipId: comp.id,
         });
         break;
       }
@@ -427,6 +431,7 @@ function traceRays(
           rayType: src.rayType,
           intensity: src.intensity * 0.95,
           bounces: src.bounces + 1,
+          skipId: comp.id,
         });
         break;
       }
@@ -442,30 +447,40 @@ function traceRays(
             rayType: src.rayType,
             intensity: src.intensity * (s === 0 ? 0.6 : 0.3),
             bounces: src.bounces + 1,
+            skipId: comp.id,
           });
         }
         break;
       }
       case 'object': {
-        if (src.rayType === 'object' || src.rayType === 'reference') {
-          // Scatter 7 rays toward film
-          const film = components.find(c => c.type === 'film');
-          const targetAngle = film
-            ? Math.atan2(film.y - hy, film.x - hx)
-            : Math.atan2(src.dy, src.dx);
-          const fanSpread = 40 * Math.PI / 180;
-          for (let k = 0; k < 7; k++) {
-            const a = targetAngle - fanSpread + (k / 6) * fanSpread * 2;
-            queue.push({
-              x: hx + Math.cos(a) * 2, y: hy + Math.sin(a) * 2,
-              dx: Math.cos(a), dy: Math.sin(a),
-              color: '#9C27B0',
-              rayType: 'object',
-              intensity: src.intensity * 0.25,
-              bounces: src.bounces + 1,
-            });
-          }
+        // Scatter 7 rays toward film (diffuse object wave)
+        const film = components.find(c => c.type === 'film');
+        const targetAngle = film
+          ? Math.atan2(film.y - hy, film.x - hx)
+          : Math.atan2(src.dy, src.dx);
+        const fanSpread = 40 * Math.PI / 180;
+        for (let k = 0; k < 7; k++) {
+          const a = targetAngle - fanSpread + (k / 6) * fanSpread * 2;
+          queue.push({
+            x: hx + Math.cos(a) * 2, y: hy + Math.sin(a) * 2,
+            dx: Math.cos(a), dy: Math.sin(a),
+            color: '#9C27B0',
+            rayType: 'object',
+            intensity: src.intensity * 0.25,
+            bounces: src.bounces + 1,
+            skipId: comp.id,
+          });
         }
+        // Also transmit partial beam through the object (needed for Gabor inline hologram)
+        queue.push({
+          x: hx + src.dx * 2, y: hy + src.dy * 2,
+          dx: src.dx, dy: src.dy,
+          color: src.color,
+          rayType: src.rayType,
+          intensity: src.intensity * 0.35,
+          bounces: src.bounces + 1,
+          skipId: comp.id,
+        });
         break;
       }
       case 'film': {
@@ -548,15 +563,16 @@ const TUTORIAL_STEPS = [
 ];
 
 function makeStandardPreset(): OpticalComponent[] {
+  // Leith-Upatnieks off-axis holography:
+  // BS(220,250,90) → transmitted=reference RIGHT at y=250, reflected=object UP
+  // Object arm: BS→UP→mirror(220,130,45°)→RIGHT at y≈136→object(400,130)→scatter→film
+  // Film(590,200,h=160) spans y=120..280, catches reference at y=250 AND scattered rays from y=130
   return [
-    { id: makeId(), type: 'laser', x: 80, y: 275, angle: 0, width: 60, height: 28 },
-    { id: makeId(), type: 'beamsplitter', x: 200, y: 275, angle: 45, width: 28, height: 28 },
-    { id: makeId(), type: 'mirror', x: 200, y: 120, angle: -45, width: 8, height: 50 },
-    { id: makeId(), type: 'lens', x: 360, y: 120, angle: 0, width: 16, height: 44 },
-    { id: makeId(), type: 'mirror', x: 340, y: 275, angle: 45, width: 8, height: 50 },
-    { id: makeId(), type: 'lens', x: 480, y: 275, angle: 0, width: 16, height: 44 },
-    { id: makeId(), type: 'object', x: 560, y: 275, angle: 0, width: 30, height: 30 },
-    { id: makeId(), type: 'film', x: 650, y: 200, angle: 90, width: 8, height: 60 },
+    { id: makeId(), type: 'laser',        x: 80,  y: 250, angle: 0,  width: 60, height: 28 },
+    { id: makeId(), type: 'beamsplitter', x: 220, y: 250, angle: 90, width: 28, height: 28 },
+    { id: makeId(), type: 'mirror',       x: 220, y: 130, angle: 45, width: 8,  height: 50 },
+    { id: makeId(), type: 'object',       x: 400, y: 130, angle: 0,  width: 30, height: 30 },
+    { id: makeId(), type: 'film',         x: 590, y: 200, angle: 0,  width: 8,  height: 160 },
   ];
 }
 
@@ -568,56 +584,52 @@ function makeErrorPreset(): OpticalComponent[] {
   ];
 }
 
-// Rectangle preset — reference beam travels a rectangular path (4-угольник)
-// Laser → BS → Mirror(top-left) → Mirror(top-right) → Film (reference)
-//         BS → Object → Film (object)
+// Rectangle — object goes UP→mirror→RIGHT, reference goes RIGHT→mirror→UP, both hit tall film
 function makeRectanglePreset(): OpticalComponent[] {
+  // mirror1(210,150,45): object arm UP→RIGHT at y≈156
+  // mirror2(530,310,45): reference arm RIGHT→UP at x=530
+  // film(530,200,h=160): spans y=120..280, catches reference going UP and scattered object rays
   return [
-    { id: makeId(), type: 'laser',        x: 80,  y: 310, angle: 0,   width: 60, height: 28 },
-    { id: makeId(), type: 'beamsplitter', x: 220, y: 310, angle: 45,  width: 28, height: 28 },
-    { id: makeId(), type: 'mirror',       x: 220, y: 120, angle: -45, width: 8,  height: 54 },
-    { id: makeId(), type: 'mirror',       x: 530, y: 120, angle: 45,  width: 8,  height: 54 },
-    { id: makeId(), type: 'object',       x: 390, y: 310, angle: 0,   width: 30, height: 30 },
-    { id: makeId(), type: 'film',         x: 530, y: 310, angle: 90,  width: 8,  height: 60 },
+    { id: makeId(), type: 'laser',        x: 80,  y: 310, angle: 0,  width: 60, height: 28 },
+    { id: makeId(), type: 'beamsplitter', x: 210, y: 310, angle: 90, width: 28, height: 28 },
+    { id: makeId(), type: 'mirror',       x: 210, y: 150, angle: 45, width: 8,  height: 54 },
+    { id: makeId(), type: 'mirror',       x: 530, y: 310, angle: 45, width: 8,  height: 54 },
+    { id: makeId(), type: 'object',       x: 380, y: 150, angle: 0,  width: 30, height: 30 },
+    { id: makeId(), type: 'film',         x: 530, y: 200, angle: 0,  width: 8,  height: 160 },
   ];
 }
 
-// Triangle preset — reference beam travels a triangular path
-// Laser → BS → Mirror(top-right apex) → Film (reference)
-//         BS → Object → Film (object)
+// Triangle — object UP→RIGHT→object→scatter→film, reference straight to film
 function makeTrianglePreset(): OpticalComponent[] {
   return [
-    { id: makeId(), type: 'laser',        x: 80,  y: 320, angle: 0,   width: 60, height: 28 },
-    { id: makeId(), type: 'beamsplitter', x: 210, y: 320, angle: 45,  width: 28, height: 28 },
-    { id: makeId(), type: 'mirror',       x: 490, y: 130, angle: 112, width: 8,  height: 54 },
-    { id: makeId(), type: 'object',       x: 370, y: 320, angle: 0,   width: 30, height: 30 },
-    { id: makeId(), type: 'film',         x: 570, y: 320, angle: 90,  width: 8,  height: 60 },
+    { id: makeId(), type: 'laser',        x: 80,  y: 270, angle: 0,  width: 60, height: 28 },
+    { id: makeId(), type: 'beamsplitter', x: 210, y: 270, angle: 90, width: 28, height: 28 },
+    { id: makeId(), type: 'mirror',       x: 210, y: 140, angle: 45, width: 8,  height: 54 },
+    { id: makeId(), type: 'object',       x: 400, y: 140, angle: 0,  width: 30, height: 30 },
+    { id: makeId(), type: 'film',         x: 590, y: 210, angle: 0,  width: 8,  height: 160 },
   ];
 }
 
-// Gabor (in-line) preset — no beamsplitter, object in direct beam path
-// Laser → Lens (expand) → Object (semi-transparent) → Film
+// Gabor (in-line) — laser→lens→object: transmitted beam=reference, scattered=object wave → interference
 function makeGaborPreset(): OpticalComponent[] {
   return [
     { id: makeId(), type: 'laser',  x: 70,  y: 275, angle: 0,  width: 60, height: 28 },
     { id: makeId(), type: 'lens',   x: 200, y: 275, angle: 0,  width: 16, height: 44 },
     { id: makeId(), type: 'object', x: 380, y: 275, angle: 0,  width: 30, height: 30 },
-    { id: makeId(), type: 'film',   x: 570, y: 275, angle: 90, width: 8,  height: 60 },
+    { id: makeId(), type: 'film',   x: 570, y: 275, angle: 0,  width: 8,  height: 120 },
   ];
 }
 
-// Expanded preset — lenses in both paths for beam expansion
-// Reference: Laser → BS → Mirror → Lens → Film
-// Object:            BS → Lens → Object → Film
+// Expanded — lenses in both arms for beam expansion, tall film catches reference + object scatter
 function makeExpandedPreset(): OpticalComponent[] {
   return [
-    { id: makeId(), type: 'laser',        x: 80,  y: 310, angle: 0,   width: 60, height: 28 },
-    { id: makeId(), type: 'beamsplitter', x: 200, y: 310, angle: 45,  width: 28, height: 28 },
-    { id: makeId(), type: 'mirror',       x: 200, y: 140, angle: -45, width: 8,  height: 54 },
-    { id: makeId(), type: 'lens',         x: 360, y: 140, angle: 0,   width: 16, height: 44 },
-    { id: makeId(), type: 'lens',         x: 330, y: 310, angle: 0,   width: 16, height: 44 },
-    { id: makeId(), type: 'object',       x: 470, y: 310, angle: 0,   width: 30, height: 30 },
-    { id: makeId(), type: 'film',         x: 610, y: 225, angle: 30,  width: 8,  height: 60 },
+    { id: makeId(), type: 'laser',        x: 80,  y: 270, angle: 0,  width: 60, height: 28 },
+    { id: makeId(), type: 'beamsplitter', x: 200, y: 270, angle: 90, width: 28, height: 28 },
+    { id: makeId(), type: 'mirror',       x: 200, y: 140, angle: 45, width: 8,  height: 54 },
+    { id: makeId(), type: 'lens',         x: 360, y: 140, angle: 0,  width: 16, height: 44 },
+    { id: makeId(), type: 'lens',         x: 350, y: 270, angle: 0,  width: 16, height: 44 },
+    { id: makeId(), type: 'object',       x: 480, y: 140, angle: 0,  width: 30, height: 30 },
+    { id: makeId(), type: 'film',         x: 620, y: 210, angle: 0,  width: 8,  height: 160 },
   ];
 }
 
@@ -625,11 +637,99 @@ const CANVAS_W = 800;
 const CANVAS_H = 550;
 const PALETTE_W = 90;
 
+type HologramObject = 'cube' | 'sphere' | 'pyramid';
+const HOLO_OBJECTS: { id: HologramObject; name: string; icon: string }[] = [
+  { id: 'cube',    name: 'Куб',      icon: '⬜' },
+  { id: 'sphere',  name: 'Сфера',    icon: '⚪' },
+  { id: 'pyramid', name: 'Пирамида', icon: '🔺' },
+];
+
+function drawHologramPreview(
+  canvas: HTMLCanvasElement,
+  object: HologramObject,
+  angle: number,
+  quality: 'good' | 'blurry' | 'fail'
+) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = '#000814';
+  ctx.fillRect(0, 0, W, H);
+
+  if (quality === 'fail') {
+    ctx.fillStyle = '#2a3a4a';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Голограмма', W / 2, H / 2 - 10);
+    ctx.fillText('не записана', W / 2, H / 2 + 10);
+    return;
+  }
+
+  const alpha = quality === 'good' ? 0.85 : 0.3;
+  ctx.strokeStyle = `rgba(0,255,136,${alpha})`;
+  ctx.lineWidth = quality === 'good' ? 1.5 : 1;
+  ctx.shadowColor = '#00ff88';
+  ctx.shadowBlur = quality === 'good' ? 6 : 2;
+
+  const cx = W / 2, cy = H / 2;
+  const sc = W * 0.32;
+
+  const proj = (x: number, y: number, z: number): [number, number] => {
+    const rx = x * Math.cos(angle) + z * Math.sin(angle);
+    const ry = y;
+    const rz = -x * Math.sin(angle) + z * Math.cos(angle);
+    const d = 2.2 - rz * 0.3;
+    return [cx + (rx * sc) / d, cy - (ry * sc) / d];
+  };
+
+  const line = (a: [number, number], b: [number, number]) => {
+    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+  };
+
+  if (object === 'cube') {
+    const v = [
+      [-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
+      [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1],
+    ].map(([x,y,z]) => proj(x*0.52, y*0.52, z*0.52));
+    [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]]
+      .forEach(([a,b]) => line(v[a], v[b]));
+  }
+
+  if (object === 'sphere') {
+    for (let c = 0; c < 3; c++) {
+      const tilt = c * Math.PI / 3;
+      ctx.beginPath();
+      for (let i = 0; i <= 48; i++) {
+        const t = (i / 48) * Math.PI * 2;
+        const [px, py] = proj(
+          Math.cos(t) * 0.52,
+          Math.sin(t) * Math.cos(tilt) * 0.52,
+          Math.sin(t) * Math.sin(tilt) * 0.52
+        );
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+  }
+
+  if (object === 'pyramid') {
+    const base = [[-0.5,0.35,-0.5],[0.5,0.35,-0.5],[0.5,0.35,0.5],[-0.5,0.35,0.5]]
+      .map(([x,y,z]) => proj(x, y, z));
+    const apex = proj(0, -0.5, 0);
+    base.forEach((b, i) => { line(b, base[(i+1)%4]); line(b, apex); });
+  }
+
+  ctx.shadowBlur = 0;
+}
+
 export default function OpticalTable() {
   const { lang } = useLang();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const paletteRef = useRef<HTMLCanvasElement>(null);
   const fringeCanvasRef = useRef<HTMLCanvasElement>(null);
+  const holoCanvasRef = useRef<HTMLCanvasElement>(null);
+  const holoAngleRef = useRef(0);
 
   const [components, setComponents] = useState<OpticalComponent[]>(makeStandardPreset());
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -639,6 +739,7 @@ export default function OpticalTable() {
   const [pointerDownPos, setPointerDownPos] = useState<{ x: number; y: number } | null>(null);
   const [tutorialOpen, setTutorialOpen] = useState(true);
   const [animFrame, setAnimFrame] = useState(0);
+  const [selectedObject, setSelectedObject] = useState<HologramObject>('cube');
 
   // Ray tracing state
   const [rays, setRays] = useState<Ray[]>([]);
@@ -659,6 +760,27 @@ export default function OpticalTable() {
     rafRef.current = requestAnimationFrame(tick);
     return () => { running = false; cancelAnimationFrame(rafRef.current); };
   }, []);
+
+  // Hologram preview animation
+  const holoRafRef = useRef<number>(0);
+  useEffect(() => {
+    let running = true;
+    const refLen = rays.filter(r => r.rayType === 'reference').reduce((s,r) => s + Math.hypot(r.x2-r.x1,r.y2-r.y1), 0);
+    const objLen = rays.filter(r => r.rayType === 'object').reduce((s,r) => s + Math.hypot(r.x2-r.x1,r.y2-r.y1), 0);
+    const pOk = Math.abs(refLen - objLen) < 40000;
+    const quality: 'good' | 'blurry' | 'fail' =
+      interferenceInfo.hasInterference ? (pOk ? 'good' : 'blurry') : 'fail';
+    const tick = () => {
+      if (!running) return;
+      holoAngleRef.current += 0.012;
+      const canvas = holoCanvasRef.current;
+      if (canvas) drawHologramPreview(canvas, selectedObject, holoAngleRef.current, quality);
+      holoRafRef.current = requestAnimationFrame(tick);
+    };
+    holoRafRef.current = requestAnimationFrame(tick);
+    return () => { running = false; cancelAnimationFrame(holoRafRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedObject, interferenceInfo.hasInterference, rays]);
 
   // Run ray tracing whenever components change
   useEffect(() => {
@@ -1002,6 +1124,29 @@ export default function OpticalTable() {
     return () => canvas.removeEventListener('wheel', handleWheel);
   }, []);
 
+  // Auto-arrange: snap existing components to standard Leith-Upatnieks layout
+  const handleAutoArrange = useCallback(() => {
+    setComponents(prev => {
+      const laser  = prev.find(c => c.type === 'laser');
+      const bs     = prev.find(c => c.type === 'beamsplitter');
+      const mirrors = prev.filter(c => c.type === 'mirror');
+      const obj    = prev.find(c => c.type === 'object');
+      const film   = prev.find(c => c.type === 'film');
+      if (!laser || !film) return makeStandardPreset(); // fallback to full preset
+      const pos = (id: string, x: number, y: number, angle: number) =>
+        prev.map(c => c.id === id ? { ...c, x, y, angle } : c);
+      let next = [...prev];
+      next = next.map(c => c.id === laser.id  ? { ...c, x: 80,  y: 230, angle: 0  } : c);
+      if (bs)       next = next.map(c => c.id === bs.id        ? { ...c, x: 210, y: 230, angle: 90 } : c);
+      if (mirrors[0]) next = next.map(c => c.id === mirrors[0].id ? { ...c, x: 210, y: 130, angle: 45 } : c);
+      if (obj)      next = next.map(c => c.id === obj.id       ? { ...c, x: 400, y: 130, angle: 0  } : c);
+      next = next.map(c => c.id === film.id   ? { ...c, x: 620, y: 230, angle: 0  } : c);
+      void pos; // suppress unused warning
+      return next;
+    });
+    setSelectedId(null);
+  }, []);
+
   // Palette click — add component to center of table
   const handlePaletteClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
@@ -1085,6 +1230,13 @@ export default function OpticalTable() {
           style={{ background: '#FF444422', border: '1px solid #FF444466', color: '#FF6666' }}
         >
           {t.presetError[lang]}
+        </button>
+        <button
+          onClick={handleAutoArrange}
+          className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+          style={{ background: '#4CAF5022', border: '1px solid #4CAF5066', color: '#69F0AE' }}
+        >
+          ✨ Расставить автоматически
         </button>
         <span className="ml-auto text-xs self-center" style={{ color: '#546E7A' }}>
           {lang === 'ru'
@@ -1197,6 +1349,51 @@ export default function OpticalTable() {
             <div>Попаданий в плёнку: <span style={{ color: '#E8EAF6' }}>{filmHits.length}</span></div>
           </div>
         </div>
+
+        {/* Hologram result panel */}
+        <div
+          className="rounded-xl p-4 space-y-3"
+          style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', minWidth: 180 }}
+        >
+          <div className="font-bold text-sm" style={{ color: '#9C27B0' }}>Что получится на голограмме</div>
+
+          {/* Object selector */}
+          <div className="flex gap-2">
+            {HOLO_OBJECTS.map(o => (
+              <button
+                key={o.id}
+                onClick={() => setSelectedObject(o.id)}
+                className="flex-1 flex flex-col items-center gap-1 py-2 rounded-lg text-xs font-medium transition-all"
+                style={{
+                  background: selectedObject === o.id ? '#9C27B022' : 'var(--bg-card)',
+                  border: `1px solid ${selectedObject === o.id ? '#9C27B0' : 'var(--border-color)'}`,
+                  color: selectedObject === o.id ? '#CE93D8' : '#90A4AE',
+                }}
+              >
+                <span className="text-lg">{o.icon}</span>
+                <span>{o.name}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* 3D preview canvas */}
+          <canvas
+            ref={holoCanvasRef}
+            width={160} height={160}
+            style={{ display: 'block', borderRadius: 8, border: '1px solid #1E3A5F', background: '#000814' }}
+          />
+
+          {/* Quality message */}
+          <div className="text-xs font-medium text-center" style={{
+            color: interferenceInfo.hasInterference ? (pathOk ? '#69F0AE' : '#FFB300') : '#607D8B',
+          }}>
+            {interferenceInfo.hasInterference
+              ? (pathOk
+                  ? `✓ Чёткая голограмма — ${HOLO_OBJECTS.find(o=>o.id===selectedObject)?.name} записан`
+                  : '△ Размыта — разность путей вне когерентности')
+              : 'Нет интерференции — голограмма не запишется'}
+          </div>
+        </div>
       </div>
 
       {/* Selection control bar */}
@@ -1286,7 +1483,7 @@ export default function OpticalTable() {
         <div className="flex gap-4 flex-wrap">
 
           {/* Section A — Beam path quality meter */}
-          <div className="flex-1 min-w-[180px] rounded-lg p-3 space-y-1"
+          <div className="flex-1 min-w-45 rounded-lg p-3 space-y-1"
             style={{ background: '#060B18', border: '1px solid #1E3A5F' }}>
             <div className="text-xs font-bold mb-2" style={{ color: '#90A4AE' }}>
               Длины оптических путей
@@ -1374,7 +1571,7 @@ export default function OpticalTable() {
               >
                 <div className="flex items-center gap-2 mb-1">
                   <span
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
                     style={{
                       background: tutorialDone[i] ? '#00FF88' : '#1E3A5F',
                       color: tutorialDone[i] ? '#001a0d' : '#90A4AE',

@@ -1062,7 +1062,7 @@ interface PipelineSettings {
   showVerification: boolean; showComparison: boolean; showAblation: boolean;
   showPipeline: boolean; showArchitecture: boolean; generateImages: boolean;
 }
-const ALL_ON: PipelineSettings = { showBoxCounting:true, showIFS:true, showFourier:true, showLacunarity:true, showMultifractal:true, showCNN:true, showEnsemble:true, showTiebreak:true, showDepthSteps:true, showVerification:true, showComparison:false, showAblation:false, showPipeline:true, showArchitecture:true, generateImages:true };
+const ALL_ON: PipelineSettings = { showBoxCounting:false, showIFS:false, showFourier:false, showLacunarity:false, showMultifractal:false, showCNN:true, showEnsemble:false, showTiebreak:false, showDepthSteps:true, showVerification:false, showComparison:true, showAblation:true, showPipeline:false, showArchitecture:false, generateImages:false };
 const MINIMAL: PipelineSettings = { showBoxCounting:false, showIFS:false, showFourier:false, showLacunarity:false, showMultifractal:false, showCNN:false, showEnsemble:false, showTiebreak:false, showDepthSteps:true, showVerification:false, showComparison:false, showAblation:false, showPipeline:false, showArchitecture:false, generateImages:false };
 const MATH_ONLY: PipelineSettings = { showBoxCounting:true, showIFS:true, showFourier:true, showLacunarity:true, showMultifractal:true, showCNN:false, showEnsemble:false, showTiebreak:false, showDepthSteps:false, showVerification:false, showComparison:false, showAblation:false, showPipeline:false, showArchitecture:false, generateImages:true };
 
@@ -1986,7 +1986,15 @@ export default function FractalCNN() {
               {TX.depthScale[lang]}: <span style={{ color: "#00E5FF" }}>{depthScale.toFixed(1)}</span>
             </label>
             <input type="range" min={0.2} max={4} step={0.1} value={depthScale}
-              onChange={e => setDepthScale(parseFloat(e.target.value))}
+              onChange={e => {
+                const v = parseFloat(e.target.value);
+                setDepthScale(v);
+                depthScaleRef.current = v;
+                const src = srcCanvasRef.current;
+                if (depthDataRef.current && src && !fractalModeRef.current) {
+                  rebuildMesh(depthDataRef.current, v, src);
+                }
+              }}
               className="w-full" style={{ accentColor: "#00E5FF" }} />
           </div>
           <div>
@@ -1994,7 +2002,19 @@ export default function FractalCNN() {
               {TX.smoothing[lang]}: <span style={{ color: "#00E5FF" }}>{smoothing}</span>
             </label>
             <input type="range" min={0} max={8} step={1} value={smoothing}
-              onChange={e => setSmoothing(parseInt(e.target.value))}
+              onChange={e => {
+                const v = parseInt(e.target.value);
+                setSmoothing(v);
+                const src = srcCanvasRef.current;
+                if (!src || !hasImage) return;
+                const sCtx = src.getContext("2d");
+                if (!sCtx) return;
+                const imgData = sCtx.getImageData(0, 0, MESH_RES, MESH_RES);
+                const depth = buildDepth(imgData, v);
+                depthDataRef.current = depth;
+                if (depthCanvasRef.current) paintDepthCanvas(depthCanvasRef.current, depth);
+                rebuildMesh(depth, depthScaleRef.current, src);
+              }}
               className="w-full" style={{ accentColor: "#9C27B0" }} />
           </div>
           <div className="flex gap-3 flex-wrap">
