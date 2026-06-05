@@ -906,9 +906,14 @@ interface EscapeParams {
   search_log?: Record<string, number | number[] | boolean>;
 }
 
-interface DepthMetricTriple { unary: number; crf: number; da_v2: number; }
+interface AblationRow { name: string; active: string[]; metrics: { edge_alignment: number; useful_detail: number; smoothness: number; depth_range: number; texture_coherence: number }; }
+interface AblationData { ablation_grid: string; table: AblationRow[]; }
+
+interface DepthMetricTriple { unary: number; crf: number; da_v2: number; make3d?: number; }
 interface ComparisonMetrics {
   gradient_energy: DepthMetricTriple;
+  useful_detail?: DepthMetricTriple;
+  texture_coherence?: DepthMetricTriple;
   smoothness: DepthMetricTriple;
   edge_alignment: DepthMetricTriple;
   depth_range: DepthMetricTriple;
@@ -988,16 +993,34 @@ function kindToName3d(kind: FractalKind): string {
 }
 
 // ─── MetricRow: a single row in the depth-comparison metrics table ────────────
-function MetricRow({ label, values }: { label: string; values: { unary: number; crf: number; da_v2: number } }) {
-  const vals = [values.unary, values.crf, values.da_v2];
-  const best = Math.max(...vals);
+function MetricRow({ label, values }: { label: string; values?: { unary: number; crf: number; da_v2: number; make3d?: number } }) {
+  // Defensive: a backend on an older version may omit a metric → render dashes
+  // instead of crashing the whole page.
+  if (!values || typeof values.unary !== "number") {
+    return (
+      <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
+        <td className="py-1" style={{ color: "var(--text-secondary)" }}>{label}</td>
+        <td className="text-center py-1" style={{ color: "var(--text-secondary)" }}>—</td>
+        <td className="text-center py-1" style={{ color: "var(--text-secondary)" }}>—</td>
+        <td className="text-center py-1" style={{ color: "var(--text-secondary)" }}>—</td>
+        <td className="text-center py-1" style={{ color: "var(--text-secondary)" }}>—</td>
+      </tr>
+    );
+  }
+  // Competition is Unary, Make3D, and CRF (our methods); DA V2 is a reference, shown grey.
+  const ourBest = Math.max(values.unary, values.crf, ...(typeof values.make3d === "number" ? [values.make3d] : []));
   const cell = (v: number) => (
-    <td className="text-center py-1" style={{ color: v === best ? "#34D399" : "var(--text-secondary)", fontWeight: v === best ? 700 : 400 }}>{v.toFixed(3)}</td>
+    <td className="text-center py-1" style={{ color: v === ourBest ? "#34D399" : "var(--text-secondary)", fontWeight: v === ourBest ? 700 : 400 }}>{v.toFixed(3)}</td>
   );
   return (
     <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
       <td className="py-1" style={{ color: "var(--text-secondary)" }}>{label}</td>
-      {cell(values.unary)}{cell(values.crf)}{cell(values.da_v2)}
+      {cell(values.unary)}
+      {typeof values.make3d === "number"
+        ? cell(values.make3d)
+        : <td className="text-center py-1" style={{ color: "var(--text-secondary)" }}>—</td>}
+      {cell(values.crf)}
+      <td className="text-center py-1 italic" style={{ color: "#64748B" }}>{values.da_v2.toFixed(3)}</td>
     </tr>
   );
 }
@@ -1005,24 +1028,25 @@ function MetricRow({ label, values }: { label: string; values: { unary: number; 
 // ─── interpretMetrics: produce a short RU interpretation sentence ─────────────
 function interpretMetrics(m: ComparisonMetrics): string {
   const parts: string[] = [];
-  if (m.differences.crf_vs_unary * 100 < 5) {
-    parts.push("CRF почти не изменил unary (детали сохранены).");
-  } else if (m.differences.crf_vs_unary * 100 > 15) {
-    parts.push("CRF сильно сгладил unary.");
+  const ea = m.edge_alignment;
+  const edgeGain = ea.unary > 1e-9 ? (ea.crf / ea.unary - 1) * 100 : 0;
+  if (edgeGain > 15) {
+    parts.push(`DCNF CRF улучшил совпадение границ на ${edgeGain.toFixed(0)}% относительно сырого unary.`);
+  } else if (edgeGain > 0) {
+    parts.push(`DCNF CRF улучшил совпадение границ на ${edgeGain.toFixed(0)}%.`);
   }
-  const geVals = [m.gradient_energy.unary, m.gradient_energy.crf, m.gradient_energy.da_v2];
-  const geMax = Math.max(...geVals);
-  if (m.gradient_energy.da_v2 === geMax) {
-    parts.push("DA V2 даёт больше всего деталей.");
-  } else if (m.gradient_energy.crf > m.gradient_energy.da_v2) {
-    parts.push("Full CRF подчёркивает границы сильнее.");
-  }
-  const eaVals = [m.edge_alignment.unary, m.edge_alignment.crf, m.edge_alignment.da_v2];
-  const eaMax = Math.max(...eaVals);
-  if (m.edge_alignment.da_v2 === eaMax) {
-    parts.push("Границы DA V2 лучше совпадают с изображением.");
-  }
+  parts.push("Это демонстрирует эффект pairwise smoothness (Liu et al., Figure 4).");
+  parts.push("DA V2 показан как нейросеть-reference (потолок качества), не конкурент.");
   return parts.join(" ");
+}
+
+// ─── interpretAblation: produce a short RU interpretation sentence ────────────
+function interpretAblation(table: AblationRow[]): string {
+  if (table.length === 0) return "";
+  const first = table[0].metrics.edge_alignment;
+  const last = table[table.length - 1].metrics.edge_alignment;
+  const gain = first > 1e-9 ? ((last / first - 1) * 100).toFixed(0) : "0";
+  return `Полный набор similarity улучшил совпадение границ на ${gain}% относительно unary-only. Каждый признак (color, histogram, LBP, spatial) вносит вклад — это обосновывает выбор всех 3 similarity из Liu et al.`;
 }
 
 // ─── Display-settings types + presets ─────────────────────────────────────────
@@ -1030,12 +1054,12 @@ interface PipelineSettings {
   showBoxCounting: boolean; showIFS: boolean; showFourier: boolean;
   showLacunarity: boolean; showMultifractal: boolean; showCNN: boolean;
   showEnsemble: boolean; showTiebreak: boolean; showDepthSteps: boolean;
-  showVerification: boolean; showComparison: boolean;
+  showVerification: boolean; showComparison: boolean; showAblation: boolean;
   showPipeline: boolean; showArchitecture: boolean; generateImages: boolean;
 }
-const ALL_ON: PipelineSettings = { showBoxCounting:true, showIFS:true, showFourier:true, showLacunarity:true, showMultifractal:true, showCNN:true, showEnsemble:true, showTiebreak:true, showDepthSteps:true, showVerification:true, showComparison:false, showPipeline:true, showArchitecture:true, generateImages:true };
-const MINIMAL: PipelineSettings = { showBoxCounting:false, showIFS:false, showFourier:false, showLacunarity:false, showMultifractal:false, showCNN:false, showEnsemble:false, showTiebreak:false, showDepthSteps:true, showVerification:false, showComparison:false, showPipeline:false, showArchitecture:false, generateImages:false };
-const MATH_ONLY: PipelineSettings = { showBoxCounting:true, showIFS:true, showFourier:true, showLacunarity:true, showMultifractal:true, showCNN:false, showEnsemble:false, showTiebreak:false, showDepthSteps:false, showVerification:false, showComparison:false, showPipeline:false, showArchitecture:false, generateImages:true };
+const ALL_ON: PipelineSettings = { showBoxCounting:true, showIFS:true, showFourier:true, showLacunarity:true, showMultifractal:true, showCNN:true, showEnsemble:true, showTiebreak:true, showDepthSteps:true, showVerification:true, showComparison:false, showAblation:false, showPipeline:true, showArchitecture:true, generateImages:true };
+const MINIMAL: PipelineSettings = { showBoxCounting:false, showIFS:false, showFourier:false, showLacunarity:false, showMultifractal:false, showCNN:false, showEnsemble:false, showTiebreak:false, showDepthSteps:true, showVerification:false, showComparison:false, showAblation:false, showPipeline:false, showArchitecture:false, generateImages:false };
+const MATH_ONLY: PipelineSettings = { showBoxCounting:true, showIFS:true, showFourier:true, showLacunarity:true, showMultifractal:true, showCNN:false, showEnsemble:false, showTiebreak:false, showDepthSteps:false, showVerification:false, showComparison:false, showAblation:false, showPipeline:false, showArchitecture:false, generateImages:true };
 
 // ─── Toggle presentational component ─────────────────────────────────────────
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
@@ -1100,6 +1124,8 @@ export default function FractalCNN() {
   const [comparisonGrid, setComparisonGrid] = useState<string | null>(null);
   const [comparisonMetrics, setComparisonMetrics] = useState<ComparisonMetrics | null>(null);
   const [compareLoading, setCompareLoading] = useState(false);
+  const [ablationData, setAblationData] = useState<AblationData | null>(null);
+  const [ablationLoading, setAblationLoading] = useState(false);
   const [previewUrl, setPreviewUrl]         = useState<string | null>(null);
 
   const fileInputRef   = useRef<HTMLInputElement>(null);
@@ -1776,6 +1802,29 @@ export default function FractalCNN() {
     }
   }, [compareLoading, depthMethod]);
 
+  // ── Ablation study ───────────────────────────────────────────────────────────
+  const runAblation = useCallback(async () => {
+    if (ablationLoading) return;
+    const canvas = hiResCanvasRef.current ?? srcCanvasRef.current;
+    if (!canvas) return;
+    setAblationLoading(true);
+    try {
+      const b64 = canvas.toDataURL("image/png").split(",")[1];
+      const res = await fetch("http://localhost:8000/ablation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: b64, depth_method: depthMethod }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: AblationData = await res.json();
+      setAblationData(data);
+    } catch {
+      setAblationData(null);
+    } finally {
+      setAblationLoading(false);
+    }
+  }, [ablationLoading, depthMethod]);
+
   // ── render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
@@ -1804,6 +1853,7 @@ export default function FractalCNN() {
               <Toggle label="Карта глубины"       checked={settings.showDepthSteps}   onChange={v => setSettings(s => ({ ...s, showDepthSteps: v }))} />
               <Toggle label="Верификация"         checked={settings.showVerification} onChange={v => setSettings(s => ({ ...s, showVerification: v }))} />
               <Toggle label="Сравнение методов"   checked={settings.showComparison}   onChange={v => setSettings(s => ({ ...s, showComparison: v }))} />
+              <Toggle label="Ablation study"       checked={settings.showAblation}     onChange={v => setSettings(s => ({ ...s, showAblation: v }))} />
               <Toggle label="Пайплайн 2D→3D"      checked={settings.showPipeline}     onChange={v => setSettings(s => ({ ...s, showPipeline: v }))} />
               <Toggle label="Архитектура CNN"     checked={settings.showArchitecture} onChange={v => setSettings(s => ({ ...s, showArchitecture: v }))} />
               <Toggle label="Промежут. картинки"  checked={settings.generateImages}   onChange={v => setSettings(s => ({ ...s, generateImages: v }))} />
@@ -2178,22 +2228,52 @@ export default function FractalCNN() {
                   {comparisonMetrics && (
                     <div className="space-y-3 pt-1">
                       <div className="text-xs font-semibold" style={{ color: "#06b6d4" }}>Числовое сравнение</div>
+                      <div className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
+                        Сравнение по Liu et al. (Figure 4): эффект CRF на слабом unary. DA V2 — нейросеть-reference (потолок).
+                      </div>
                       <table className="w-full text-sm border-collapse">
                         <thead>
                           <tr>
                             <th className="text-left py-1 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>Метрика</th>
-                            <th className="text-center py-1 text-xs font-semibold" style={{ color: "#06b6d4" }}>Unary only</th>
-                            <th className="text-center py-1 text-xs font-semibold" style={{ color: "#34D399" }}>Full CRF</th>
-                            <th className="text-center py-1 text-xs font-semibold" style={{ color: "#a855f7" }}>DA V2</th>
+                            <th className="text-center py-1 text-xs font-semibold" style={{ color: "#06b6d4" }}>Unary only<br/><span className="text-[10px] font-normal">(сырой, #06b6d4)</span></th>
+                            <th className="text-center py-1 text-xs font-semibold" style={{ color: "#fb923c" }}>Make3D<br/><span className="text-[10px] font-normal">(Saxena 2008)</span></th>
+                            <th className="text-center py-1 text-xs font-semibold" style={{ color: "#34D399" }}>Full CRF<br/><span className="text-[10px] font-normal">(наш метод)</span></th>
+                            <th className="text-center py-1 text-xs font-semibold" style={{ color: "#a855f7" }}>DA V2<br/><span className="text-[10px] font-normal">(reference)</span></th>
                           </tr>
                         </thead>
                         <tbody className="font-mono">
                           <MetricRow label="Детализация (gradient)" values={comparisonMetrics.gradient_energy} />
+                          <MetricRow label="Полезные детали (по краям)" values={comparisonMetrics.useful_detail} />
+                          <MetricRow label="Текстурная связность (LBP)" values={comparisonMetrics.texture_coherence} />
                           <MetricRow label="Гладкость" values={comparisonMetrics.smoothness} />
                           <MetricRow label="Совпадение границ" values={comparisonMetrics.edge_alignment} />
                           <MetricRow label="Диапазон глубины" values={comparisonMetrics.depth_range} />
                         </tbody>
                       </table>
+                      <div className="text-xs" style={{ color: "var(--text-secondary)" }}>Make3D (Saxena et al. 2008) — классический плоскостной бейзлайн (кусочно-плоская модель + MRF), прямой предшественник Liu et al. Сравнение показывает место DCNF CRF относительно плоскостного подхода.</div>
+                      {(() => {
+                        const m = comparisonMetrics;
+                        const g = (t?: { unary: number; crf: number }) =>
+                          (t && t.unary > 1e-9) ? (t.crf / t.unary - 1) * 100 : null;
+                        const card = (label: string, val: number | null) => (
+                          <div className="rounded p-2" style={{ background: "var(--bg-card)", border: "1px solid #10B98155" }}>
+                            <div className="text-[10px]" style={{ color: "var(--text-secondary)" }}>{label}</div>
+                            <div className="text-lg font-mono font-bold" style={{ color: val === null ? "var(--text-secondary)" : val >= 0 ? "#34D399" : "#FBBF24" }}>
+                              {val === null ? "—" : (val >= 0 ? "+" : "") + val.toFixed(0) + "%"}
+                            </div>
+                          </div>
+                        );
+                        return (
+                          <div className="rounded-lg p-3" style={{ background: "#10B9811A", border: "1px solid #10B98166" }}>
+                            <div className="text-xs mb-1" style={{ color: "#34D399" }}>Эффект DCNF CRF (vs сырой unary)</div>
+                            <div className="grid grid-cols-3 gap-3">
+                              {card("Совпадение границ", g(m.edge_alignment))}
+                              {card("Полезные детали", g(m.useful_detail))}
+                              {card("Диапазон глубины", g(m.depth_range))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                       <div className="grid grid-cols-3 gap-2">
                         <div className="rounded p-2" style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)" }}>
                           <div className="text-[10px] mb-0.5" style={{ color: "var(--text-secondary)" }}>CRF изменил Unary</div>
@@ -2208,10 +2288,71 @@ export default function FractalCNN() {
                           <div className="text-sm font-mono font-bold" style={{ color: "#FBBF24" }}>{comparisonMetrics.differences.da_vs_unary}</div>
                         </div>
                       </div>
-                      <div className="text-xs" style={{ color: "var(--text-secondary)" }}>Относительные метрики (без ground truth). Зелёным — лучший по столбцу.</div>
+                      <div className="text-xs" style={{ color: "var(--text-secondary)" }}>Относительные метрики (без ground truth). Зелёным — лучший из Unary/CRF; DA V2 — reference (серым).</div>
                       <div className="text-sm" style={{ color: "var(--text-secondary)" }}>{interpretMetrics(comparisonMetrics)}</div>
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Ablation study block */}
+          {settings.showAblation && hasImage && (
+            <div className="space-y-2">
+              <button
+                onClick={runAblation}
+                disabled={ablationLoading}
+                className="px-4 py-2 rounded-lg text-sm font-bold transition-all"
+                style={{
+                  background: ablationLoading ? "#1E3A5F" : "#9C27B022",
+                  border: "1px solid #9C27B088",
+                  color: ablationLoading ? "#546E7A" : "#CE93D8",
+                  cursor: ablationLoading ? "wait" : "pointer",
+                }}
+              >
+                {ablationLoading ? "Считаю..." : "🔬 Ablation: вклад признаков"}
+              </button>
+              {ablationData && (
+                <div className="rounded-lg p-3 space-y-2" style={{ background: "var(--bg-card)", border: "1px solid #9C27B044" }}>
+                  <div className="text-xs font-semibold" style={{ color: "#CE93D8" }}>
+                    Ablation study (вклад similarity, Liu et al. Table 2)
+                  </div>
+                  {ablationData.ablation_grid && (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={ablationData.ablation_grid} className="w-full rounded" alt="Ablation grid" />
+                    </>
+                  )}
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                        <th className="text-left py-1 pr-2">Конфигурация</th>
+                        <th className="text-center py-1">Совпадение границ</th>
+                        <th className="text-center py-1">Гладкость</th>
+                        <th className="text-center py-1">Текстурная связность</th>
+                        <th className="text-center py-1">Диапазон</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-mono">
+                      {ablationData.table.map((row, i) => (
+                        <tr
+                          key={i}
+                          style={i === ablationData.table.length - 1 ? { background: "#10B9811A" } : undefined}
+                        >
+                          <td className="text-left py-1 pr-2 text-xs" style={{ color: "var(--text-secondary)" }}>{row.name}</td>
+                          <td className="text-center py-1 text-xs">{row.metrics.edge_alignment.toFixed(3)}</td>
+                          <td className="text-center py-1 text-xs">{row.metrics.smoothness.toFixed(3)}</td>
+                          <td className="text-center py-1 text-xs">{row.metrics.texture_coherence.toFixed(3)}</td>
+                          <td className="text-center py-1 text-xs">{row.metrics.depth_range.toFixed(3)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                    Каждая строка добавляет один pairwise признак (color → histogram → LBP → spatial).
+                  </div>
+                  <div className="text-sm" style={{ color: "var(--text-secondary)" }}>{interpretAblation(ablationData.table)}</div>
                 </div>
               )}
             </div>

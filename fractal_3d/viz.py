@@ -13,11 +13,14 @@ from .utils.image_utils import array_to_base64, plot_to_base64, dark_axes, color
 from .common import to_gray, binarize
 
 
-def depth_comparison_grid(image, depth_unary, depth_crf, depth_da=None):
-    """Method comparison panel à la Liu et al. CVPR 2015 (Fig. 3/4).
+def depth_comparison_grid(image, depth_unary, depth_crf, depth_da=None,
+                          depth_make3d=None, da_available=True):
+    """Method comparison panel à la Liu et al. CVPR 2015 (Fig. 4 / Table 1).
 
-    Panels: input · Unary only (y*=z, no pairwise) · Full CRF (y*=A⁻¹z) · DA V2.
-    Returns one image-dict (or None on failure).
+    Panels: Исходное · Unary · Make3D (plane baseline) · Full CRF · DA V2.
+    Unary and CRF share the SAME weak pseudo-cue unary (isolates the CRF effect);
+    Make3D (Saxena 2008) is a piecewise-planar baseline; DA V2 is a neural
+    reference (ceiling). Returns one image-dict (or None on failure).
     """
     try:
         import matplotlib.pyplot as plt
@@ -27,36 +30,64 @@ def depth_comparison_grid(image, depth_unary, depth_crf, depth_da=None):
         if img.dtype != np.uint8:
             img = (np.clip(img, 0, 1) * 255).astype(np.uint8) if img.max() <= 1.0 else img.astype(np.uint8)
 
-        n = 4 if depth_da is not None else 3
-        fig, axes = plt.subplots(1, n, figsize=(4 * n, 4))
-        fig.patch.set_facecolor(DARK_BG)
-
-        axes[0].imshow(img)
-        axes[0].set_title("Исходное изображение", color="#e2e8f0", fontsize=11)
-
-        axes[1].imshow(np.asarray(depth_unary), cmap="magma")
-        axes[1].set_title("Unary only (y*=z)", color="#06b6d4", fontsize=11)
-        axes[1].text(0.5, -0.08, "без pairwise · грубые границы",
-                     transform=axes[1].transAxes, ha="center", color="#94a3b8", fontsize=8)
-
-        axes[2].imshow(np.asarray(depth_crf), cmap="magma")
-        axes[2].set_title("Full CRF (y*=A⁻¹z)", color="#10b981", fontsize=11)
-        axes[2].text(0.5, -0.08, "A = I + D − R · резкие переходы",
-                     transform=axes[2].transAxes, ha="center", color="#94a3b8", fontsize=8)
-
+        panels = [("Исходное изображение", img, None, "#e2e8f0", "")]
+        panels.append(("Unary only (y*=z)", np.asarray(depth_unary), "magma",
+                       "#06b6d4", "pseudo-cues · грубый · без pairwise"))
+        if depth_make3d is not None:
+            panels.append(("Make3D (плоскости)", np.asarray(depth_make3d), "magma",
+                           "#fb923c", "Saxena 2008 · плоскостной бейзлайн"))
+        panels.append(("Full CRF (y*=A⁻¹z)", np.asarray(depth_crf), "magma",
+                       "#10b981", "тот же unary + DCNF CRF · A=I+D−R"))
         if depth_da is not None:
-            axes[3].imshow(np.asarray(depth_da), cmap="inferno")
-            axes[3].set_title("Depth Anything V2", color="#a855f7", fontsize=11)
+            panels.append(("Depth Anything V2" if da_available else "DA V2 (n/a)",
+                           np.asarray(depth_da), "inferno", "#a855f7",
+                           "нейросеть · reference (потолок)"))
 
-        for ax in axes:
+        n = len(panels)
+        fig, axes = plt.subplots(1, n, figsize=(3.6 * n, 3.8))
+        fig.patch.set_facecolor(DARK_BG)
+        if n == 1:
+            axes = [axes]
+        for ax, (title, data, cmap, color, cap) in zip(axes, panels):
+            ax.imshow(data) if cmap is None else ax.imshow(data, cmap=cmap)
+            ax.set_title(title, color=color, fontsize=10)
+            if cap:
+                ax.text(0.5, -0.08, cap, transform=ax.transAxes, ha="center",
+                        color="#94a3b8", fontsize=8)
             ax.axis("off")
         fig.tight_layout()
         return {
             "id": "depth_method_comparison",
-            "title": "Сравнение методов (Liu et al. CVPR 2015)",
-            "description": "Unary only (y*=z) vs Full CRF (y*=A⁻¹z, A=I+D−R)",
+            "title": "Сравнение методов (Liu et al. CVPR 2015, Table 1)",
+            "description": "Unary · Make3D (Saxena 2008) · Full CRF · DA V2 (reference)",
             "data": plot_to_base64(fig),
         }
+    except Exception:
+        return None
+
+
+def ablation_grid(image, ablation_results):
+    """Incremental-similarity ablation panel (Liu et al. Table 2 style).
+
+    One panel per config (Unary only → +color → +hist → +LBP → Full), each
+    captioned with its edge-alignment. Returns a data-uri (or None on failure).
+    """
+    try:
+        import matplotlib.pyplot as plt
+        n = len(ablation_results)
+        fig, axes = plt.subplots(1, n, figsize=(3.2 * n, 3.4))
+        fig.patch.set_facecolor(DARK_BG)
+        if n == 1:
+            axes = [axes]
+        for ax, res in zip(axes, ablation_results):
+            ax.imshow(np.asarray(res["depth"]), cmap="magma")
+            ax.set_title(res["name"], color="#10b981", fontsize=10)
+            ea = float(res["metrics"].get("edge_alignment", 0.0))
+            ax.text(0.5, -0.08, f"границы: {ea:.3f}", transform=ax.transAxes,
+                    ha="center", color="#94a3b8", fontsize=8)
+            ax.axis("off")
+        fig.tight_layout()
+        return plot_to_base64(fig)
     except Exception:
         return None
 

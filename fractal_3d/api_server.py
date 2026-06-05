@@ -140,6 +140,11 @@ class CompareDepthRequest(BaseModel):
     depth_method: str = "auto"  # "auto" | "neural" | "mathematical"
 
 
+class AblationRequest(BaseModel):
+    image: str
+    depth_method: str = "auto"  # accepted for parity; ablation always uses pseudo unary
+
+
 class FeedbackRequest(BaseModel):
     image: str
     correct_type: str
@@ -370,7 +375,8 @@ def _attach_step_visuals(steps, gen_images, img, decision, methods,
     for s in steps:
         if s["id"] == "depth":
             if depth_is_neural:
-                s["formula"] = "z = DepthAnythingV2(image);  y* = (I + D − R)⁻¹ z  (DCNF CRF)"
+                s["formula"] = ("z = DepthAnythingV2(image);  y* = (I + D − R)⁻¹ z;  "
+                                "R = 0.75·exp(−12·LAB − 6·hist − 8·LBP − dₓᵧ)")
             elif is_escape:
                 s["formula"] = "depth = i + 1 − log(log|z|)/log 2"
             else:
@@ -780,12 +786,35 @@ def compare_depth(req: CompareDepthRequest):
         method = "pseudo" if (req.depth_method or "").lower() == "mathematical" else "auto"
         cmp = estimate_depth_compare(np.asarray(img), method=method)
         grid = viz.depth_comparison_grid(
-            cmp["image"], cmp["depth_unary"], cmp["depth_crf"], cmp["depth_da"])
+            cmp["image"], cmp["depth_unary"], cmp["depth_crf"], cmp["depth_da"],
+            depth_make3d=cmp.get("depth_make3d"),
+            da_available=cmp.get("da_available", False))
         return {
             "comparison_grid": (grid or {}).get("data", ""),
             "method_used": cmp.get("method_used", ""),
+            "da_available": cmp.get("da_available", False),
             "metrics": cmp.get("metrics", {}),
         }
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/ablation")
+def ablation(req: AblationRequest):
+    """Ablation over pairwise similarities (Liu et al. Table 2 style)."""
+    try:
+        img = _decode_image(req.image)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    try:
+        import numpy as np
+        from fractal_3d.neural_depth import estimate_depth_ablation
+        from fractal_3d import viz
+        results = estimate_depth_ablation(np.asarray(img))
+        grid = viz.ablation_grid(np.asarray(img), results)
+        table = [{"name": r["name"], "active": r["active"], "metrics": r["metrics"]}
+                 for r in results]
+        return {"ablation_grid": grid or "", "table": table}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e))
 

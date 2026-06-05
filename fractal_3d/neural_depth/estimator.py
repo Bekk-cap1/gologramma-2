@@ -27,54 +27,65 @@ def _coerce_rgb_uint8(image, max_side=512):
 
 
 def estimate_depth_compare(image, method="auto", segments=500, compactness=10.0):
-    """Build depth two ways for a Liu et al.-style comparison.
+    """Comparison that reproduces Liu et al. Figure 4 (weak unary → strong CRF).
 
-    Single dense-depth pass (DA V2 or pseudo), then:
-      - depth_unary : unary only (no pairwise CRF) — edge-aware smoothed dense map
-      - depth_crf   : full DCNF-CRF (y* = A⁻¹z)
-    Returns {depth_unary, depth_crf, depth_da, labels, method_used}.
+    Both Unary-only and Full-CRF use the SAME weak pseudo-cue unary, so the only
+    difference is the pairwise DCNF-CRF — isolating its effect. Depth Anything V2
+    is shown separately as a neural *reference* (quality ceiling), not a competitor.
+
+    Returns {depth_unary (raw pseudo), depth_crf (pseudo+CRF), depth_da (reference
+    or None), da_available, labels, metrics, note}.
     """
     image = _coerce_rgb_uint8(image)
     pixels = image.shape[0] * image.shape[1]
 
-    method_used = "pseudo_cues"
-    raw = None
-    if method in ("depth_anything", "auto"):
-        try:
-            from .depth_anything import run_depth_anything
-            raw = run_depth_anything(image)["depth"]
-            method_used = "depth_anything_v2"
-        except ImportError:
-            raw = None
-        except Exception as e:  # noqa: BLE001
-            print(f"[DepthAnything] failed ({type(e).__name__}: {e}); using pseudo cues")
-            raw = None
-    if raw is None:
-        raw = pseudo_depth_from_image(image)
-        method_used = "pseudo_cues"
-    raw = normalize_depth(raw)
+    # --- Weak unary = RAW pseudo-cues (no smoothing, no DA V2) — as in the paper.
+    pseudo_raw = normalize_depth(pseudo_depth_from_image(image))
 
-    depth_unary = edge_aware_smooth(raw, image, iterations=1)
-
+    # --- Full CRF = the SAME weak unary + full DCNF-CRF (shows the improvement).
     actual_segments = int(np.clip(min(segments, pixels // 50), 20, segments))
-    crf = run_dcnf_crf(image, raw, segments=actual_segments,
+    crf = run_dcnf_crf(image, pseudo_raw, segments=actual_segments,
                        compactness=compactness, crf_strength="full")
-
-    depth_unary = normalize_depth(depth_unary)
     depth_crf = crf["crf_depth"]
+
+    # --- Make3D-style baseline (Saxena 2008): piecewise-planar fit on the SAME
+    #     unary + MRF co-planarity. Reuses the CRF SLIC labels.
+    depth_make3d = None
+    try:
+        from .make3d_depth import make3d_style_depth
+        labels = crf["labels"]
+        depth_make3d = make3d_style_depth(image, pseudo_raw, labels,
+                                          int(labels.max()) + 1)
+    except Exception:
+        depth_make3d = None
+
+    # --- DA V2 = neural reference (quality ceiling), optional.
+    depth_da = None
+    da_available = False
+    try:
+        from .depth_anything import run_depth_anything
+        depth_da = normalize_depth(run_depth_anything(image)["depth"])
+        da_available = True
+    except Exception:
+        depth_da = None
+
     return {
-        "depth_unary": depth_unary,
+        "depth_unary": pseudo_raw,
         "depth_crf": depth_crf,
-        "depth_da": raw,
+        "depth_make3d": depth_make3d,
+        "depth_da": depth_da,
+        "da_available": da_available,
         "labels": crf["labels"],
-        "method_used": method_used,
+        "method_used": "pseudo_cues+dcnf_crf",
         "image": image,
-        "metrics": compute_depth_metrics(image, depth_unary, depth_crf, raw),
+        "metrics": compute_depth_metrics(image, pseudo_raw, depth_crf, depth_da,
+                                         make3d=depth_make3d),
+        "note": "Unary=pseudo-cues, Make3D=plane baseline, CRF=pseudo+DCNF, DA V2=reference",
     }
 
 
-def compute_depth_metrics(image, unary, crf, da):
-    """Relative (no ground-truth) depth metrics between the three methods.
+def compute_depth_metrics(image, unary, crf, da, make3d=None):
+    """Relative (no ground-truth) depth metrics between the methods.
 
     Per-method: gradient_energy (detail), smoothness, edge_alignment (corr of
     depth gradient with image gradient), depth_range (p95-p5). Plus pairwise MAE
@@ -89,7 +100,11 @@ def compute_depth_metrics(image, unary, crf, da):
         return sk_resize(np.asarray(a, dtype=np.float32), (size, size),
                          preserve_range=True, anti_aliasing=True).astype(np.float32)
 
-    u, c, d = _r(unary), _r(crf), _r(da)
+    # DA V2 may be unavailable (no torch) — fall back to unary so metric triples
+    # stay numeric; the caller's ``da_available`` flag tells the truth.
+    u, c = _r(unary), _r(crf)
+    d = _r(da) if da is not None else u
+    mk = _r(make3d) if make3d is not None else None
     img = np.asarray(image)
     gray = np.mean(img, axis=2) if img.ndim == 3 else img
     gray = sk_resize(gray.astype(np.float32), (size, size), preserve_range=True,
@@ -113,14 +128,41 @@ def compute_depth_metrics(image, unary, crf, da):
     def depth_range(depth):
         return float(np.percentile(depth, 95) - np.percentile(depth, 5))
 
+    def useful_detail(depth):
+        # Detail that coincides with image edges (real structure), not SLIC
+        # block noise: product of depth-gradient and image-gradient magnitudes.
+        return float((compute_gradient(depth) * compute_gradient(gray)).mean())
+
+    # LBP texture-edge map (shared across methods); None if skimage LBP fails.
+    try:
+        from skimage.feature import local_binary_pattern
+        _lbp = local_binary_pattern(gray, 8, 1, method="uniform").astype(np.float32)
+        _lbp_edges = compute_gradient(_lbp / (float(_lbp.max()) + 1e-9)).ravel()
+    except Exception:
+        _lbp_edges = None
+
+    def texture_coherence(depth):
+        # How well depth boundaries respect texture (LBP) boundaries.
+        if _lbp_edges is None:
+            return 0.0
+        de = compute_gradient(depth).ravel()
+        if de.std() < 1e-6 or _lbp_edges.std() < 1e-6:
+            return 0.0
+        return float(np.clip(np.corrcoef(de, _lbp_edges)[0, 1], 0.0, 1.0))
+
     def mae(a, b):
         return float(np.mean(np.abs(a - b)))
 
     def triple(fn):
-        return {"unary": fn(u), "crf": fn(c), "da_v2": fn(d)}
+        out = {"unary": fn(u), "crf": fn(c), "da_v2": fn(d)}
+        if mk is not None:
+            out["make3d"] = fn(mk)
+        return out
 
     return {
         "gradient_energy": triple(gradient_energy),
+        "useful_detail": triple(useful_detail),
+        "texture_coherence": triple(texture_coherence),
         "smoothness": triple(smoothness),
         "edge_alignment": triple(edge_alignment),
         "depth_range": triple(depth_range),
@@ -130,6 +172,89 @@ def compute_depth_metrics(image, unary, crf, da):
             "da_vs_unary": mae(d, u),
         },
     }
+
+
+def _single_depth_metrics(image_r, depth):
+    """The 5 per-method metrics for a single depth map (at 256x256)."""
+    from skimage.transform import resize as sk_resize
+    from .postprocess import compute_gradient
+
+    size = 256
+    d = sk_resize(np.asarray(depth, dtype=np.float32), (size, size),
+                  preserve_range=True, anti_aliasing=True).astype(np.float32)
+    img = np.asarray(image_r)
+    gray = np.mean(img, axis=2) if img.ndim == 3 else img
+    gray = sk_resize(gray.astype(np.float32), (size, size), preserve_range=True,
+                     anti_aliasing=True).astype(np.float32)
+    img_grad = compute_gradient(gray)
+
+    de = compute_gradient(d)
+    edge = 0.0
+    if img_grad.std() > 1e-6 and de.std() > 1e-6:
+        edge = float(np.clip(np.corrcoef(img_grad.ravel(), de.ravel())[0, 1], 0.0, 1.0))
+
+    tex = 0.0
+    try:
+        from skimage.feature import local_binary_pattern
+        lbp = local_binary_pattern(gray, 8, 1, method="uniform").astype(np.float32)
+        le = compute_gradient(lbp / (float(lbp.max()) + 1e-9)).ravel()
+        if le.std() > 1e-6 and de.std() > 1e-6:
+            tex = float(np.clip(np.corrcoef(de.ravel(), le)[0, 1], 0.0, 1.0))
+    except Exception:
+        pass
+
+    grad_energy = float((np.abs(np.diff(d, axis=1)).mean() + np.abs(np.diff(d, axis=0)).mean()) / 2.0)
+    return {
+        "edge_alignment": edge,
+        "useful_detail": float((de * img_grad).mean()),
+        "smoothness": float(1.0 - grad_energy),
+        "depth_range": float(np.percentile(d, 95) - np.percentile(d, 5)),
+        "texture_coherence": tex,
+    }
+
+
+def estimate_depth_ablation(image, segments=500, compactness=10.0):
+    """Ablation over the pairwise similarities (Liu et al. Table 2 style).
+
+    One weak pseudo-cue unary; CRF re-run with incrementally added similarities
+    (color → +histogram → +LBP → +spatial). Returns a list of
+    {name, active, depth, metrics}.
+    """
+    image = _coerce_rgb_uint8(image)
+    pixels = image.shape[0] * image.shape[1]
+    pseudo_raw = normalize_depth(pseudo_depth_from_image(image))
+    actual_segments = int(np.clip(min(segments, pixels // 50), 20, segments))
+
+    # (name, active_similarities, fractal_aware)
+    # NOTE: the fractal-aware CRF (Ilhom's extension, run_dcnf_crf(fractal_aware=True))
+    # is implemented and kept, but intentionally EXCLUDED from this ablation demo:
+    # on images with a smooth studio background the fractal prior detects spurious
+    # "fractality" in background noise and degrades depth (measured in stage 20 —
+    # it loses to the base Liu et al. CRF on edge_alignment / useful_detail across
+    # 3 images). The base CRF is the chosen method.
+    configs = [
+        ("Unary only", None, False),
+        ("+ color", ("color",), False),
+        ("+ histogram", ("color", "histogram"), False),
+        ("+ LBP", ("color", "histogram", "lbp"), False),
+        ("Full", ("color", "histogram", "lbp", "spatial"), False),
+    ]
+    results = []
+    for name, active, frac in configs:
+        if active is None:
+            depth = pseudo_raw
+        else:
+            depth = run_dcnf_crf(image, pseudo_raw, segments=actual_segments,
+                                 compactness=compactness, crf_strength="full",
+                                 active_similarities=active, fractal_aware=frac)["crf_depth"]
+        results.append({
+            "name": name,
+            "active": list(active) if active else [],
+            "fractal_aware": frac,
+            "depth": depth,
+            "metrics": _single_depth_metrics(image, depth),
+        })
+    return results
 
 
 def _depth_quality(depth):
