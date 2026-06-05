@@ -288,6 +288,9 @@ export const t = {
   // Fractal CNN tab
   fractalTab: { ru: "2D → 3D", uz: "2D → 3D" },
 
+  // Algorithm & Architecture tab
+  fractalGenTab: { ru: "Алгоритм", uz: "Algoritm" },
+
   // OpticalTable — palette labels (short, no subscripts)
   paletteLaser:  { ru: "Лазер",   uz: "Lazer"       },
   paletteBS:     { ru: "БС",      uz: "BS"           },

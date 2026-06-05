@@ -204,6 +204,117 @@ export default function Comparison() {
         ))}
       </div>
 
+      {/* Depth score table */}
+      {(() => {
+        const scoreRows: { labelRu: string; labelUz: string; trans: number; refl: number }[] = [
+          { labelRu: 'Простота записи',              labelUz: 'Yozish oddiyligi',           trans: 8,  refl: 5  },
+          { labelRu: 'Просмотр без лазера',          labelUz: 'Lazersiz ko\'rish',           trans: 2,  refl: 10 },
+          { labelRu: 'Яркость изображения',          labelUz: 'Tasvir yorqinligi',           trans: 9,  refl: 7  },
+          { labelRu: 'Пространственное разрешение',  labelUz: 'Fazoviy aniqlik',             trans: 9,  refl: 8  },
+          { labelRu: 'Цветопередача',                labelUz: 'Rang ko\'rinishi',            trans: 3,  refl: 8  },
+          { labelRu: 'Глубина 3D-эффекта',           labelUz: '3D chuqurlik effekti',       trans: 9,  refl: 8  },
+          { labelRu: 'Стоимость оборудования',       labelUz: 'Uskunalar narxi',            trans: 5,  refl: 7  },
+          { labelRu: 'Промышленное применение',      labelUz: 'Sanoat qo\'llanilishi',      trans: 3,  refl: 9  },
+        ];
+        const totalT = scoreRows.reduce((s, r) => s + r.trans, 0);
+        const totalR = scoreRows.reduce((s, r) => s + r.refl, 0);
+        const max = scoreRows.length * 10;
+        return (
+          <div className="mt-6 rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-color)' }}>
+            <div className="px-5 py-3" style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+              <h3 className="font-bold text-sm" style={{ color: 'var(--accent-amber)' }}>
+                {l === 'ru' ? 'Количественное сравнение (баллы 1–10)' : 'Miqdoriy taqqoslash (1–10 ball)'}
+              </h3>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                {l === 'ru' ? 'Больше = лучше по данному критерию' : 'Ko\'proq = ushbu mezon bo\'yicha yaxshiroq'}
+              </p>
+            </div>
+            <div>
+              {scoreRows.map((row, i) => {
+                const label = l === 'ru' ? row.labelRu : row.labelUz;
+                const winner = row.trans > row.refl ? 'trans' : row.refl > row.trans ? 'refl' : 'tie';
+                return (
+                  <div
+                    key={i}
+                    className="px-4 py-3"
+                    style={{
+                      background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
+                      borderBottom: '1px solid var(--border-color)',
+                    }}
+                  >
+                    <div className="flex justify-between text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{label}</span>
+                      <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        <span style={{ color: winner === 'trans' ? '#00E5FF' : '#607D8B' }}>{row.trans}</span>
+                        {' / '}
+                        <span style={{ color: winner === 'refl' ? '#FFB300' : '#607D8B' }}>{row.refl}</span>
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs w-16 shrink-0" style={{ color: '#00E5FF88' }}>Trans</span>
+                        <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ background: 'var(--bg-secondary)' }}>
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${row.trans * 10}%`, background: winner === 'trans' ? '#00E5FF' : '#00E5FF55' }}
+                          />
+                        </div>
+                        <span className="text-xs w-4 text-right font-mono" style={{ color: '#00E5FF' }}>{row.trans}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs w-16 shrink-0" style={{ color: '#FFB30088' }}>Refl</span>
+                        <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ background: 'var(--bg-secondary)' }}>
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${row.refl * 10}%`, background: winner === 'refl' ? '#FFB300' : '#FFB30055' }}
+                          />
+                        </div>
+                        <span className="text-xs w-4 text-right font-mono" style={{ color: '#FFB300' }}>{row.refl}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {/* Total row */}
+              <div className="px-4 py-4" style={{ background: 'var(--bg-secondary)', borderTop: '2px solid var(--border-color)' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+                    {l === 'ru' ? 'Итого' : 'Jami'}
+                  </span>
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>/ {max} {l === 'ru' ? 'баллов' : 'ball'}</span>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { label: 'Transmission', score: totalT, color: '#00E5FF' },
+                    { label: 'Reflection',   score: totalR, color: '#FFB300' },
+                  ].map(({ label, score, color }) => (
+                    <div key={label} className="flex items-center gap-3">
+                      <span className="text-xs w-24 shrink-0 font-semibold" style={{ color }}>{label}</span>
+                      <div className="flex-1 h-5 rounded-full overflow-hidden" style={{ background: 'var(--bg-card)' }}>
+                        <div
+                          className="h-full rounded-full flex items-center justify-end pr-2"
+                          style={{ width: `${(score / max) * 100}%`, background: color }}
+                        >
+                          <span className="text-xs font-bold" style={{ color: '#060B18' }}>{score}</span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-mono w-10 text-right" style={{ color }}>
+                        {Math.round((score / max) * 100)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 text-xs p-3 rounded-lg" style={{ background: '#FFB30011', border: '1px solid #FFB30033', color: 'var(--text-secondary)' }}>
+                  {l === 'ru'
+                    ? `Отражательная голограмма набирает ${totalR} из ${max} баллов (+${totalR - totalT} к трансмиссионной) — выигрывает за счёт просмотра в белом свете и промышленного применения. Трансмиссионная лидирует по яркости, разрешению и простоте записи.`
+                    : `Aks ettiruvchi gologramma ${max} balldan ${totalR} ball to'pladi (+${totalR - totalT} transmissiyaga nisbatan) — oq yorug'likda ko'rish va sanoat qo'llanilishi hisobiga yutadi. Transmissiya yorqinlik, aniqlik va yozish oddiyligi bo'yicha yetakchi.`}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Key takeaways */}
       <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div

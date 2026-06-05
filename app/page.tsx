@@ -11,6 +11,7 @@ import Comparison from "@/components/tabs/Comparison";
 import OpticalTable from "@/components/tabs/OpticalTable";
 import ReconstructionSim from "@/components/tabs/ReconstructionSim";
 import FractalCNN from "@/components/tabs/FractalCNN";
+import FractalGenerator from "@/components/tabs/FractalGenerator";
 import { useLang } from "@/components/LanguageContext";
 import { t } from "@/lib/translations";
 
@@ -35,6 +36,7 @@ export default function Home() {
     { id: 7, label: t.tableTab[lang] },
     { id: 8, label: t.reconSimTab[lang] },
     { id: 9, label: t.fractalTab[lang] },
+    { id: 10, label: t.fractalGenTab[lang] },
   ];
 
   const renderTab = () => {
@@ -49,6 +51,7 @@ export default function Home() {
       case 7: return <OpticalTable />;
       case 8: return <ReconstructionSim />;
       case 9: return <FractalCNN />;
+      case 10: return <FractalGenerator />;
       default: return <Equipment />;
     }
   };
