@@ -120,6 +120,9 @@ def run_subagent_depth_mesh(tool_input: dict) -> dict:
         is_escape_time=is_escape_time,
         ifs_transforms=ifs_transforms,
         image=img_for_depth,
+        unary_source=tool_input.get("unary_source", "auto"),
+        fractal_aware=bool(tool_input.get("fractal_aware", False)),
+        eta=float(tool_input.get("eta", 0.8)),
     )
     depth_map = depth_info["depth_map"]
 

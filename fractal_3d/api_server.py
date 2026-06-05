@@ -126,6 +126,9 @@ class AnalyzeStepsRequest(BaseModel):
     generate_images: bool = True
     depth_method: str = "auto"  # "auto" | "neural" | "mathematical"
     crf_strength: str = "auto"  # "auto" | "none" | "light" | "full"
+    unary_source: str = "auto"  # "auto" | "pseudo" | "shape_from_shading" | "depth_anything"
+    fractal_aware: bool = False
+    eta: float = 0.8
 
 
 class ReconstructRequest(BaseModel):
@@ -133,16 +136,25 @@ class ReconstructRequest(BaseModel):
     quality: str = "fast"
     depth_method: str = "auto"  # "auto" | "neural" | "mathematical"
     crf_strength: str = "auto"  # "auto" | "none" | "light" | "full"
+    unary_source: str = "auto"
+    fractal_aware: bool = False
+    eta: float = 0.8
 
 
 class CompareDepthRequest(BaseModel):
     image: str
     depth_method: str = "auto"  # "auto" | "neural" | "mathematical"
+    unary_source: str = "shape_from_shading"
+    fractal_aware: bool = False
+    eta: float = 0.8
 
 
 class AblationRequest(BaseModel):
     image: str
-    depth_method: str = "auto"  # accepted for parity; ablation always uses pseudo unary
+    depth_method: str = "auto"  # accepted for parity; unary_source controls z
+    unary_source: str = "shape_from_shading"
+    fractal_aware: bool = False
+    eta: float = 0.8
 
 
 class FeedbackRequest(BaseModel):
@@ -375,8 +387,15 @@ def _attach_step_visuals(steps, gen_images, img, decision, methods,
     for s in steps:
         if s["id"] == "depth":
             if depth_is_neural:
-                s["formula"] = ("z = DepthAnythingV2(image);  y* = (I + D − R)⁻¹ z;  "
-                                "R = 0.75·exp(−12·LAB − 6·hist − 8·LBP − dₓᵧ)")
+                params = (depth_out.get("neural_params", {}) or {})
+                src = str(params.get("unary_source", "auto"))
+                if params.get("fractal_aware"):
+                    s["formula"] = (
+                        f"z = {src}(image); h = fractal_prior; "
+                        "y* = ((1+eta)I + D - R)^-1 (z + eta*h)"
+                    )
+                else:
+                    s["formula"] = f"z = {src}(image); y* = (I + D - R)^-1 z"
             elif is_escape:
                 s["formula"] = "depth = i + 1 − log(log|z|)/log 2"
             else:
@@ -504,6 +523,9 @@ def analyze_steps(req: AnalyzeStepsRequest):
             img,
             use_neural=eff_neural,
             crf_strength=req.crf_strength,
+            unary_source=req.unary_source,
+            fractal_aware=req.fractal_aware,
+            eta=req.eta,
         ) or {}
         depth_map = depth_out.get("depth_map")
         depth_b64 = _depth_png_b64(depth_map) if depth_map is not None else ""
@@ -676,6 +698,8 @@ def analyze_steps(req: AnalyzeStepsRequest):
                     else "escape_depth" if is_escape else "chaos_game"),
                 "depth_method": depth_out.get("method", ""),
                 "crf_strength": depth_out.get("crf_strength"),
+                "unary_source": (depth_out.get("neural_params", {}) or {}).get("unary_source"),
+                "fractal_aware": bool((depth_out.get("neural_params", {}) or {}).get("fractal_aware", False)),
                 "photo_detection": photo_check,
                 "depth_routing_reason": neural_reason,
                 "tiebreak_applied": bool(decision.get("tiebreak_applied", False)),
@@ -703,7 +727,10 @@ def reconstruct_endpoint(req: ReconstructRequest):
     try:
         out = reconstruct(img, quality=quality, basename="fractal", use_cnn=True,
                           use_neural=_use_neural(req.depth_method),
-                          crf_strength=req.crf_strength)
+                          crf_strength=req.crf_strength,
+                          unary_source=req.unary_source,
+                          fractal_aware=req.fractal_aware,
+                          eta=req.eta)
         files = out.get("files", {}) or {}
         obj_path = files.get("obj")
         depth_path = out.get("depth_map_png")
@@ -784,14 +811,25 @@ def compare_depth(req: CompareDepthRequest):
         from fractal_3d.neural_depth import estimate_depth_compare
         from fractal_3d import viz
         method = "pseudo" if (req.depth_method or "").lower() == "mathematical" else "auto"
-        cmp = estimate_depth_compare(np.asarray(img), method=method)
+        cmp = estimate_depth_compare(
+            np.asarray(img),
+            method=method,
+            unary_source=req.unary_source,
+            fractal_aware=req.fractal_aware,
+            eta=req.eta,
+        )
         grid = viz.depth_comparison_grid(
             cmp["image"], cmp["depth_unary"], cmp["depth_crf"], cmp["depth_da"],
             depth_make3d=cmp.get("depth_make3d"),
-            da_available=cmp.get("da_available", False))
+            da_available=cmp.get("da_available", False),
+            unary_source=cmp.get("unary_source", ""),
+            fractal_aware=cmp.get("fractal_aware", False))
         return {
             "comparison_grid": (grid or {}).get("data", ""),
             "method_used": cmp.get("method_used", ""),
+            "unary_source": cmp.get("unary_source", ""),
+            "fractal_aware": cmp.get("fractal_aware", False),
+            "crf_params": cmp.get("crf_params", {}),
             "da_available": cmp.get("da_available", False),
             "metrics": cmp.get("metrics", {}),
         }
@@ -810,9 +848,17 @@ def ablation(req: AblationRequest):
         import numpy as np
         from fractal_3d.neural_depth import estimate_depth_ablation
         from fractal_3d import viz
-        results = estimate_depth_ablation(np.asarray(img))
+        results = estimate_depth_ablation(
+            np.asarray(img),
+            unary_source=req.unary_source,
+            include_fractal=req.fractal_aware,
+            eta=req.eta,
+        )
         grid = viz.ablation_grid(np.asarray(img), results)
-        table = [{"name": r["name"], "active": r["active"], "metrics": r["metrics"]}
+        table = [{"name": r["name"], "active": r["active"],
+                  "fractal_aware": r.get("fractal_aware", False),
+                  "unary_source": r.get("unary_source", ""),
+                  "metrics": r["metrics"]}
                  for r in results]
         return {"ablation_grid": grid or "", "table": table}
     except Exception as e:  # noqa: BLE001

@@ -42,7 +42,9 @@ def _package(depth, method: str, fractal_type: str, escape_params=None,
     return out
 
 
-def _neural_depth(image, fractal_type: str, size: int, crf_strength: str = "auto") -> dict:
+def _neural_depth(image, fractal_type: str, size: int, crf_strength: str = "auto",
+                  unary_source: str = "auto", fractal_aware: bool = False,
+                  eta: float = 0.8) -> dict:
     """Neural depth via the DCNF-CRF estimator (DA V2 / pseudo-cue unary + CRF)."""
     from ..neural_depth import estimate_depth
 
@@ -52,7 +54,9 @@ def _neural_depth(image, fractal_type: str, size: int, crf_strength: str = "auto
     if rgb.dtype != np.uint8:
         rgb = (rgb * 255).astype(np.uint8) if rgb.max() <= 1.0 else rgb.astype(np.uint8)
 
-    res = estimate_depth(rgb, method="auto", target_size=size, crf_strength=crf_strength)
+    res = estimate_depth(rgb, method="auto", target_size=size, crf_strength=crf_strength,
+                         unary_source=unary_source, fractal_aware=fractal_aware,
+                         eta=eta)
     extra = {
         "raw_depth": res.get("raw_depth"),
         "crf_depth": res.get("crf_depth"),
@@ -93,14 +97,17 @@ def _math_depth(fractal_type, is_escape_time, ifs_transforms, image, size,
 def build_depth_map(fractal_type: str = "", is_escape_time: bool = False,
                     ifs_transforms=None, image=None, size: int = 256,
                     c_real: float = -0.7, c_imag: float = 0.27015,
-                    use_neural: str = "auto", crf_strength: str = "auto") -> dict:
+                    use_neural: str = "auto", crf_strength: str = "auto",
+                    unary_source: str = "auto", fractal_aware: bool = False,
+                    eta: float = 0.8) -> dict:
     ifs_transforms = ifs_transforms or []
     use_neural = (use_neural or "auto").lower()
 
     # ── neural-only ──────────────────────────────────────────────────────────
     if use_neural == "always" and image is not None:
         try:
-            return _neural_depth(image, fractal_type, size, crf_strength)
+            return _neural_depth(image, fractal_type, size, crf_strength,
+                                 unary_source, fractal_aware, eta)
         except Exception:
             pass  # fall back to math below
 
@@ -109,7 +116,8 @@ def build_depth_map(fractal_type: str = "", is_escape_time: bool = False,
         no_type = not (fractal_type and str(fractal_type).strip())
         if no_type and not is_escape_time and not ifs_transforms:
             try:
-                return _neural_depth(image, fractal_type, size, crf_strength)
+                return _neural_depth(image, fractal_type, size, crf_strength,
+                                     unary_source, fractal_aware, eta)
             except Exception:
                 pass
 
@@ -123,7 +131,8 @@ def build_depth_map(fractal_type: str = "", is_escape_time: bool = False,
         ssim = float((escape_params or {}).get("similarity_to_known", 1.0))
         if ssim < _ESCAPE_SSIM_NEURAL_THRESHOLD:
             try:
-                return _neural_depth(image, fractal_type, size, crf_strength)
+                return _neural_depth(image, fractal_type, size, crf_strength,
+                                     unary_source, fractal_aware, eta)
             except Exception:
                 pass
 

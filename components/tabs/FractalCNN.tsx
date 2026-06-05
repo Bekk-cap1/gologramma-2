@@ -909,7 +909,7 @@ interface EscapeParams {
 interface AblationRow { name: string; active: string[]; metrics: { edge_alignment: number; useful_detail: number; smoothness: number; depth_range: number; texture_coherence: number }; }
 interface AblationData { ablation_grid: string; table: AblationRow[]; }
 
-interface DepthMetricTriple { unary: number; crf: number; da_v2: number; make3d?: number; }
+interface DepthMetricTriple { unary: number; crf: number; da_v2?: number | null; make3d?: number; }
 interface ComparisonMetrics {
   gradient_energy: DepthMetricTriple;
   useful_detail?: DepthMetricTriple;
@@ -917,7 +917,7 @@ interface ComparisonMetrics {
   smoothness: DepthMetricTriple;
   edge_alignment: DepthMetricTriple;
   depth_range: DepthMetricTriple;
-  differences: { crf_vs_unary: number; da_vs_crf: number; da_vs_unary: number };
+  differences: { crf_vs_unary: number; da_vs_crf?: number | null; da_vs_unary?: number | null };
 }
 
 // Map API type string → FractalKind
@@ -993,7 +993,7 @@ function kindToName3d(kind: FractalKind): string {
 }
 
 // ─── MetricRow: a single row in the depth-comparison metrics table ────────────
-function MetricRow({ label, values }: { label: string; values?: { unary: number; crf: number; da_v2: number; make3d?: number } }) {
+function MetricRow({ label, values }: { label: string; values?: DepthMetricTriple }) {
   // Defensive: a backend on an older version may omit a metric → render dashes
   // instead of crashing the whole page.
   if (!values || typeof values.unary !== "number") {
@@ -1012,6 +1012,11 @@ function MetricRow({ label, values }: { label: string; values?: { unary: number;
   const cell = (v: number) => (
     <td className="text-center py-1" style={{ color: v === ourBest ? "#34D399" : "var(--text-secondary)", fontWeight: v === ourBest ? 700 : 400 }}>{v.toFixed(3)}</td>
   );
+  const daCell = (v?: number | null) => (
+    <td className="text-center py-1 italic" style={{ color: "#64748B" }}>
+      {typeof v === "number" ? v.toFixed(3) : "—"}
+    </td>
+  );
   return (
     <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
       <td className="py-1" style={{ color: "var(--text-secondary)" }}>{label}</td>
@@ -1020,7 +1025,7 @@ function MetricRow({ label, values }: { label: string; values?: { unary: number;
         ? cell(values.make3d)
         : <td className="text-center py-1" style={{ color: "var(--text-secondary)" }}>—</td>}
       {cell(values.crf)}
-      <td className="text-center py-1 italic" style={{ color: "#64748B" }}>{values.da_v2.toFixed(3)}</td>
+      {daCell(values.da_v2)}
     </tr>
   );
 }
@@ -1046,7 +1051,7 @@ function interpretAblation(table: AblationRow[]): string {
   const first = table[0].metrics.edge_alignment;
   const last = table[table.length - 1].metrics.edge_alignment;
   const gain = first > 1e-9 ? ((last / first - 1) * 100).toFixed(0) : "0";
-  return `Полный набор similarity улучшил совпадение границ на ${gain}% относительно unary-only. Каждый признак (color, histogram, LBP, spatial) вносит вклад — это обосновывает выбор всех 3 similarity из Liu et al.`;
+  return `Полная конфигурация нашего метода улучшила совпадение границ на ${gain}% относительно unary-only. Каждый pairwise-признак (color, histogram, LBP, spatial) вносит вклад: это обосновывает финальный Liu DCNF-CRF как наш основной depth method.`;
 }
 
 // ─── Display-settings types + presets ─────────────────────────────────────────
@@ -2275,18 +2280,26 @@ export default function FractalCNN() {
                         );
                       })()}
                       <div className="grid grid-cols-3 gap-2">
+                        {(() => {
+                          const fmtDiff = (v?: number | null) =>
+                            typeof v === "number" ? `${(v * 100).toFixed(1)}%` : "—";
+                          return (
+                            <>
                         <div className="rounded p-2" style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)" }}>
                           <div className="text-[10px] mb-0.5" style={{ color: "var(--text-secondary)" }}>CRF изменил Unary</div>
-                          <div className="text-sm font-mono font-bold" style={{ color: "#FBBF24" }}>{(comparisonMetrics.differences.crf_vs_unary * 100).toFixed(1)}%</div>
+                          <div className="text-sm font-mono font-bold" style={{ color: "#FBBF24" }}>{fmtDiff(comparisonMetrics.differences.crf_vs_unary)}</div>
                         </div>
                         <div className="rounded p-2" style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)" }}>
                           <div className="text-[10px] mb-0.5" style={{ color: "var(--text-secondary)" }}>DA V2 vs CRF</div>
-                          <div className="text-sm font-mono font-bold" style={{ color: "#FBBF24" }}>{comparisonMetrics.differences.da_vs_crf}</div>
+                          <div className="text-sm font-mono font-bold" style={{ color: "#FBBF24" }}>{fmtDiff(comparisonMetrics.differences.da_vs_crf)}</div>
                         </div>
                         <div className="rounded p-2" style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)" }}>
                           <div className="text-[10px] mb-0.5" style={{ color: "var(--text-secondary)" }}>DA V2 vs Unary</div>
-                          <div className="text-sm font-mono font-bold" style={{ color: "#FBBF24" }}>{comparisonMetrics.differences.da_vs_unary}</div>
+                          <div className="text-sm font-mono font-bold" style={{ color: "#FBBF24" }}>{fmtDiff(comparisonMetrics.differences.da_vs_unary)}</div>
                         </div>
+                            </>
+                          );
+                        })()}
                       </div>
                       <div className="text-xs" style={{ color: "var(--text-secondary)" }}>Относительные метрики (без ground truth). Зелёным — лучший из Unary/CRF; DA V2 — reference (серым).</div>
                       <div className="text-sm" style={{ color: "var(--text-secondary)" }}>{interpretMetrics(comparisonMetrics)}</div>
@@ -2316,7 +2329,7 @@ export default function FractalCNN() {
               {ablationData && (
                 <div className="rounded-lg p-3 space-y-2" style={{ background: "var(--bg-card)", border: "1px solid #9C27B044" }}>
                   <div className="text-xs font-semibold" style={{ color: "#CE93D8" }}>
-                    Ablation study (вклад similarity, Liu et al. Table 2)
+                    Ablation study нашего метода (Liu Table 2 style)
                   </div>
                   {ablationData.ablation_grid && (
                     <>
@@ -2350,7 +2363,7 @@ export default function FractalCNN() {
                     </tbody>
                   </table>
                   <div className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                    Каждая строка добавляет один pairwise признак (color → histogram → LBP → spatial).
+                    Каждая строка добавляет один pairwise-признак нашего метода (color → histogram → LBP → spatial).
                   </div>
                   <div className="text-sm" style={{ color: "var(--text-secondary)" }}>{interpretAblation(ablationData.table)}</div>
                 </div>

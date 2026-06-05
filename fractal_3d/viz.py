@@ -14,7 +14,8 @@ from .common import to_gray, binarize
 
 
 def depth_comparison_grid(image, depth_unary, depth_crf, depth_da=None,
-                          depth_make3d=None, da_available=True):
+                          depth_make3d=None, da_available=True,
+                          unary_source="pseudo", fractal_aware=False):
     """Method comparison panel à la Liu et al. CVPR 2015 (Fig. 4 / Table 1).
 
     Panels: Исходное · Unary · Make3D (plane baseline) · Full CRF · DA V2.
@@ -32,16 +33,22 @@ def depth_comparison_grid(image, depth_unary, depth_crf, depth_da=None,
 
         panels = [("Исходное изображение", img, None, "#e2e8f0", "")]
         panels.append(("Unary only (y*=z)", np.asarray(depth_unary), "magma",
-                       "#06b6d4", "pseudo-cues · грубый · без pairwise"))
+                       "#06b6d4", f"{unary_source} · weak z · no pairwise"))
         if depth_make3d is not None:
             panels.append(("Make3D (плоскости)", np.asarray(depth_make3d), "magma",
                            "#fb923c", "Saxena 2008 · плоскостной бейзлайн"))
-        panels.append(("Full CRF (y*=A⁻¹z)", np.asarray(depth_crf), "magma",
-                       "#10b981", "тот же unary + DCNF CRF · A=I+D−R"))
+        crf_cap = ("same unary + fractal-aware CRF"
+                   if fractal_aware else "same unary + Liu DCNF CRF")
+        panels.append(("Full CRF", np.asarray(depth_crf), "magma",
+                       "#10b981", crf_cap))
         if depth_da is not None:
-            panels.append(("Depth Anything V2" if da_available else "DA V2 (n/a)",
-                           np.asarray(depth_da), "inferno", "#a855f7",
-                           "нейросеть · reference (потолок)"))
+            da_panel = np.asarray(depth_da)
+            da_caption = "neural reference · quality ceiling"
+        else:
+            da_panel = np.zeros_like(np.asarray(depth_crf, dtype=np.float32))
+            da_caption = "n/a · install requirements-neural"
+        panels.append(("Depth Anything V2" if da_available else "DA V2 (n/a)",
+                       da_panel, "inferno", "#a855f7", da_caption))
 
         n = len(panels)
         fig, axes = plt.subplots(1, n, figsize=(3.6 * n, 3.8))
@@ -51,6 +58,10 @@ def depth_comparison_grid(image, depth_unary, depth_crf, depth_da=None,
         for ax, (title, data, cmap, color, cap) in zip(axes, panels):
             ax.imshow(data) if cmap is None else ax.imshow(data, cmap=cmap)
             ax.set_title(title, color=color, fontsize=10)
+            if title == "DA V2 (n/a)":
+                ax.text(0.5, 0.5, "Depth Anything V2\nnot available",
+                        transform=ax.transAxes, ha="center", va="center",
+                        color="#c4b5fd", fontsize=10, fontweight="bold")
             if cap:
                 ax.text(0.5, -0.08, cap, transform=ax.transAxes, ha="center",
                         color="#94a3b8", fontsize=8)
@@ -103,10 +114,12 @@ def depth_step_images(depth_result: dict, image: np.ndarray) -> list:
     try:
         raw = depth_result.get("raw_depth")
         if raw is not None:
+            params = (depth_result.get("neural_params", {}) or {})
+            src = str(params.get("unary_source", "auto"))
             images.append({
                 "id": "raw_depth",
                 "title": "1. Raw depth (unary)",
-                "description": "z_p = median глубины в суперпикселе (визуальные cues)",
+                "description": f"Selected unary z from {src}",
                 "data": array_to_base64(np.asarray(raw, dtype=np.float32)),
             })
     except Exception:
@@ -137,10 +150,12 @@ def depth_step_images(depth_result: dict, image: np.ndarray) -> list:
     try:
         crf = depth_result.get("crf_depth")
         if crf is not None:
+            params = (depth_result.get("neural_params", {}) or {})
+            formula = str(params.get("crf_formula", "y* = (I + D - R)^-1 z"))
             images.append({
                 "id": "crf_depth",
                 "title": "3. CRF refined",
-                "description": "y* = (I + D − R)⁻¹ z  — сглаживание через pairwise similarity",
+                "description": formula,
                 "data": array_to_base64(np.asarray(crf, dtype=np.float32)),
             })
     except Exception:

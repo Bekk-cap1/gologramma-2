@@ -483,13 +483,21 @@ def run_dcnf_crf(image, dense_depth, segments=700, compactness=10.0, crf_strengt
 
     n_pairs = int(pairs.shape[0])
 
+    if fractal_aware and h_prior is not None:
+        formula = "y* = ((1+eta)I + D - R)^-1 (z + eta*h)"
+    else:
+        formula = "y* = (I + D - R)^-1 z"
+
     params = {
         "segments": segments,
         "compactness": compactness,
         "n_pairs": n_pairs,
-        "crf_formula": "y* = (I + D - R)⁻¹ z",
+        "crf_formula": formula,
         "crf_strength": crf_strength,
         "blend_unary": blend,
+        "active_similarities": list(active_similarities),
+        "fractal_aware": bool(fractal_aware and h_prior is not None),
+        "eta": float(eta) if fractal_aware and h_prior is not None else 0.0,
     }
 
     return {
@@ -498,4 +506,6 @@ def run_dcnf_crf(image, dense_depth, segments=700, compactness=10.0, crf_strengt
         "labels": labels,
         "n_superpixels": n,
         "params": params,
+        "fractal_prior": normalize_depth(h_prior[labels]) if h_prior is not None else None,
+        "fractal_dimension": normalize_depth(fractal_dim[labels]) if fractal_dim is not None else None,
     }

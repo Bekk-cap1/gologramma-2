@@ -130,6 +130,64 @@ def pseudo_depth_from_image(image):
     return normalize_depth(depth.astype(np.float32))
 
 
+def shape_from_shading_depth(image):
+    """Weak but meaningful shape-from-shading unary for CRF demos.
+
+    This is still a handcrafted monocular cue, not a learned model. It estimates
+    relative relief from normalized luminance under a soft top-left light prior,
+    then adds a small boundary cue so CRF smoothing has useful structure to
+    refine.
+    """
+    arr = np.asarray(image, dtype=np.float32)
+    if arr.max() > 1.0:
+        arr = arr / 255.0
+
+    if arr.ndim == 3 and arr.shape[2] >= 3:
+        gray = 0.299 * arr[:, :, 0] + 0.587 * arr[:, :, 1] + 0.114 * arr[:, :, 2]
+    elif arr.ndim == 3:
+        gray = arr[:, :, 0]
+    else:
+        gray = arr
+
+    gray = np.clip(gray.astype(np.float32), 0.0, 1.0)
+    h, w = gray.shape
+
+    # Estimate and divide out slow illumination so shading is more local than
+    # plain brightness. Keep the window odd for symmetric filtering.
+    illum_window = max(9, int(min(h, w) // 10))
+    if illum_window % 2 == 0:
+        illum_window += 1
+    illumination = uniform_filter(gray, size=illum_window)
+    relative_shading = gray / np.maximum(illumination, 1e-3)
+    shadow_depth = 1.0 - normalize_depth(relative_shading, clip_pct=(5.0, 95.0))
+
+    smooth_gray = gaussian_filter(gray, sigma=1.0)
+    gy, gx = np.gradient(smooth_gray)
+    nx = -gx
+    ny = -gy
+    nz = np.ones_like(gray, dtype=np.float32)
+    norm = np.sqrt(nx * nx + ny * ny + nz * nz) + 1e-6
+    nx, ny, nz = nx / norm, ny / norm, nz / norm
+
+    light = np.array([-0.35, -0.55, 0.76], dtype=np.float32)
+    light = light / (np.linalg.norm(light) + 1e-6)
+    lit = np.clip(nx * light[0] + ny * light[1] + nz * light[2], 0.0, 1.0)
+    normal_depth = 1.0 - normalize_depth(lit, clip_pct=(5.0, 95.0))
+
+    vertical = np.broadcast_to(
+        np.linspace(0.0, 1.0, h, dtype=np.float32)[:, None], (h, w)
+    )
+    edge_cue = compute_gradient(gray)
+
+    depth = (
+        0.58 * shadow_depth
+        + 0.22 * normal_depth
+        + 0.12 * edge_cue
+        + 0.08 * vertical
+    )
+    return normalize_depth(depth.astype(np.float32))
+
+
 def edge_aware_smooth(depth, image, sigma=2.0, iterations=2):
     """Blend Gaussian-smoothed depth toward edges.
 

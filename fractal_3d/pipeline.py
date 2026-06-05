@@ -91,7 +91,8 @@ def analyze(image, use_cnn: bool = True, generate_images: bool = False) -> dict:
 
 def reconstruct(image, quality: str = "full", basename: str = "fractal",
                 use_cnn: bool = True, use_neural: str = "auto",
-                crf_strength: str = "auto") -> dict:
+                crf_strength: str = "auto", unary_source: str = "auto",
+                fractal_aware: bool = False, eta: float = 0.8) -> dict:
     """Full pipeline incl. depth map, mesh, export and verification.
 
     ``use_neural`` ("auto"|"always"|"never") routes depth estimation between the
@@ -149,6 +150,9 @@ def reconstruct(image, quality: str = "full", basename: str = "fractal",
         image=image,
         use_neural=eff_neural,
         crf_strength=crf_strength,
+        unary_source=unary_source,
+        fractal_aware=fractal_aware,
+        eta=eta,
     )
     decision["depth_method"] = depth_info.get("method", "")
 

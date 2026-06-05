@@ -1,7 +1,12 @@
-"""Main depth estimation pipeline (DCNF-CRF + pseudo cues + optional Depth Anything V2)."""
+"""Main depth estimation pipeline (DCNF-CRF + selectable unary sources)."""
 import numpy as np
 
-from .postprocess import pseudo_depth_from_image, edge_aware_smooth, normalize_depth
+from .postprocess import (
+    pseudo_depth_from_image,
+    shape_from_shading_depth,
+    edge_aware_smooth,
+    normalize_depth,
+)
 from .dcnf_crf import run_dcnf_crf
 
 
@@ -26,26 +31,79 @@ def _coerce_rgb_uint8(image, max_side=512):
     return image
 
 
-def estimate_depth_compare(image, method="auto", segments=500, compactness=10.0):
+def _canonical_unary_source(unary_source, method="auto"):
+    """Resolve API aliases to the dense unary source used as z."""
+    src = (unary_source or "auto").lower().replace("-", "_")
+    meth = (method or "auto").lower().replace("-", "_")
+    aliases = {
+        "demo": "shape_from_shading",
+        "sfs": "shape_from_shading",
+        "shape": "shape_from_shading",
+        "shape_from_shading": "shape_from_shading",
+        "pseudo_cues": "pseudo",
+        "pseudo": "pseudo",
+        "da": "depth_anything",
+        "da_v2": "depth_anything",
+        "depth_anything_v2": "depth_anything",
+        "depth_anything": "depth_anything",
+        "best": "depth_anything",
+    }
+    if src in aliases:
+        return aliases[src]
+    if src != "auto":
+        return "auto"
+    if meth in aliases:
+        return aliases[meth]
+    return "auto"
+
+
+def _dense_unary_from_image(image, method="auto", unary_source="auto"):
+    """Return (dense_depth, method_used, source_used) for the CRF unary z."""
+    source = _canonical_unary_source(unary_source, method=method)
+
+    if source == "shape_from_shading":
+        return normalize_depth(shape_from_shading_depth(image)), "shape_from_shading", source
+
+    if source == "pseudo":
+        return normalize_depth(pseudo_depth_from_image(image)), "pseudo_cues", source
+
+    if source in ("depth_anything", "auto"):
+        try:
+            from .depth_anything import run_depth_anything
+            depth = normalize_depth(run_depth_anything(image)["depth"])
+            return depth, "depth_anything_v2", "depth_anything"
+        except ImportError:
+            pass
+        except Exception as e:  # noqa: BLE001 - model present but failed; log + fallback
+            print(f"[DepthAnything] failed ({type(e).__name__}: {e}); using pseudo cues")
+
+    return normalize_depth(pseudo_depth_from_image(image)), "pseudo_cues", "pseudo"
+
+
+def estimate_depth_compare(image, method="auto", segments=500, compactness=10.0,
+                           unary_source="shape_from_shading",
+                           fractal_aware=False, eta=0.8):
     """Comparison that reproduces Liu et al. Figure 4 (weak unary → strong CRF).
 
-    Both Unary-only and Full-CRF use the SAME weak pseudo-cue unary, so the only
+    Both Unary-only and Full-CRF use the SAME selected weak unary, so the only
     difference is the pairwise DCNF-CRF — isolating its effect. Depth Anything V2
     is shown separately as a neural *reference* (quality ceiling), not a competitor.
 
-    Returns {depth_unary (raw pseudo), depth_crf (pseudo+CRF), depth_da (reference
+    Returns {depth_unary (raw unary), depth_crf (unary+CRF), depth_da (reference
     or None), da_available, labels, metrics, note}.
     """
     image = _coerce_rgb_uint8(image)
     pixels = image.shape[0] * image.shape[1]
 
-    # --- Weak unary = RAW pseudo-cues (no smoothing, no DA V2) — as in the paper.
-    pseudo_raw = normalize_depth(pseudo_depth_from_image(image))
+    # --- Selected unary z (shape-from-shading by default for an explainable demo).
+    unary_raw, unary_method, source_used = _dense_unary_from_image(
+        image, method=method, unary_source=unary_source)
 
     # --- Full CRF = the SAME weak unary + full DCNF-CRF (shows the improvement).
     actual_segments = int(np.clip(min(segments, pixels // 50), 20, segments))
-    crf = run_dcnf_crf(image, pseudo_raw, segments=actual_segments,
-                       compactness=compactness, crf_strength="full")
+    crf = run_dcnf_crf(image, unary_raw, segments=actual_segments,
+                       compactness=compactness, crf_strength="full",
+                       fractal_aware=fractal_aware, eta=eta)
     depth_crf = crf["crf_depth"]
 
     # --- Make3D-style baseline (Saxena 2008): piecewise-planar fit on the SAME
@@ -54,7 +112,7 @@ def estimate_depth_compare(image, method="auto", segments=500, compactness=10.0)
     try:
         from .make3d_depth import make3d_style_depth
         labels = crf["labels"]
-        depth_make3d = make3d_style_depth(image, pseudo_raw, labels,
+        depth_make3d = make3d_style_depth(image, unary_raw, labels,
                                           int(labels.max()) + 1)
     except Exception:
         depth_make3d = None
@@ -70,17 +128,20 @@ def estimate_depth_compare(image, method="auto", segments=500, compactness=10.0)
         depth_da = None
 
     return {
-        "depth_unary": pseudo_raw,
+        "depth_unary": unary_raw,
         "depth_crf": depth_crf,
         "depth_make3d": depth_make3d,
         "depth_da": depth_da,
         "da_available": da_available,
         "labels": crf["labels"],
-        "method_used": "pseudo_cues+dcnf_crf",
+        "method_used": f"{unary_method}+dcnf_crf",
+        "unary_source": source_used,
+        "fractal_aware": bool(crf.get("params", {}).get("fractal_aware", False)),
+        "crf_params": crf.get("params", {}),
         "image": image,
-        "metrics": compute_depth_metrics(image, pseudo_raw, depth_crf, depth_da,
+        "metrics": compute_depth_metrics(image, unary_raw, depth_crf, depth_da,
                                          make3d=depth_make3d),
-        "note": "Unary=pseudo-cues, Make3D=plane baseline, CRF=pseudo+DCNF, DA V2=reference",
+        "note": f"Unary={source_used}, Make3D=plane baseline, CRF=unary+DCNF, DA V2=reference",
     }
 
 
@@ -100,10 +161,8 @@ def compute_depth_metrics(image, unary, crf, da, make3d=None):
         return sk_resize(np.asarray(a, dtype=np.float32), (size, size),
                          preserve_range=True, anti_aliasing=True).astype(np.float32)
 
-    # DA V2 may be unavailable (no torch) — fall back to unary so metric triples
-    # stay numeric; the caller's ``da_available`` flag tells the truth.
     u, c = _r(unary), _r(crf)
-    d = _r(da) if da is not None else u
+    d = _r(da) if da is not None else None
     mk = _r(make3d) if make3d is not None else None
     img = np.asarray(image)
     gray = np.mean(img, axis=2) if img.ndim == 3 else img
@@ -154,7 +213,7 @@ def compute_depth_metrics(image, unary, crf, da, make3d=None):
         return float(np.mean(np.abs(a - b)))
 
     def triple(fn):
-        out = {"unary": fn(u), "crf": fn(c), "da_v2": fn(d)}
+        out = {"unary": fn(u), "crf": fn(c), "da_v2": fn(d) if d is not None else None}
         if mk is not None:
             out["make3d"] = fn(mk)
         return out
@@ -168,8 +227,8 @@ def compute_depth_metrics(image, unary, crf, da, make3d=None):
         "depth_range": triple(depth_range),
         "differences": {
             "crf_vs_unary": mae(c, u),
-            "da_vs_crf": mae(d, c),
-            "da_vs_unary": mae(d, u),
+            "da_vs_crf": mae(d, c) if d is not None else None,
+            "da_vs_unary": mae(d, u) if d is not None else None,
         },
     }
 
@@ -213,44 +272,53 @@ def _single_depth_metrics(image_r, depth):
     }
 
 
-def estimate_depth_ablation(image, segments=500, compactness=10.0):
+def estimate_depth_ablation(image, segments=500, compactness=10.0,
+                            unary_source="shape_from_shading",
+                            include_fractal=False, eta=0.8):
     """Ablation over the pairwise similarities (Liu et al. Table 2 style).
 
-    One weak pseudo-cue unary; CRF re-run with incrementally added similarities
+    One selected weak unary; CRF re-run with incrementally added similarities
     (color → +histogram → +LBP → +spatial). Returns a list of
     {name, active, depth, metrics}.
     """
     image = _coerce_rgb_uint8(image)
     pixels = image.shape[0] * image.shape[1]
-    pseudo_raw = normalize_depth(pseudo_depth_from_image(image))
+    unary_raw, _unary_method, source_used = _dense_unary_from_image(
+        image, method="pseudo", unary_source=unary_source)
     actual_segments = int(np.clip(min(segments, pixels // 50), 20, segments))
 
     # (name, active_similarities, fractal_aware)
-    # NOTE: the fractal-aware CRF (Ilhom's extension, run_dcnf_crf(fractal_aware=True))
-    # is implemented and kept, but intentionally EXCLUDED from this ablation demo:
-    # on images with a smooth studio background the fractal prior detects spurious
-    # "fractality" in background noise and degrades depth (measured in stage 20 —
-    # it loses to the base Liu et al. CRF on edge_alignment / useful_detail across
-    # 3 images). The base CRF is the chosen method.
+    # Fractal-aware CRF is an explicit extension row, not part of the base Liu
+    # ablation. Keep it opt-in so the paper baseline and the fractal extension
+    # remain visually separable.
     configs = [
         ("Unary only", None, False),
+        ("Unary only (smooth)", ("smooth",), False),
         ("+ color", ("color",), False),
         ("+ histogram", ("color", "histogram"), False),
         ("+ LBP", ("color", "histogram", "lbp"), False),
-        ("Full", ("color", "histogram", "lbp", "spatial"), False),
+        ("Our method (Liu DCNF-CRF)", ("color", "histogram", "lbp", "spatial"), False),
     ]
+    if include_fractal:
+        configs.append(
+            ("Our method + fractal prior", ("color", "histogram", "lbp", "fractal", "spatial"), True)
+        )
     results = []
     for name, active, frac in configs:
         if active is None:
-            depth = pseudo_raw
+            depth = unary_raw
+        elif active == ("smooth",):
+            depth = edge_aware_smooth(unary_raw, image, iterations=1)
         else:
-            depth = run_dcnf_crf(image, pseudo_raw, segments=actual_segments,
+            depth = run_dcnf_crf(image, unary_raw, segments=actual_segments,
                                  compactness=compactness, crf_strength="full",
-                                 active_similarities=active, fractal_aware=frac)["crf_depth"]
+                                 active_similarities=active,
+                                 fractal_aware=frac, eta=eta)["crf_depth"]
         results.append({
             "name": name,
             "active": list(active) if active else [],
             "fractal_aware": frac,
+            "unary_source": source_used,
             "depth": depth,
             "metrics": _single_depth_metrics(image, depth),
         })
@@ -287,7 +355,8 @@ def _depth_quality(depth):
 
 
 def estimate_depth(image, method="auto", segments=500, compactness=10.0, target_size=256,
-                   crf_strength="auto"):
+                   crf_strength="auto", unary_source="auto",
+                   fractal_aware=False, eta=0.8):
     """Estimate depth from an image using DCNF-CRF + optional Depth Anything V2.
 
     Args:
@@ -342,8 +411,9 @@ def estimate_depth(image, method="auto", segments=500, compactness=10.0, target_
     # --- Dense depth estimation ---
     method_used = "pseudo_cues"
     raw_depth = None
+    requested_source = _canonical_unary_source(unary_source, method=method)
 
-    if method in ("depth_anything", "auto"):
+    if requested_source == "auto" and method in ("depth_anything", "auto"):
         try:
             from .depth_anything import run_depth_anything
             result = run_depth_anything(image)
@@ -365,6 +435,11 @@ def estimate_depth(image, method="auto", segments=500, compactness=10.0, target_
         method_used = "pseudo_cues"
 
     raw_depth = normalize_depth(raw_depth)
+    if requested_source != "auto":
+        raw_depth, method_used, source_used = _dense_unary_from_image(
+            image, method=method, unary_source=unary_source)
+    else:
+        source_used = "depth_anything" if method_used == "depth_anything_v2" else "pseudo"
 
     # --- CRF strength: a strong unary (DA V2) only wants light CRF (keeps detail);
     #     the weak pseudo-cue unary benefits from full CRF refinement. ---
@@ -379,11 +454,18 @@ def estimate_depth(image, method="auto", segments=500, compactness=10.0, target_
         unary_depth = raw_depth
         labels = None
         n_superpixels = 0
-        crf_params = {"crf_strength": "none", "blend_unary": 1.0}
+        crf_params = {
+            "crf_strength": "none",
+            "blend_unary": 1.0,
+            "crf_formula": "y* = z",
+            "fractal_aware": False,
+            "eta": 0.0,
+        }
         smoothed = edge_aware_smooth(raw_depth, image, iterations=1)
     else:
         crf_result = run_dcnf_crf(image, raw_depth, segments=actual_segments,
-                                  compactness=compactness, crf_strength=crf_strength)
+                                  compactness=compactness, crf_strength=crf_strength,
+                                  fractal_aware=fractal_aware, eta=eta)
         crf_depth_raw = crf_result["crf_depth"]
         unary_depth = crf_result["unary_depth"]
         labels = crf_result["labels"]
@@ -407,6 +489,9 @@ def estimate_depth(image, method="auto", segments=500, compactness=10.0, target_
         "target_size": target_size,
         "input_shape": (h, w),
         "crf_strength": crf_strength,
+        "unary_source": source_used,
+        "fractal_aware_requested": bool(fractal_aware),
+        "eta_requested": float(eta) if fractal_aware else 0.0,
         **crf_params,
     }
 
