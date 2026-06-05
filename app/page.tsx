@@ -16,7 +16,13 @@ import { t } from "@/lib/translations";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState(0);
-  const { lang, setLang } = useLang();
+  const { lang, setLang, theme, setTheme } = useLang();
+  const controls = {
+    language: { ru: "Язык", uz: "Til" },
+    theme: { ru: "Тема", uz: "Mavzu" },
+    dark: { ru: "Тёмная", uz: "Qora" },
+    light: { ru: "Светлая", uz: "Yorug'" },
+  };
 
   const TABS = [
     { id: 0, label: t.tab0[lang] },
@@ -50,9 +56,9 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen" style={{ background: 'var(--bg-primary)' }}>
       {/* Header */}
-      <header style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }} className="px-6 py-4">
+      <header className="app-header px-6 py-4">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-3 mb-1">
+          <div className="flex items-center gap-3 mb-2 flex-wrap">
             <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #00E5FF, #9C27B0)' }}>
               <span className="text-white text-sm font-bold">H</span>
             </div>
@@ -62,53 +68,66 @@ export default function Home() {
             {/* Extension badge */}
             <div
               className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs"
-              style={{ background: '#0D1F38', border: '1px solid #00E5FF33', color: '#90A4AE' }}
+              style={{ background: 'var(--control-bg)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
               title={lang === 'ru' ? 'Папка: C:\\Users\\Genius\\hologram-pdf-extension' : 'Papka: C:\\Users\\Genius\\hologram-pdf-extension'}
             >
               <span>📄</span>
-              <span style={{ color: '#00E5FF' }}>
+              <span style={{ color: 'var(--accent-cyan)' }}>
                 {lang === 'ru' ? 'PDF-расширение' : 'PDF kengaytma'}
               </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#546E7A' }}>
+              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: 'var(--text-secondary)' }}>
                 chrome://extensions
               </span>
             </div>
 
-            {/* Language switcher */}
-            <div className="flex gap-1 ml-auto sm:ml-2">
-              <button
-                onClick={() => setLang("ru")}
-                style={{
-                  background: lang === "ru" ? '#00E5FF22' : 'transparent',
-                  border: `1px solid ${lang === "ru" ? '#00E5FF' : '#1E3A5F'}`,
-                  color: lang === "ru" ? '#00E5FF' : '#90A4AE',
-                  padding: '4px 12px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
-              >
-                RU
-              </button>
-              <button
-                onClick={() => setLang("uz")}
-                style={{
-                  background: lang === "uz" ? '#00E5FF22' : 'transparent',
-                  border: `1px solid ${lang === "uz" ? '#00E5FF' : '#1E3A5F'}`,
-                  color: lang === "uz" ? '#00E5FF' : '#90A4AE',
-                  padding: '4px 12px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
-              >
-                UZ
-              </button>
+            <div className="flex items-center gap-2 ml-auto flex-wrap justify-end">
+              {/* Language switcher */}
+              <div className="app-control-group" aria-label={controls.language[lang]}>
+                <span className="app-control-label">{controls.language[lang]}</span>
+                <button
+                  type="button"
+                  className="app-control-button"
+                  data-active={lang === "ru"}
+                  aria-pressed={lang === "ru"}
+                  onClick={() => setLang("ru")}
+                >
+                  RU
+                </button>
+                <button
+                  type="button"
+                  className="app-control-button"
+                  data-active={lang === "uz"}
+                  aria-pressed={lang === "uz"}
+                  onClick={() => setLang("uz")}
+                >
+                  UZ
+                </button>
+              </div>
+
+              {/* Theme switcher */}
+              <div className="app-control-group" aria-label={controls.theme[lang]}>
+                <span className="app-control-label">{controls.theme[lang]}</span>
+                <button
+                  type="button"
+                  className="app-control-button"
+                  data-active={theme === "dark"}
+                  aria-pressed={theme === "dark"}
+                  onClick={() => setTheme("dark")}
+                >
+                  {controls.dark[lang]}
+                </button>
+                <button
+                  type="button"
+                  className="app-control-button"
+                  data-active={theme === "light"}
+                  aria-pressed={theme === "light"}
+                  onClick={() => setTheme("light")}
+                >
+                  {controls.light[lang]}
+                </button>
+              </div>
             </div>
+
           </div>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             {t.appSubtitle[lang]}
@@ -124,13 +143,10 @@ export default function Home() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                  activeTab === tab.id
-                    ? "border-[#00E5FF] text-[#00E5FF]"
-                    : "border-transparent hover:text-[#E8EAF6]"
-                }`}
+                className="px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2"
                 style={{
-                  color: activeTab === tab.id ? '#00E5FF' : 'var(--text-secondary)',
+                  borderColor: activeTab === tab.id ? 'var(--accent-cyan)' : 'transparent',
+                  color: activeTab === tab.id ? 'var(--accent-cyan)' : 'var(--text-secondary)',
                 }}
               >
                 {tab.label}
