@@ -2,7 +2,7 @@
 
 Public function
 ---------------
-mesh_to_point_cloud_ply(mesh_path, ply_path, n_points=120000) -> int
+mesh_to_point_cloud_ply(mesh_path, ply_path, n_points=50000) -> int
     Returns the number of points written.
 """
 
@@ -16,7 +16,7 @@ from typing import Union
 def mesh_to_point_cloud_ply(
     mesh_path: Union[str, Path],
     ply_path: Union[str, Path],
-    n_points: int = 120_000,
+    n_points: int = 50_000,
 ) -> int:
     """Sample a mesh surface and write a binary-little-endian PLY file.
 
@@ -47,7 +47,7 @@ def mesh_to_point_cloud_ply(
     if len(mesh.faces) == 0:
         raise ValueError(f"Mesh has no faces: {mesh_path}")
 
-    actual_n = min(n_points, max(1, len(mesh.faces) * 3))
+    actual_n = max(1, int(n_points))
 
     # --- Sample surface -------------------------------------------------------
     try:
@@ -55,7 +55,8 @@ def mesh_to_point_cloud_ply(
     except Exception:
         # Fallback: uniformly subsample vertices
         verts = np.array(mesh.vertices, dtype=np.float32)
-        idx = np.random.choice(len(verts), size=min(actual_n, len(verts)), replace=False)
+        replace = actual_n > len(verts)
+        idx = np.random.choice(len(verts), size=actual_n, replace=replace)
         points = verts[idx]
         face_indices = None
 
@@ -73,8 +74,8 @@ def mesh_to_point_cloud_ply(
                 vc = np.array(vc, dtype=np.uint8)
                 if face_indices is not None:
                     # Map face → vertex (use first vertex of each face)
-                    fv = np.array(mesh.faces, dtype=np.int64)[face_indices, 0]
-                    colors_u8 = vc[fv, :3]
+                    fv = np.array(mesh.faces, dtype=np.int64)[face_indices]
+                    colors_u8 = vc[fv, :3].mean(axis=1).astype(np.uint8)
                 else:
                     # From the vertex-subsample path
                     colors_u8 = vc[idx, :3]
@@ -106,15 +107,11 @@ def mesh_to_point_cloud_ply(
     if maxspan < 1e-9:
         maxspan = 1e-9
     if float(spans[2]) < 0.3 * maxspan:
-        raise ValueError(
-            f"geometry is flat (z span {float(spans[2]):.3f} vs max {maxspan:.3f})"
-        )
+        raise RuntimeError("geometry flat")
 
     unique_colors = len(np.unique(colors_u8.reshape(-1, 3), axis=0))
     if unique_colors <= 100:
-        raise ValueError(
-            f"colors not assigned (unique={unique_colors})"
-        )
+        raise RuntimeError("colors not set")
 
     # --- Write PLY (binary little-endian) ------------------------------------
     header = (

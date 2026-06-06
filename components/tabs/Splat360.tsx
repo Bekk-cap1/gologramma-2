@@ -78,6 +78,7 @@ const BASE = "http://localhost:8000";
 type Mode = "synthetic" | "photo";
 type JobState = "queued" | "running" | "done" | "error";
 type ViewSource = "mesh" | "points";
+type FractalType = "mandelbulb" | "menger3d" | "ifs3d" | "mesh";
 
 interface JobStatus {
   state: JobState;
@@ -96,9 +97,15 @@ export default function Splat360() {
   const [mode, setMode] = useState<Mode>("synthetic");
 
   // synthetic inputs
-  const [nViews, setNViews] = useState(60);
+  const [nViews, setNViews] = useState(12);
+  const [imgSize, setImgSize] = useState(256);
   const [elevations, setElevations] = useState("-20,0,20,40");
-  const [fractalType, setFractalType] = useState<"mandelbulb" | "menger3d" | "mesh">("mandelbulb");
+  const [fractalType, setFractalType] = useState<FractalType>("mandelbulb");
+  const [fractalResolution, setFractalResolution] = useState(160);
+  const [mandelPower, setMandelPower] = useState(8);
+  const [mandelIter, setMandelIter] = useState(12);
+  const [mengerLevel, setMengerLevel] = useState(4);
+  const [ifsPoints, setIfsPoints] = useState(2000000);
 
   // photo inputs
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -212,7 +219,18 @@ export default function Splat360() {
       const res = await fetch(`${BASE}/api/splat360/synthetic`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ n_views: nViews, elevations: elevArr, fractal_type: fractalType }),
+        body: JSON.stringify({
+          n_views: nViews,
+          img_size: imgSize,
+          elevations: elevArr,
+          fractal_type: fractalType,
+          resolution: fractalType === "mesh" ? undefined : fractalResolution,
+          power: mandelPower,
+          max_iter: mandelIter,
+          menger_level: mengerLevel,
+          ifs_points: ifsPoints,
+          ifs_warmup: 20,
+        }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const { job_id } = await res.json();
@@ -223,7 +241,7 @@ export default function Splat360() {
     } finally {
       setPosting(false);
     }
-  }, [nViews, elevations, fractalType, lang, startPolling]);
+  }, [nViews, imgSize, elevations, fractalType, fractalResolution, mandelPower, mandelIter, mengerLevel, ifsPoints, lang, startPolling]);
 
   // ── POST photo ────────────────────────────────────────────────────────────────
   const handlePhoto = useCallback(async () => {
@@ -343,6 +361,24 @@ export default function Splat360() {
       });
     };
 
+    const ensureGeometryColors = (geometry: THREE.BufferGeometry) => {
+      if (geometry.getAttribute("color")) return true;
+      const red = geometry.getAttribute("red") as THREE.BufferAttribute | undefined;
+      const green = geometry.getAttribute("green") as THREE.BufferAttribute | undefined;
+      const blue = geometry.getAttribute("blue") as THREE.BufferAttribute | undefined;
+      if (!red || !green || !blue) return false;
+
+      const n = red.count;
+      const colors = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) {
+        colors[i * 3] = red.getX(i) / 255;
+        colors[i * 3 + 1] = green.getX(i) / 255;
+        colors[i * 3 + 2] = blue.getX(i) / 255;
+      }
+      geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+      return true;
+    };
+
     if (renderMesh && meshUrl) {
       const ext = meshUrl.split("?")[0].split(".").pop()?.toLowerCase() ?? "";
       if (ext === "glb" || ext === "gltf") {
@@ -358,6 +394,32 @@ export default function Splat360() {
           undefined,
           () => {
             // mesh failed → fall back to points
+            setUserViewSource("points");
+          },
+        );
+      } else if (ext === "ply") {
+        const loader = new PLYLoader();
+        loader.load(
+          meshUrl,
+          (geometry) => {
+            ensureGeometryColors(geometry);
+            geometry.computeVertexNormals();
+            const mesh = new THREE.Mesh(
+              geometry,
+              new THREE.MeshStandardMaterial({
+                color: geometry.getAttribute("color") ? 0xffffff : 0x8899aa,
+                vertexColors: !!geometry.getAttribute("color"),
+                metalness: 0.1,
+                roughness: 0.8,
+                flatShading: true,
+              }),
+            );
+            fitObject(mesh);
+            scene.add(mesh);
+            animate();
+          },
+          undefined,
+          () => {
             setUserViewSource("points");
           },
         );
@@ -401,18 +463,7 @@ export default function Splat360() {
 
           // Vertex colors
           let mat: THREE.PointsMaterial;
-          if (geometry.attributes.color) {
-            mat = new THREE.PointsMaterial({ size: pointSize, vertexColors: true, sizeAttenuation: true });
-          } else if (geometry.attributes.red) {
-            // Some PLY exporters store color channels separately
-            const n = geometry.attributes.red.count;
-            const colors = new Float32Array(n * 3);
-            for (let i = 0; i < n; i++) {
-              colors[i * 3]     = (geometry.attributes.red.getX(i) as number) / 255;
-              colors[i * 3 + 1] = (geometry.attributes.green.getX(i) as number) / 255;
-              colors[i * 3 + 2] = (geometry.attributes.blue.getX(i) as number) / 255;
-            }
-            geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+          if (ensureGeometryColors(geometry)) {
             mat = new THREE.PointsMaterial({ size: pointSize, vertexColors: true, sizeAttenuation: true });
           } else {
             mat = new THREE.PointsMaterial({ size: pointSize, color: 0x00e5ff, sizeAttenuation: true });
@@ -534,6 +585,7 @@ export default function Splat360() {
               {([
                 { k: "mandelbulb", label: "Mandelbulb" },
                 { k: "menger3d", label: lang === "ru" ? "Губка Менгера 3D" : "Menger 3D" },
+                { k: "ifs3d", label: lang === "ru" ? "3D-IFS / Серпинский" : "3D-IFS / Sierpinski" },
                 { k: "mesh", label: lang === "ru" ? "Текущий меш (2D→3D)" : "Joriy mesh (2D→3D)" },
               ] as const).map((o) => (
                 <button
@@ -558,6 +610,118 @@ export default function Splat360() {
               </div>
             )}
           </div>
+          {fractalType !== "mesh" && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10, marginBottom: 12 }}>
+              <label style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+                <span style={{ display: "block", marginBottom: 4 }}>N</span>
+                <input
+                  type="number"
+                  value={fractalResolution}
+                  min={32}
+                  max={256}
+                  step={1}
+                  onChange={(e) => setFractalResolution(parseInt(e.target.value) || 160)}
+                  style={{
+                    width: "100%",
+                    padding: "6px 10px",
+                    borderRadius: 6,
+                    border: "1px solid var(--border-color)",
+                    background: "var(--bg-secondary)",
+                    color: "var(--text-primary, #e2e8f0)",
+                    fontSize: 14,
+                  }}
+                />
+              </label>
+              {fractalType === "mandelbulb" && (
+                <>
+                  <label style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+                    <span style={{ display: "block", marginBottom: 4 }}>power</span>
+                    <input
+                      type="number"
+                      value={mandelPower}
+                      min={2}
+                      max={12}
+                      step={1}
+                      onChange={(e) => setMandelPower(parseFloat(e.target.value) || 8)}
+                      style={{
+                        width: "100%",
+                        padding: "6px 10px",
+                        borderRadius: 6,
+                        border: "1px solid var(--border-color)",
+                        background: "var(--bg-secondary)",
+                        color: "var(--text-primary, #e2e8f0)",
+                        fontSize: 14,
+                      }}
+                    />
+                  </label>
+                  <label style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+                    <span style={{ display: "block", marginBottom: 4 }}>max_iter</span>
+                    <input
+                      type="number"
+                      value={mandelIter}
+                      min={4}
+                      max={24}
+                      step={1}
+                      onChange={(e) => setMandelIter(parseInt(e.target.value) || 12)}
+                      style={{
+                        width: "100%",
+                        padding: "6px 10px",
+                        borderRadius: 6,
+                        border: "1px solid var(--border-color)",
+                        background: "var(--bg-secondary)",
+                        color: "var(--text-primary, #e2e8f0)",
+                        fontSize: 14,
+                      }}
+                    />
+                  </label>
+                </>
+              )}
+              {fractalType === "menger3d" && (
+                <label style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+                  <span style={{ display: "block", marginBottom: 4 }}>level</span>
+                  <input
+                    type="number"
+                    value={mengerLevel}
+                    min={1}
+                    max={5}
+                    step={1}
+                    onChange={(e) => setMengerLevel(parseInt(e.target.value) || 4)}
+                    style={{
+                      width: "100%",
+                      padding: "6px 10px",
+                      borderRadius: 6,
+                      border: "1px solid var(--border-color)",
+                      background: "var(--bg-secondary)",
+                      color: "var(--text-primary, #e2e8f0)",
+                      fontSize: 14,
+                    }}
+                  />
+                </label>
+              )}
+              {fractalType === "ifs3d" && (
+                <label style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+                  <span style={{ display: "block", marginBottom: 4 }}>points</span>
+                  <input
+                    type="number"
+                    value={ifsPoints}
+                    min={50000}
+                    max={3000000}
+                    step={50000}
+                    onChange={(e) => setIfsPoints(parseInt(e.target.value) || 2000000)}
+                    style={{
+                      width: "100%",
+                      padding: "6px 10px",
+                      borderRadius: 6,
+                      border: "1px solid var(--border-color)",
+                      background: "var(--bg-secondary)",
+                      color: "var(--text-primary, #e2e8f0)",
+                      fontSize: 14,
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+          )}
           <div style={{ marginBottom: 10 }}>
             <label style={{ display: "block", color: "var(--text-secondary)", fontSize: 13, marginBottom: 4 }}>
               {T.nViewsLabel[lang]}
@@ -568,6 +732,28 @@ export default function Splat360() {
               min={4}
               max={360}
               onChange={(e) => setNViews(parseInt(e.target.value) || 60)}
+              style={{
+                width: 100,
+                padding: "6px 10px",
+                borderRadius: 6,
+                border: "1px solid var(--border-color)",
+                background: "var(--bg-secondary)",
+                color: "var(--text-primary, #e2e8f0)",
+                fontSize: 14,
+              }}
+            />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ display: "block", color: "var(--text-secondary)", fontSize: 13, marginBottom: 4 }}>
+              img_size
+            </label>
+            <input
+              type="number"
+              value={imgSize}
+              min={128}
+              max={800}
+              step={64}
+              onChange={(e) => setImgSize(parseInt(e.target.value) || 256)}
               style={{
                 width: 100,
                 padding: "6px 10px",

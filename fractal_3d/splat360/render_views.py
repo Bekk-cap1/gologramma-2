@@ -12,7 +12,7 @@ import json
 import math
 import os
 from pathlib import Path
-from typing import Sequence, Union
+from typing import Callable, Optional, Sequence, Union
 
 
 # ---------------------------------------------------------------------------
@@ -99,6 +99,8 @@ def render_mesh_orbit(
     elevations: Sequence[float] = (-20, 0, 20, 40),
     img_size: int = 800,
     radius: Union[str, float] = "auto",
+    max_render_faces: int = 30_000,
+    progress: Optional[Callable[[int, int], None]] = None,
 ) -> str:
     """Render orbit views of a mesh and write transforms.json.
 
@@ -127,6 +129,14 @@ def render_mesh_orbit(
     mesh = trimesh.load(str(mesh_path), force="mesh")
     vertices = np.array(mesh.vertices, dtype=np.float64)
     faces = np.array(mesh.faces, dtype=np.int64)
+    vertex_rgb = None
+    if getattr(mesh, "visual", None) is not None:
+        try:
+            vc = np.asarray(mesh.visual.vertex_colors, dtype=np.uint8)
+            if len(vc) == len(vertices):
+                vertex_rgb = vc[:, :3].astype(np.float64) / 255.0
+        except Exception:
+            vertex_rgb = None
 
     # Center + scale
     centroid = vertices.mean(axis=0)
@@ -142,8 +152,15 @@ def render_mesh_orbit(
     else:
         cam_radius = float(radius)
 
+    render_faces = faces
+    if max_render_faces > 0 and len(faces) > max_render_faces:
+        rng = np.random.default_rng(12345)
+        keep = rng.choice(len(faces), size=int(max_render_faces), replace=False)
+        keep.sort()
+        render_faces = faces[keep]
+
     # Face normals (for shading)
-    fnormals = _face_normals(vertices, faces)
+    fnormals = _face_normals(vertices, render_faces)
 
     # Camera intrinsics (FOV ~ 45 deg in both axes)
     fov = math.radians(45.0)
@@ -169,6 +186,7 @@ def render_mesh_orbit(
 
     frames = []
     idx = 0
+    total_views = len(cameras)
     for az, el in cameras:
         fig = plt.figure(figsize=(img_size / 100, img_size / 100), dpi=100)
         ax = fig.add_subplot(111, projection="3d")
@@ -186,12 +204,15 @@ def render_mesh_orbit(
         shade = _lambertian_shade(fnormals, view_dir)
 
         # Build face polygons
-        tri_verts = vertices[faces]  # (F,3,3)
+        tri_verts = vertices[render_faces]  # (F,3,3)
 
-        # Face colors: steel-blue base * shade
-        base_rgb = np.array([0.27, 0.51, 0.71])
+        # Face colors: average vertex colors when present, otherwise steel-blue.
+        if vertex_rgb is not None:
+            base_rgb = vertex_rgb[render_faces].mean(axis=1)
+        else:
+            base_rgb = np.tile(np.array([0.27, 0.51, 0.71]), (len(render_faces), 1))
         facecolors = np.clip(shade[:, None] * base_rgb, 0.0, 1.0)
-        rgba = np.column_stack([facecolors, np.ones(len(faces))])
+        rgba = np.column_stack([facecolors, np.ones(len(render_faces))])
 
         poly = Poly3DCollection(
             tri_verts,
@@ -228,6 +249,11 @@ def render_mesh_orbit(
         rel_path = f"views/{idx:03d}.png"
         frames.append({"file_path": rel_path, "transform_matrix": c2w})
         idx += 1
+        if progress is not None:
+            try:
+                progress(idx, total_views)
+            except Exception:
+                pass
 
     # --- Write transforms.json -----------------------------------------------
     transforms = {

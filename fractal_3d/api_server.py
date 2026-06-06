@@ -893,8 +893,15 @@ _SPLAT_LOCK = _threading.Lock()  # serialise heavy renders (matplotlib / 8GB GPU
 
 class SplatSyntheticRequest(BaseModel):
     n_views: int = 60
+    img_size: int = 256
     elevations: list[float] = [-20.0, 0.0, 20.0, 40.0]
-    fractal_type: str = "mandelbulb"  # "mandelbulb" | "menger3d" | "mesh"
+    fractal_type: str = "mandelbulb"  # "mandelbulb" | "menger3d" | "ifs3d" | "mesh"
+    resolution: Optional[int] = None
+    power: float = 8.0
+    max_iter: int = 12
+    menger_level: int = 4
+    ifs_points: int = 2_000_000
+    ifs_warmup: int = 20
 
 
 class SplatPhotoRequest(BaseModel):
@@ -953,8 +960,15 @@ def _run_splat(job_id: str, kind: str, **kw):
             if kind == "synthetic":
                 manifest = build_synthetic(kw.get("mesh_path"), str(job_dir),
                                            n_views=int(kw["n_views"]),
+                                           img_size=int(kw.get("img_size", 256)),
                                            elevations=tuple(kw["elevations"]),
                                            fractal_type=kw.get("fractal_type", "mandelbulb"),
+                                           resolution=kw.get("resolution"),
+                                           power=kw.get("power", 8.0),
+                                           max_iter=kw.get("max_iter", 12),
+                                           menger_level=kw.get("menger_level", 4),
+                                           ifs_points=kw.get("ifs_points", 2_000_000),
+                                           ifs_warmup=kw.get("ifs_warmup", 20),
                                            progress=progress)
             else:
                 manifest = build_photo(kw["image_path"], str(job_dir),
@@ -978,7 +992,8 @@ def _register_splat_job(job_id: str):
 def splat360_synthetic(req: SplatSyntheticRequest):
     """Branch A: volumetric 3D fractal (or current OBJ) → orbit + point-cloud (async)."""
     mesh_path = None
-    if req.fractal_type == "mesh":
+    fractal_type = (req.fractal_type or "mandelbulb").lower().strip()
+    if fractal_type == "mesh":
         objs = sorted(_glob.glob(str(OUTPUT_DIR / "*.obj")), key=os.path.getmtime, reverse=True)
         if not objs:
             raise HTTPException(status_code=400,
@@ -989,8 +1004,15 @@ def splat360_synthetic(req: SplatSyntheticRequest):
     _register_splat_job(job_id)
     _threading.Thread(target=_run_splat, args=(job_id, "synthetic"),
                       kwargs={"mesh_path": mesh_path, "n_views": req.n_views,
+                              "img_size": req.img_size,
                               "elevations": req.elevations,
-                              "fractal_type": req.fractal_type}, daemon=True).start()
+                              "fractal_type": fractal_type,
+                              "resolution": req.resolution,
+                              "power": req.power,
+                              "max_iter": req.max_iter,
+                              "menger_level": req.menger_level,
+                              "ifs_points": req.ifs_points,
+                              "ifs_warmup": req.ifs_warmup}, daemon=True).start()
     return {"job_id": job_id}
 
 
