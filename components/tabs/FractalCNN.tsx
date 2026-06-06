@@ -8,6 +8,30 @@ import { useLang } from "@/components/LanguageContext";
 // ─── constants ────────────────────────────────────────────────────────────────
 const MESH_RES = 128;
 
+function createWebGLRenderer(params: THREE.WebGLRendererParameters): THREE.WebGLRenderer {
+  const originalConsoleError = console.error;
+  let mutedWebglMessage: string | null = null;
+  console.error = (...args: unknown[]) => {
+    const message = args.map(String).join(" ");
+    if (message.includes("THREE.WebGLRenderer") && message.includes("WebGL context")) {
+      mutedWebglMessage = message;
+      return;
+    }
+    originalConsoleError(...args);
+  };
+
+  try {
+    return new THREE.WebGLRenderer(params);
+  } catch (err) {
+    if (mutedWebglMessage) {
+      throw new Error(mutedWebglMessage);
+    }
+    throw err;
+  } finally {
+    console.error = originalConsoleError;
+  }
+}
+
 // ─── Mandelbulb ray-marching GLSL shaders ─────────────────────────────────────
 const MANDELBULB_VERT = `
 varying vec2 vUv;
@@ -1049,6 +1073,7 @@ export default function FractalCNN() {
   const [settings, setSettings]             = useState<PipelineSettings>(ALL_ON);
   const [settingsOpen, setSettingsOpen]     = useState(false);
   const [previewUrl, setPreviewUrl]         = useState<string | null>(null);
+  const [webglError, setWebglError]         = useState<string | null>(null);
 
   const fileInputRef   = useRef<HTMLInputElement>(null);
   const srcCanvasRef   = useRef<HTMLCanvasElement>(null);
@@ -1098,7 +1123,29 @@ export default function FractalCNN() {
     const canvas = threeCanvasRef.current;
     if (!canvas) return;
 
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      cancelAnimationFrame(rafRef.current);
+      setWebglError("WebGL context lost. Reload this tab or close other 3D/browser GPU-heavy pages.");
+    };
+    const handleContextRestored = () => {
+      setWebglError(null);
+    };
+    canvas.addEventListener("webglcontextlost", handleContextLost, false);
+    canvas.addEventListener("webglcontextrestored", handleContextRestored, false);
+
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = createWebGLRenderer({ canvas, antialias: true });
+    } catch (err) {
+      window.setTimeout(() => {
+        setWebglError(err instanceof Error ? err.message : "WebGL renderer could not be created.");
+      }, 0);
+      canvas.removeEventListener("webglcontextlost", handleContextLost);
+      canvas.removeEventListener("webglcontextrestored", handleContextRestored);
+      return;
+    }
+    setWebglError(null);
     renderer.setSize(THREE_W, THREE_H);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x060B18);
@@ -1156,13 +1203,21 @@ export default function FractalCNN() {
           (meshRef.current.material as unknown as { wireframe: boolean }).wireframe = wireframeRef.current;
         }
       }
-      renderer.render(scene, camera);
+      try {
+        renderer.render(scene, camera);
+      } catch (err) {
+        cancelAnimationFrame(rafRef.current);
+        setWebglError(err instanceof Error ? err.message : "WebGL render failed.");
+      }
     };
     tick();
 
     return () => {
       cancelAnimationFrame(rafRef.current);
       renderer.dispose();
+      rendererRef.current = null;
+      canvas.removeEventListener("webglcontextlost", handleContextLost);
+      canvas.removeEventListener("webglcontextrestored", handleContextRestored);
     };
   }, []);
 
@@ -2464,6 +2519,12 @@ export default function FractalCNN() {
           onMouseLeave={onMouseUp}
           onWheel={onWheel}
         />
+        {webglError && (
+          <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm"
+            style={{ background: "#060B18", color: "#f59e0b" }}>
+            {webglError}
+          </div>
+        )}
         <div className="absolute bottom-2 right-3 text-xs" style={{ color: "#546E7A" }}>
           {TX.dragHint[lang]}
         </div>

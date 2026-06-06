@@ -175,6 +175,8 @@ def build_synthetic(
             transforms_path=transforms_path,
             mesh_path=mesh_path,
             out_ply=out_ply,
+            require_volume=use_fractal_volume,
+            require_colors=True,
         )
     except (ValueError, RuntimeError) as exc:
         # flat geometry or no-color assert fired

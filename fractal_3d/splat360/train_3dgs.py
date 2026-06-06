@@ -59,7 +59,12 @@ def train_or_fallback(
     # --- Fallback: coloured point-cloud PLY ----------------------------------
     from .point_cloud import mesh_to_point_cloud_ply
 
-    n_points = mesh_to_point_cloud_ply(mesh_path, out_ply)
+    n_points = mesh_to_point_cloud_ply(
+        mesh_path,
+        out_ply,
+        require_volume=bool(kw.get("require_volume", True)),
+        require_colors=bool(kw.get("require_colors", True)),
+    )
 
     return {
         "method": "point_cloud_fallback",

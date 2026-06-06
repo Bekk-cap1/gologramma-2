@@ -74,6 +74,30 @@ const T = {
 
 const BASE = "http://localhost:8000";
 
+function createWebGLRenderer(params: THREE.WebGLRendererParameters): THREE.WebGLRenderer {
+  const originalConsoleError = console.error;
+  let mutedWebglMessage: string | null = null;
+  console.error = (...args: unknown[]) => {
+    const message = args.map(String).join(" ");
+    if (message.includes("THREE.WebGLRenderer") && message.includes("WebGL context")) {
+      mutedWebglMessage = message;
+      return;
+    }
+    originalConsoleError(...args);
+  };
+
+  try {
+    return new THREE.WebGLRenderer(params);
+  } catch (err) {
+    if (mutedWebglMessage) {
+      throw new Error(mutedWebglMessage);
+    }
+    throw err;
+  } finally {
+    console.error = originalConsoleError;
+  }
+}
+
 // ─── types ─────────────────────────────────────────────────────────────────────
 type Mode = "synthetic" | "photo";
 type JobState = "queued" | "running" | "done" | "error";
@@ -100,7 +124,7 @@ export default function Splat360() {
   const [nViews, setNViews] = useState(12);
   const [imgSize, setImgSize] = useState(256);
   const [elevations, setElevations] = useState("-20,0,20,40");
-  const [fractalType, setFractalType] = useState<FractalType>("mandelbulb");
+  const [fractalType, setFractalType] = useState<FractalType>("mesh");
   const [fractalResolution, setFractalResolution] = useState(160);
   const [mandelPower, setMandelPower] = useState(8);
   const [mandelIter, setMandelIter] = useState(12);
@@ -120,6 +144,7 @@ export default function Splat360() {
 
   // PLY viewer
   const [plyFailed, setPlyFailed] = useState(false);
+  const [webglError, setWebglError] = useState<string | null>(null);
   const [autoRotate, setAutoRotate] = useState(false);
   const [carouselIdx, setCarouselIdx] = useState(0);
 
@@ -211,6 +236,7 @@ export default function Splat360() {
     setApiError(null);
     setPosting(true);
     setPlyFailed(false);
+    setWebglError(null);
     setStatus(null);
     setJobId(null);
     setUserViewSource(null);
@@ -232,12 +258,21 @@ export default function Splat360() {
           ifs_warmup: 20,
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try {
+          const body = await res.json();
+          detail = typeof body.detail === "string" ? body.detail : detail;
+        } catch {
+          // keep HTTP status fallback
+        }
+        throw new Error(detail);
+      }
       const { job_id } = await res.json();
       setJobId(job_id);
       startPolling(job_id);
-    } catch {
-      setApiError(T.offline[lang]);
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : T.offline[lang]);
     } finally {
       setPosting(false);
     }
@@ -249,6 +284,7 @@ export default function Splat360() {
     setApiError(null);
     setPosting(true);
     setPlyFailed(false);
+    setWebglError(null);
     setStatus(null);
     setJobId(null);
     setUserViewSource(null);
@@ -297,7 +333,17 @@ export default function Splat360() {
     }
 
     const W = 520, H = 420;
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = createWebGLRenderer({ canvas, antialias: true });
+    } catch (err) {
+      window.setTimeout(() => {
+        setWebglError(err instanceof Error ? err.message : "WebGL renderer could not be created.");
+        setPlyFailed(true);
+      }, 0);
+      return;
+    }
+    setWebglError(null);
     renderer.setSize(W, H);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x0a0a14);
@@ -323,7 +369,13 @@ export default function Splat360() {
     const animate = () => {
       rafRef.current = requestAnimationFrame(animate);
       if (controlsRef.current) controlsRef.current.update();
-      renderer.render(scene, camera);
+      try {
+        renderer.render(scene, camera);
+      } catch (err) {
+        if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+        setWebglError(err instanceof Error ? err.message : "WebGL render failed.");
+        setPlyFailed(true);
+      }
     };
 
     // Helper: center + scale an object3D to fit ~2 units
@@ -485,6 +537,7 @@ export default function Splat360() {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       controls.dispose();
       renderer.dispose();
+      rendererRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status?.state, status?.files?.ply, status?.files?.mesh, plyFailed, viewSource]);
@@ -579,14 +632,14 @@ export default function Splat360() {
         <div style={cardStyle}>
           <div style={{ marginBottom: 12 }}>
             <label style={{ display: "block", color: "var(--text-secondary)", fontSize: 13, marginBottom: 4 }}>
-              {lang === "ru" ? "Тип фрактала (объёмный)" : "Fraktal turi (hajmli)"}
+              {lang === "ru" ? "Источник 360°" : "360° manbai"}
             </label>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {([
+                { k: "mesh", label: lang === "ru" ? "Depth mesh (2D→3D)" : "Depth mesh (2D→3D)" },
                 { k: "mandelbulb", label: "Mandelbulb" },
                 { k: "menger3d", label: lang === "ru" ? "Губка Менгера 3D" : "Menger 3D" },
                 { k: "ifs3d", label: lang === "ru" ? "3D-IFS / Серпинский" : "3D-IFS / Sierpinski" },
-                { k: "mesh", label: lang === "ru" ? "Текущий меш (2D→3D)" : "Joriy mesh (2D→3D)" },
               ] as const).map((o) => (
                 <button
                   key={o.k}
@@ -605,8 +658,15 @@ export default function Splat360() {
             {fractalType === "mesh" && (
               <div style={{ fontSize: 12, color: "#FBBF24", marginTop: 4 }}>
                 {lang === "ru"
-                  ? "⚠ Меш реконструкции 2D→3D — это карта высот (может быть плоским)."
-                  : "⚠ 2D→3D rekonstruksiya meshi — balandlik xaritasi (tekis bo‘lishi mumkin)."}
+                  ? "Используется последний mesh из вкладки 2D→3D, построенный из depth map."
+                  : "2D→3D sahifasida depth map orqali qurilgan oxirgi mesh ishlatiladi."}
+              </div>
+            )}
+            {fractalType !== "mesh" && (
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
+                {lang === "ru"
+                  ? "Формульный объёмный фрактал без depth; нужен только как эталонный 3D-источник."
+                  : "Depth ishlatilmaydi; bu faqat formula asosidagi 3D fraktal manba."}
               </div>
             )}
           </div>
@@ -801,7 +861,9 @@ export default function Splat360() {
               fontSize: 14,
             }}
           >
-            {T.buildBtn[lang]}
+            {fractalType === "mesh"
+              ? T.buildBtn[lang]
+              : (lang === "ru" ? "Построить 360° из объёмного фрактала" : "Hajmli fraktaldan 360° qurish")}
           </button>
         </div>
       )}
@@ -1022,7 +1084,9 @@ export default function Splat360() {
 
       {/* PLY failed notice */}
       {isDone && plyFailed && (
-        <div style={{ color: "#f59e0b", fontSize: 13, marginBottom: 8 }}>⚠ {T.plyFailed[lang]}</div>
+        <div style={{ color: "#f59e0b", fontSize: 13, marginBottom: 8 }}>
+          ⚠ {webglError || T.plyFailed[lang]}
+        </div>
       )}
 
       {/* ── ORBIT CAROUSEL ── */}

@@ -988,18 +988,31 @@ def _register_splat_job(job_id: str):
                            "manifest": None, "files": None, "error": None}
 
 
+def _latest_depth_mesh_path() -> str | None:
+    """Return the latest non-test mesh produced by the 2D->3D depth pipeline."""
+    candidates = []
+    for path in _glob.glob(str(OUTPUT_DIR / "*.obj")):
+        name = os.path.basename(path).lower()
+        if name.startswith("pytest_"):
+            continue
+        candidates.append(path)
+    if not candidates:
+        return None
+    preferred = [p for p in candidates if os.path.basename(p).lower() == "fractal.obj"]
+    pool = preferred or candidates
+    return sorted(pool, key=os.path.getmtime, reverse=True)[0]
+
+
 @app.post("/api/splat360/synthetic")
 def splat360_synthetic(req: SplatSyntheticRequest):
     """Branch A: volumetric 3D fractal (or current OBJ) → orbit + point-cloud (async)."""
     mesh_path = None
     fractal_type = (req.fractal_type or "mandelbulb").lower().strip()
     if fractal_type == "mesh":
-        objs = sorted(_glob.glob(str(OUTPUT_DIR / "*.obj")), key=os.path.getmtime, reverse=True)
-        if not objs:
+        mesh_path = _latest_depth_mesh_path()
+        if mesh_path is None:
             raise HTTPException(status_code=400,
-                                detail="no mesh built yet — generate a 3D mesh first, "
-                                       "or choose a volumetric fractal type")
-        mesh_path = objs[0]
+                                detail="No depth mesh yet. Run 2D -> 3D first, then build 360° from Depth mesh.")
     job_id = _uuid.uuid4().hex[:12]
     _register_splat_job(job_id)
     _threading.Thread(target=_run_splat, args=(job_id, "synthetic"),

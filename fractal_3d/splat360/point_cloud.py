@@ -17,6 +17,8 @@ def mesh_to_point_cloud_ply(
     mesh_path: Union[str, Path],
     ply_path: Union[str, Path],
     n_points: int = 50_000,
+    require_volume: bool = True,
+    require_colors: bool = True,
 ) -> int:
     """Sample a mesh surface and write a binary-little-endian PLY file.
 
@@ -28,6 +30,8 @@ def mesh_to_point_cloud_ply(
     mesh_path : path to any trimesh-loadable mesh.
     ply_path  : output .ply path (directories created if needed).
     n_points  : number of surface samples.
+    require_volume : reject sheet-like geometry when True.
+    require_colors : reject low-diversity colours when True.
 
     Returns
     -------
@@ -100,17 +104,31 @@ def mesh_to_point_cloud_ply(
         colors_u8 = (rgba_f[:, :3] * 255).astype(np.uint8)
 
     colors_u8 = np.asarray(colors_u8, dtype=np.uint8)
+    if require_colors and len(np.unique(colors_u8.reshape(-1, 3), axis=0)) <= 100:
+        # Many OBJ/depth meshes load with a constant default material colour.
+        # Treat that as missing colour and synthesize a useful positional ramp.
+        import matplotlib.pyplot as plt
+
+        spans_for_color = points.max(axis=0) - points.min(axis=0)
+        axis = int(np.argmax(spans_for_color))
+        col = points[:, axis]
+        cmin, cmax = col.min(), col.max()
+        if cmax - cmin < 1e-9:
+            t = np.full(actual_n, 0.5)
+        else:
+            t = (col - cmin) / (cmax - cmin)
+        colors_u8 = (plt.get_cmap("turbo")(t)[:, :3] * 255).astype(np.uint8)
 
     # --- Asserts: geometry must be volumetric and colors must be diverse ------
     spans = points.max(axis=0) - points.min(axis=0)
     maxspan = float(spans.max())
     if maxspan < 1e-9:
         maxspan = 1e-9
-    if float(spans[2]) < 0.3 * maxspan:
+    if require_volume and float(spans[2]) < 0.3 * maxspan:
         raise RuntimeError("geometry flat")
 
     unique_colors = len(np.unique(colors_u8.reshape(-1, 3), axis=0))
-    if unique_colors <= 100:
+    if require_colors and unique_colors <= 100:
         raise RuntimeError("colors not set")
 
     # --- Write PLY (binary little-endian) ------------------------------------
