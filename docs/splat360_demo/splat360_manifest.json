@@ -1,0 +1,17 @@
+{
+  "branch": "synthetic",
+  "method": "point_cloud_fallback",
+  "n_views": 60,
+  "n_gaussians": 3840,
+  "img_size": 800,
+  "elevations": [
+    -20,
+    0,
+    20,
+    40
+  ],
+  "time_sec": 8.37,
+  "api_cost": null,
+  "note": "gsplat unavailable (CUDA toolkit) \u2014 point-cloud fallback",
+  "mesh_file": "source_mesh.obj"
+}

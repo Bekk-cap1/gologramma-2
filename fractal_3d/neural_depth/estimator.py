@@ -356,7 +356,7 @@ def _depth_quality(depth):
 
 def estimate_depth(image, method="auto", segments=500, compactness=10.0, target_size=256,
                    crf_strength="auto", unary_source="auto",
-                   fractal_aware=False, eta=0.8):
+                   fractal_aware=False, eta=0.8, dump_dir=None):
     """Estimate depth from an image using DCNF-CRF + optional Depth Anything V2.
 
     Args:
@@ -462,6 +462,7 @@ def estimate_depth(image, method="auto", segments=500, compactness=10.0, target_
             "eta": 0.0,
         }
         smoothed = edge_aware_smooth(raw_depth, image, iterations=1)
+        crf_solve = raw_depth
     else:
         crf_result = run_dcnf_crf(image, raw_depth, segments=actual_segments,
                                   compactness=compactness, crf_strength=crf_strength,
@@ -472,12 +473,23 @@ def estimate_depth(image, method="auto", segments=500, compactness=10.0, target_
         n_superpixels = crf_result["n_superpixels"]
         crf_params = crf_result["params"]
         smoothed = edge_aware_smooth(crf_depth_raw, image)
+        crf_solve = crf_result.get("crf_raw", crf_depth_raw)  # MAP solve (pre guided)
 
     # --- Resize to target_size x target_size ---
     from skimage.transform import resize as sk_resize
     depth_map = sk_resize(smoothed, (target_size, target_size), order=1,
                           preserve_range=True, anti_aliasing=True).astype(np.float32)
     depth_map = normalize_depth(depth_map)
+
+    # --- Optional: dump the ordered pipeline-stage PNGs (visualization only) ---
+    if dump_dir:
+        try:
+            from .dump import dump_pipeline_stages
+            dump_pipeline_stages(dump_dir, image=image, raw_depth=raw_depth,
+                                 unary_depth=unary_depth, crf_solve=crf_solve,
+                                 guided=smoothed, depth_map=depth_map, labels=labels)
+        except Exception as e:  # noqa: BLE001 — dump is best-effort
+            print(f"[dump] failed: {e}")
 
     # --- Confidence ---
     confidence = _depth_quality(depth_map)

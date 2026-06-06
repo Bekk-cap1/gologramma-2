@@ -502,6 +502,7 @@ def run_dcnf_crf(image, dense_depth, segments=700, compactness=10.0, crf_strengt
 
     return {
         "crf_depth": crf_depth,
+        "crf_raw": normalize_depth(crf_depth_raw),  # MAP solve y*[labels] (pre guided/blend)
         "unary_depth": unary_depth,
         "labels": labels,
         "n_superpixels": n,

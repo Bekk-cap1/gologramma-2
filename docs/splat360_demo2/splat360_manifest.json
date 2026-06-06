@@ -1,0 +1,16 @@
+{
+  "branch": "synthetic",
+  "method": "fractal_volume",
+  "fractal_type": "mandelbulb",
+  "n_views": 8,
+  "n_gaussians": 120000,
+  "img_size": 800,
+  "elevations": [
+    0,
+    30
+  ],
+  "time_sec": 117.9,
+  "api_cost": null,
+  "note": "gsplat unavailable (CUDA toolkit) \u2014 point-cloud fallback",
+  "mesh_file": "source_mesh.ply"
+}

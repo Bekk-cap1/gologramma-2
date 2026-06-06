@@ -288,6 +288,12 @@ export const t = {
   // Fractal CNN tab
   fractalTab: { ru: "2D → 3D", uz: "2D → 3D" },
 
+  // Depth (DCNF CRF) tab
+  depthCrfTab: { ru: "Depth (CRF)", uz: "Depth (CRF)" },
+
+  // 360° Splatting tab
+  splat360Tab: { ru: "360° Splatting", uz: "360° Splatting" },
+
   // Algorithm & Architecture tab
   fractalGenTab: { ru: "Алгоритм", uz: "Algoritm" },
 

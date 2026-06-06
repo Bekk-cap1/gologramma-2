@@ -17,7 +17,7 @@ import io
 import os
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 from pydantic import BaseModel
@@ -863,6 +863,176 @@ def ablation(req: AblationRequest):
         return {"ablation_grid": grid or "", "table": table}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/algorithm_doc")
+def algorithm_doc():
+    """Download the bilingual DCNF-CRF algorithm Word document (.docx)."""
+    try:
+        from fastapi.responses import Response
+        from fractal_3d.algorithm_doc import build_algorithm_docx
+        data = build_algorithm_docx()
+        return Response(
+            content=data,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": 'attachment; filename="dcnf-crf-algoritm.docx"'},
+        )
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── 360° splatting (async jobs) ──────────────────────────────────────────────
+import glob as _glob          # noqa: E402
+import threading as _threading  # noqa: E402
+import uuid as _uuid          # noqa: E402
+
+_SPLAT_DIR = OUTPUT_DIR / "splat360_jobs"
+_SPLAT_JOBS: dict = {}
+_SPLAT_LOCK = _threading.Lock()  # serialise heavy renders (matplotlib / 8GB GPU)
+
+
+class SplatSyntheticRequest(BaseModel):
+    n_views: int = 60
+    elevations: list[float] = [-20.0, 0.0, 20.0, 40.0]
+    fractal_type: str = "mandelbulb"  # "mandelbulb" | "menger3d" | "mesh"
+
+
+class SplatPhotoRequest(BaseModel):
+    image: str
+    provider: str = "auto"
+
+
+def _splat_job_dir(job_id: str):
+    d = _SPLAT_DIR / job_id
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _splat_files(job_id: str, job_dir):
+    """Relative file paths produced by a job (absolutised in the status endpoint)."""
+    base = f"/api/splat360/file/{job_id}/"
+    ply = base + "splat_360.ply" if (job_dir / "splat_360.ply").exists() else None
+    orbit = [base + f"orbit_{i:02d}.png" for i in range(8)
+             if (job_dir / f"orbit_{i:02d}.png").exists()]
+    mesh = None
+    for ext in (".obj", ".glb", ".gltf", ".stl", ".ply"):
+        if (job_dir / f"source_mesh{ext}").exists():
+            mesh = base + f"source_mesh{ext}"
+            break
+    return {"ply": ply, "orbit": orbit, "mesh": mesh}
+
+
+def _absolutise_files(files, base_url):
+    """Prefix relative /api/... file paths with the request host (so the browser
+    fetches them from the API server, not the Next.js origin)."""
+    if not files:
+        return files
+    root = str(base_url).rstrip("/")
+    def _abs(u):
+        return (root + u) if isinstance(u, str) and u.startswith("/") else u
+    return {
+        "ply": _abs(files.get("ply")),
+        "mesh": _abs(files.get("mesh")),
+        "orbit": [_abs(u) for u in (files.get("orbit") or [])],
+    }
+
+
+def _run_splat(job_id: str, kind: str, **kw):
+    job = _SPLAT_JOBS[job_id]
+    job_dir = _splat_job_dir(job_id)
+
+    def progress(p, msg=""):
+        job["progress"] = float(max(0.0, min(1.0, p)))
+        if msg:
+            job["log_tail"] = (job["log_tail"] + str(msg) + "\n")[-2000:]
+
+    job["state"] = "running"
+    try:
+        with _SPLAT_LOCK:
+            from fractal_3d.splat360 import build_synthetic, build_photo
+            if kind == "synthetic":
+                manifest = build_synthetic(kw.get("mesh_path"), str(job_dir),
+                                           n_views=int(kw["n_views"]),
+                                           elevations=tuple(kw["elevations"]),
+                                           fractal_type=kw.get("fractal_type", "mandelbulb"),
+                                           progress=progress)
+            else:
+                manifest = build_photo(kw["image_path"], str(job_dir),
+                                       provider=kw["provider"], progress=progress)
+        job["manifest"] = manifest
+        job["files"] = _splat_files(job_id, job_dir)
+        if isinstance(manifest, dict) and manifest.get("error"):
+            job["state"], job["error"] = "error", manifest["error"]
+        else:
+            job["state"], job["progress"] = "done", 1.0
+    except Exception as e:  # noqa: BLE001
+        job["state"], job["error"] = "error", f"{type(e).__name__}: {e}"
+
+
+def _register_splat_job(job_id: str):
+    _SPLAT_JOBS[job_id] = {"state": "queued", "progress": 0.0, "log_tail": "",
+                           "manifest": None, "files": None, "error": None}
+
+
+@app.post("/api/splat360/synthetic")
+def splat360_synthetic(req: SplatSyntheticRequest):
+    """Branch A: volumetric 3D fractal (or current OBJ) → orbit + point-cloud (async)."""
+    mesh_path = None
+    if req.fractal_type == "mesh":
+        objs = sorted(_glob.glob(str(OUTPUT_DIR / "*.obj")), key=os.path.getmtime, reverse=True)
+        if not objs:
+            raise HTTPException(status_code=400,
+                                detail="no mesh built yet — generate a 3D mesh first, "
+                                       "or choose a volumetric fractal type")
+        mesh_path = objs[0]
+    job_id = _uuid.uuid4().hex[:12]
+    _register_splat_job(job_id)
+    _threading.Thread(target=_run_splat, args=(job_id, "synthetic"),
+                      kwargs={"mesh_path": mesh_path, "n_views": req.n_views,
+                              "elevations": req.elevations,
+                              "fractal_type": req.fractal_type}, daemon=True).start()
+    return {"job_id": job_id}
+
+
+@app.post("/api/splat360/photo")
+def splat360_photo(req: SplatPhotoRequest):
+    """Branch B: single photo → Replicate (env-gated) → 360° (async job)."""
+    try:
+        img = _decode_image(req.image)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    job_id = _uuid.uuid4().hex[:12]
+    job_dir = _splat_job_dir(job_id)
+    in_path = str(job_dir / "input.png")
+    img.save(in_path, "PNG")
+    _register_splat_job(job_id)
+    _threading.Thread(target=_run_splat, args=(job_id, "photo"),
+                      kwargs={"image_path": in_path, "provider": req.provider},
+                      daemon=True).start()
+    return {"job_id": job_id}
+
+
+@app.get("/api/splat360/status/{job_id}")
+def splat360_status(job_id: str, request: Request):
+    job = _SPLAT_JOBS.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="unknown job_id")
+    out = dict(job)
+    out["files"] = _absolutise_files(job.get("files"), request.base_url)
+    return out
+
+
+@app.get("/api/splat360/file/{job_id}/{name}")
+def splat360_file(job_id: str, name: str):
+    from fastapi.responses import FileResponse
+    safe = os.path.basename(name)
+    path = _SPLAT_DIR / job_id / safe
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="file not found")
+    media = ("image/png" if safe.endswith(".png")
+             else "application/json" if safe.endswith(".json")
+             else "application/octet-stream")
+    return FileResponse(str(path), media_type=media, filename=safe)
 
 
 @app.get("/health")

@@ -1,0 +1,32 @@
+// Fractal construction (chaos game / IFS) — GOST-style flowchart (uzbek latin).
+// Render: python docs/diagrams/render.py   (requires Graphviz `dot`)
+digraph fractal_ifs {
+  rankdir=TB;
+  bgcolor="white";
+  node  [fontname="Arial", fontsize=11, style="filled", penwidth=1.3];
+  edge  [fontname="Arial", fontsize=10, color="#334155"];
+
+  start [label="Boshlash",                       shape=oval,          fillcolor="#dcfce7", color="#15803d"];
+  in    [label="Kirish: IFS {Tᵢ, pᵢ}",           shape=parallelogram, fillcolor="#ede9fe", color="#7c3aed"];
+  init  [label="P = (0.5, 0.5);  i = 0",         shape=box, style="rounded,filled", fillcolor="#dbeafe", color="#1e3a8a"];
+  c1    [label="i < N ?",                        shape=diamond,       fillcolor="#ffedd5", color="#c2410c"];
+  pick  [label="pₖ bo'yicha Tₖ tanlash",          shape=box, style="rounded,filled", fillcolor="#dbeafe", color="#1e3a8a"];
+  apply [label="P = Aₖ·P + bₖ",                  shape=box, style="rounded,filled", fillcolor="#dbeafe", color="#1e3a8a"];
+  c2    [label="i > warmup ?",                   shape=diamond,       fillcolor="#ffedd5", color="#c2410c"];
+  plot  [label="P nuqtani belgilash",            shape=box, style="rounded,filled", fillcolor="#dbeafe", color="#1e3a8a"];
+  inc   [label="i = i + 1",                      shape=box, style="rounded,filled", fillcolor="#dbeafe", color="#1e3a8a"];
+  rast  [label="rasterizatsiya → vokssellar",    shape=box, style="rounded,filled", fillcolor="#dbeafe", color="#1e3a8a"];
+  mc    [label="marching cubes → 3D",            shape=box, style="rounded,filled", fillcolor="#dbeafe", color="#1e3a8a"];
+  out   [label="Chiqish: 3D-model",              shape=parallelogram, fillcolor="#ede9fe", color="#7c3aed"];
+  end   [label="Tugadi",                         shape=oval,          fillcolor="#dcfce7", color="#15803d"];
+
+  start -> in -> init -> c1;
+  c1   -> pick [label="ha"];
+  pick -> apply -> c2;
+  c2   -> plot [label="ha"];
+  c2   -> inc  [label="yo'q"];
+  plot -> inc;
+  inc  -> c1;                  // loop back
+  c1   -> rast [label="yo'q"];
+  rast -> mc -> out -> end;
+}
