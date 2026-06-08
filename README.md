@@ -8,7 +8,7 @@
 
 | Слой | Технологии |
 |---|---|
-| Фреймворк | Next.js (App Router), React 18, TypeScript |
+| Фреймворк | Next.js (App Router), React 19, TypeScript |
 | Стили | Tailwind CSS v4, CSS-переменные (тёмная тема) |
 | Анимации | Canvas API (`requestAnimationFrame`), SVG-анимации |
 | 3D | Three.js (вкладка «Симулятор восстановления») |
@@ -50,9 +50,9 @@ transmission-hologram/
 
 ```bash
 npm install
-npm run dev        # http://localhost:3000
+npm run dev        # http://localhost:3100
 npm run build
-npm run start
+npm run start      # http://localhost:3100
 ```
 
 ---
