@@ -694,13 +694,14 @@ function drawCghPlate(
   object: HologramObject,
   phase: number,
   quality: 'good' | 'blurry' | 'fail',
+  bgColor = '#060B18',
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
   const W = canvas.width;
   const H = canvas.height;
-  ctx.fillStyle = '#060B18';
+  ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, W, H);
 
   if (quality === 'fail') {
@@ -793,12 +794,13 @@ function drawHologramPreview(
   canvas: HTMLCanvasElement,
   object: HologramObject,
   angle: number,
-  quality: 'good' | 'blurry' | 'fail'
+  quality: 'good' | 'blurry' | 'fail',
+  bgColor = '#000814'
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const W = canvas.width, H = canvas.height;
-  ctx.fillStyle = '#000814';
+  ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, W, H);
 
   if (quality === 'fail') {
@@ -869,12 +871,21 @@ function drawHologramPreview(
 }
 
 export default function OpticalTable() {
-  const { lang } = useLang();
+  const { lang, theme } = useLang();
+  const isDark = theme === 'dark';
+  const canvasBg    = isDark ? '#0D1526' : '#EDF2F7';
+  const gridDotCol  = isDark ? '#1E3A5F' : '#B0BEC5';
+  const paletteBg   = isDark ? '#060B18' : '#E2E8F0';
+  const paletteSep  = isDark ? '#1E3A5F' : '#B0BEC5';
+  const paletteItem = isDark ? '#0D1526' : '#D1D9E6';
+  const paletteText = isDark ? '#90A4AE' : '#546E7A';
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const paletteRef = useRef<HTMLCanvasElement>(null);
   const fringeCanvasRef = useRef<HTMLCanvasElement>(null);
   const holoCanvasRef = useRef<HTMLCanvasElement>(null);
   const holoAngleRef = useRef(0);
+  const cghPhaseRef = useRef(0);
+  const cghRafRef = useRef<number>(0);
 
   const [components, setComponents] = useState<OpticalComponent[]>(makeStandardPreset());
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -919,13 +930,14 @@ export default function OpticalTable() {
       if (!running) return;
       holoAngleRef.current += 0.012;
       const canvas = holoCanvasRef.current;
-      if (canvas) drawHologramPreview(canvas, selectedObject, holoAngleRef.current, quality);
+      if (canvas) drawHologramPreview(canvas, selectedObject, holoAngleRef.current, quality,
+        isDark ? '#000814' : '#EDF2F7');
       holoRafRef.current = requestAnimationFrame(tick);
     };
     holoRafRef.current = requestAnimationFrame(tick);
     return () => { running = false; cancelAnimationFrame(holoRafRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedObject, interferenceInfo.hasInterference, rays]);
+  }, [selectedObject, interferenceInfo.hasInterference, rays, isDark]);
 
   // Run ray tracing whenever components change
   useEffect(() => {
@@ -946,11 +958,11 @@ export default function OpticalTable() {
     const h = CANVAS_H;
 
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = '#0D1526';
+    ctx.fillStyle = canvasBg;
     ctx.fillRect(0, 0, w, h);
 
     // Grid dots
-    ctx.fillStyle = '#1E3A5F';
+    ctx.fillStyle = gridDotCol;
     for (let gx = 40; gx < w; gx += 40) {
       for (let gy = 40; gy < h; gy += 40) {
         ctx.beginPath();
@@ -1015,7 +1027,7 @@ export default function OpticalTable() {
         ctx.restore();
       }
     }
-  }, [components, rays, interferenceInfo, animFrame, selectedId]);
+  }, [components, rays, interferenceInfo, animFrame, selectedId, canvasBg, gridDotCol]);
 
   // Draw palette canvas
   useEffect(() => {
@@ -1025,42 +1037,41 @@ export default function OpticalTable() {
     if (!ctx) return;
 
     ctx.clearRect(0, 0, PALETTE_W, CANVAS_H);
-    ctx.fillStyle = '#060B18';
+    ctx.fillStyle = paletteBg;
     ctx.fillRect(0, 0, PALETTE_W, CANVAS_H);
-    ctx.strokeStyle = '#1E3A5F';
+    ctx.strokeStyle = paletteSep;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(PALETTE_W - 0.5, 0);
     ctx.lineTo(PALETTE_W - 0.5, CANVAS_H);
     ctx.stroke();
 
-    ctx.fillStyle = '#90A4AE';
+    ctx.fillStyle = paletteText;
     ctx.font = 'bold 9px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(lang === 'uz' ? 'PALITRA' : 'ПАЛИТРА', PALETTE_W / 2, 14);
+    ctx.fillText(lang === 'uz' ? 'PALITRA' : lang === 'en' ? 'PALETTE' : 'ПАЛИТРА', PALETTE_W / 2, 14);
 
     const paletteLabels = getPaletteLabels(lang);
     PALETTE_TYPES.forEach((type, i) => {
       const cy = 40 + i * 80;
-      // Hover zone bg
-      ctx.fillStyle = '#0D1526';
+      ctx.fillStyle = paletteItem;
       ctx.beginPath();
       ctx.roundRect(6, cy - 26, PALETTE_W - 12, 52, 6);
       ctx.fill();
-      ctx.strokeStyle = '#1E3A5F';
+      ctx.strokeStyle = paletteSep;
       ctx.lineWidth = 1;
       ctx.stroke();
 
       drawPaletteIcon(ctx, type, PALETTE_W / 2, cy);
 
-      ctx.fillStyle = '#90A4AE';
+      ctx.fillStyle = paletteText;
       ctx.font = '8px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(paletteLabels[type], PALETTE_W / 2, cy + 22);
     });
-  }, [lang]);
+  }, [lang, paletteBg, paletteSep, paletteItem, paletteText]);
 
   // Compute path lengths for simulation panel
   const refLength = rays
@@ -1073,14 +1084,26 @@ export default function OpticalTable() {
   const coherenceLength = 40000;
   const pathOk = pathDiff < coherenceLength;
 
-  // Draw CGH plate — recompute only when setup changes, not every frame
+  // Animate CGH plate — slow loop (~8 fps) to keep CPU reasonable
   useEffect(() => {
-    const canvas = fringeCanvasRef.current;
-    if (!canvas) return;
     const quality: 'good' | 'blurry' | 'fail' =
       interferenceInfo.hasInterference ? (pathDiff < coherenceLength ? 'good' : 'blurry') : 'fail';
-    drawCghPlate(canvas, selectedObject, 0, quality);
-  }, [interferenceInfo, selectedObject, pathDiff, coherenceLength]);
+    const bg = isDark ? '#060B18' : '#1a1a2e';
+    let last = 0;
+    let running = true;
+    const tick = (now: number) => {
+      if (!running) return;
+      if (now - last > 120) { // ~8 fps — CGH pixel math is heavy
+        last = now;
+        cghPhaseRef.current += 0.04;
+        const canvas = fringeCanvasRef.current;
+        if (canvas) drawCghPlate(canvas, selectedObject, cghPhaseRef.current, quality, bg);
+      }
+      cghRafRef.current = requestAnimationFrame(tick);
+    };
+    cghRafRef.current = requestAnimationFrame(tick);
+    return () => { running = false; cancelAnimationFrame(cghRafRef.current); };
+  }, [interferenceInfo, selectedObject, pathDiff, coherenceLength, isDark]);
 
   // Helper: get canvas-space coords for the rotation handle of a component (world coords)
   const getRotationHandlePos = useCallback((comp: OpticalComponent): { x: number; y: number } => {
@@ -1447,6 +1470,9 @@ export default function OpticalTable() {
           </div>
         </div>
 
+        {/* Hologram result + CGH plate side by side */}
+        <div className="flex gap-4 flex-wrap items-start">
+
         {/* Hologram result panel */}
         <div
           className="rounded-xl p-4 space-y-3"
@@ -1480,7 +1506,7 @@ export default function OpticalTable() {
           <canvas
             ref={holoCanvasRef}
             width={160} height={160}
-            style={{ display: 'block', borderRadius: 8, border: '1px solid #1E3A5F', background: '#000814' }}
+            style={{ display: 'block', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--canvas-bg)' }}
           />
 
           {/* Quality message */}
@@ -1511,6 +1537,7 @@ export default function OpticalTable() {
               : t.noInterference[lang]}
           </div>
         </div>
+        </div>{/* end hologram+CGH row */}
       </div>
 
       {/* Selection control bar */}

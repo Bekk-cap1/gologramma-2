@@ -249,18 +249,18 @@ export default function ReconstructionSim() {
             ref={threeCanvasRef}
             width={800}
             height={420}
-            style={{ display: 'block', background: '#060B18', minWidth: 400, cursor: 'grab' }}
+            style={{ display: 'block', background: 'var(--canvas-bg)', minWidth: 400, cursor: 'grab' }}
           />
         </div>
 
         {/* 2D physics diagram */}
-        <div style={{ background: '#0A1020', borderTop: '1px solid var(--border-color)', padding: '12px 16px' }}>
+        <div style={{ background: 'var(--canvas-bg)', borderTop: '1px solid var(--border-color)', padding: '12px 16px' }}>
           <div className="text-xs font-semibold mb-2" style={{ color: '#90A4AE' }}>
             {lang === 'ru' ? 'Схема дифракции (вид сверху)' : 'Difraksiya sxemasi (tepadan ko\'rinish)'}
           </div>
           <svg width="100%" viewBox="0 0 760 160" style={{ display: 'block' }}>
             {/* Background */}
-            <rect width="760" height="160" fill="#060B18" rx="8"/>
+            <rect width="760" height="160" fill="var(--canvas-bg)" rx="8"/>
 
             {/* Film — vertical line at x=360 */}
             <line x1="360" y1="10" x2="360" y2="150" stroke="#FFB300" strokeWidth="4"/>
@@ -349,13 +349,13 @@ export default function ReconstructionSim() {
 
           {/* Explanation of where 3D comes from */}
           <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs" style={{ color: '#90A4AE' }}>
-            <div className="rounded-lg p-2" style={{ background: '#0D1526', border: '1px solid #FF444433' }}>
+            <div className="rounded-lg p-2" style={{ background: 'var(--canvas-bg-raised)', border: '1px solid #FF444433' }}>
               {t.diffBox1[lang]}
             </div>
-            <div className="rounded-lg p-2" style={{ background: '#0D1526', border: '1px solid #00E5FF33' }}>
+            <div className="rounded-lg p-2" style={{ background: 'var(--canvas-bg-raised)', border: '1px solid #00E5FF33' }}>
               {t.diffBox2[lang]}
             </div>
-            <div className="rounded-lg p-2" style={{ background: '#0D1526', border: '1px solid #9C27B033' }}>
+            <div className="rounded-lg p-2" style={{ background: 'var(--canvas-bg-raised)', border: '1px solid #9C27B033' }}>
               {t.diffBox3[lang]}
             </div>
           </div>
@@ -579,7 +579,7 @@ export default function ReconstructionSim() {
         <div
           className="mt-3 p-4 rounded-xl text-sm"
           style={{
-            background: '#0D1526',
+            background: 'var(--canvas-bg-raised)',
             border: '1px solid #FFB30044',
             color: 'var(--text-secondary)',
           }}

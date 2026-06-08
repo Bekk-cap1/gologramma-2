@@ -8,7 +8,8 @@ function drawReconstructionFrame(
   ctx: CanvasRenderingContext2D,
   time: number,
   w: number,
-  h: number
+  h: number,
+  filmColor = "#0D1526"
 ) {
   ctx.clearRect(0, 0, w, h);
 
@@ -18,7 +19,7 @@ function drawReconstructionFrame(
   const filmH = h * 0.8;
 
   // ---- Holographic film ----
-  ctx.fillStyle = "#0D1526";
+  ctx.fillStyle = filmColor;
   ctx.beginPath();
   ctx.roundRect(filmX - filmW / 2, filmY, filmW, filmH, 3);
   ctx.fill();
@@ -147,7 +148,8 @@ function drawReconstructionFrame(
 }
 
 export default function Reconstruction() {
-  const { lang } = useLang();
+  const { lang, theme } = useLang();
+  const isDark = theme === "dark";
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
   const timeRef = useRef(0);
@@ -158,9 +160,10 @@ export default function Reconstruction() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     timeRef.current += 0.016;
-    drawReconstructionFrame(ctx, timeRef.current, canvas.width, canvas.height);
+    drawReconstructionFrame(ctx, timeRef.current, canvas.width, canvas.height,
+      isDark ? "#0D1526" : "#90A4AE");
     rafRef.current = requestAnimationFrame(drawFrame);
-  }, []);
+  }, [isDark]);
 
   useEffect(() => {
     rafRef.current = requestAnimationFrame(drawFrame);
@@ -183,7 +186,7 @@ export default function Reconstruction() {
       {/* Canvas animation */}
       <div
         className="rounded-xl overflow-hidden mb-5"
-        style={{ background: '#060B18', border: '1px solid var(--border-color)' }}
+        style={{ background: 'var(--canvas-bg)', border: '1px solid var(--border-color)' }}
       >
         <canvas
           ref={canvasRef}

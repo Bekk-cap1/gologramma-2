@@ -127,14 +127,13 @@ const METRICS = [
 const SVG_BG = "#0a1124";
 const PAPER_FILL = "#1e3a8a55";
 const PAPER_STROKE = "#3b82f6";
-const OUR_FILL = "#10b98122";
 const OUR_STROKE = "#10b981";
 const NODE_FILL = "#11203f";
 const NODE_STROKE = "#334e7a";
 const TEXT_FILL = "#e2e8f0";
 const ARROW_FILL = "#64748b";
 
-type Lang = "ru" | "uz";
+type Lang = "ru" | "uz" | "en";
 
 // Split a string into wrapped <tspan> lines centered at cx.
 function svgText(
@@ -197,7 +196,7 @@ function NodeRect({
   fill = NODE_FILL,
   stroke = NODE_STROKE,
   textFill = TEXT_FILL,
-  size = 11,
+  size = 13,
   bold = false,
 }: {
   x: number;
@@ -259,7 +258,7 @@ function NodeEllipse({
         stroke={OUR_STROKE}
         strokeWidth={1.5}
       />
-      {svgText(label, cx, cy, { maxChars: 22, size: 12, bold: true })}
+      {svgText(label, cx, cy, { maxChars: 22, size: 14, bold: true })}
     </g>
   );
 }
@@ -296,8 +295,8 @@ function NodeParallelogram({
         strokeWidth={1.5}
       />
       {svgText(label, x + w / 2, y + h / 2, {
-        maxChars: Math.floor(w / 6),
-        size: 11,
+        maxChars: Math.floor(w / 7),
+        size: 13,
       })}
     </g>
   );
@@ -333,7 +332,7 @@ function NodeDiamond({
         stroke="#f59e0b"
         strokeWidth={1.5}
       />
-      {svgText(label, cx, cy, { maxChars: Math.floor(w / 7), size: 11 })}
+      {svgText(label, cx, cy, { maxChars: Math.floor(w / 8), size: 13 })}
     </g>
   );
 }
@@ -365,7 +364,7 @@ function Edge({
         <text
           x={lx + labelDx}
           y={ly + labelDy}
-          fontSize={10}
+          fontSize={12}
           fill="#fbbf24"
           fontFamily="system-ui, sans-serif"
         >
@@ -423,7 +422,7 @@ function ArchitectureSVG(l: Lang) {
   const cx = W / 2;
   return svgWrapper(
     W,
-    980,
+    820,
     <>
       {/* Input */}
       <NodeRect
@@ -475,9 +474,9 @@ function ArchitectureSVG(l: Lang) {
         y={262}
         w={250}
         h={46}
-        label={"★ DA V2 → z_p"}
-        fill={OUR_FILL}
-        stroke={OUR_STROKE}
+        label={"DA V2 → z_p"}
+        fill={PAPER_FILL}
+        stroke={PAPER_STROKE}
         bold
       />
       <Edge points={[[175, 308], [175, 338]]} />
@@ -518,9 +517,9 @@ function ArchitectureSVG(l: Lang) {
         y={308}
         w={250}
         h={34}
-        label={"★ S² color histogram"}
-        fill={OUR_FILL}
-        stroke={OUR_STROKE}
+        label={"S² color histogram"}
+        fill={PAPER_FILL}
+        stroke={PAPER_STROKE}
       />
       <Edge points={[[545, 342], [545, 360]]} />
       <NodeRect
@@ -528,9 +527,9 @@ function ArchitectureSVG(l: Lang) {
         y={360}
         w={250}
         h={34}
-        label={"★ S³ LBP texture"}
-        fill={OUR_FILL}
-        stroke={OUR_STROKE}
+        label={"S³ LBP texture"}
+        fill={PAPER_FILL}
+        stroke={PAPER_STROKE}
       />
       <Edge points={[[545, 394], [545, 412]]} />
       <NodeRect
@@ -581,9 +580,9 @@ function ArchitectureSVG(l: Lang) {
         y={670}
         w={440}
         h={50}
-        label={"★ Guided filter + adaptive blend"}
-        fill={OUR_FILL}
-        stroke={OUR_STROKE}
+        label={"Guided filter + adaptive blend"}
+        fill={PAPER_FILL}
+        stroke={PAPER_STROKE}
         bold
       />
       <Edge points={[[cx, 720], [cx, 750]]} />
@@ -604,30 +603,6 @@ function ArchitectureSVG(l: Lang) {
         bold
       />
 
-      {/* Legend */}
-      <g>
-        <rect
-          x={40}
-          y={840}
-          width={640}
-          height={110}
-          rx={8}
-          fill="#0d1730"
-          stroke={NODE_STROKE}
-        />
-        <rect x={56} y={862} width={26} height={20} rx={4} fill={OUR_FILL} stroke={OUR_STROKE} />
-        <text x={92} y={877} fontSize={11} fill={OUR_STROKE} fontFamily="system-ui, sans-serif" fontWeight={700}>
-          {l === "ru"
-            ? "★ наши расширения"
-            : "★ bizning qo‘shimchalar"}
-        </text>
-        <rect x={56} y={898} width={26} height={20} rx={4} fill={PAPER_FILL} stroke={PAPER_STROKE} />
-        <text x={92} y={913} fontSize={11} fill={PAPER_STROKE} fontFamily="system-ui, sans-serif" fontWeight={700}>
-          {l === "ru"
-            ? "стандарт статьи (Liu et al.)"
-            : "maqola standarti (Liu et al.)"}
-        </text>
-      </g>
     </>,
   );
 }
@@ -673,7 +648,7 @@ function ClassicDepthSVG(l: Lang) {
       {/* Diamond p ≤ n ? */}
       <NodeDiamond cx={cx} cy={326} w={170} h={80} label={l === "ru" ? "p ≤ n ?" : "p ≤ n ?"} />
       {/* yes branch: down */}
-      <Edge points={[[cx, 366], [cx, 396]]} label={yes} labelDx={8} labelDy={-6} />
+      <Edge points={[[cx, 366], [cx, 396]]} label={yes} labelDx={8} labelDy={8} />
 
       {/* z_p = DA_V2 */}
       <NodeRect x={cx - 130} y={396} w={260} h={42} label={"z_p = DA_V2(p)"} />
@@ -710,10 +685,10 @@ function ClassicDepthSVG(l: Lang) {
       />
       {/* no -> regularize, then merge back */}
       <Edge points={[[cx + 95, 742], [560, 742], [560, 660], [430, 660]]} label={no} labelDx={6} labelDy={14} />
-      <NodeRect x={430} y={640} w={180} h={40} label={l === "ru" ? "A ← A + εI (регуляризация)" : "A ← A + εI (regulyarizatsiya)"} size={10} />
+      <NodeRect x={450} y={640} w={180} h={40} label={l === "ru" ? "A ← A + εI (регуляризация)" : "A ← A + εI (regulyarizatsiya)"} size={12} />
       <Edge points={[[430, 660], [cx + 130, 653]]} />
       {/* yes -> continue down */}
-      <Edge points={[[cx, 784], [cx, 812]]} label={yes} labelDx={8} labelDy={-6} />
+      <Edge points={[[cx, 784], [cx, 812]]} label={yes} labelDx={8} labelDy={10} />
 
       {/* y* = A⁻¹ z */}
       <NodeRect
@@ -757,7 +732,7 @@ function ClassicFractalSVG(l: Lang) {
   const no = l === "ru" ? "нет" : "yo‘q";
   return svgWrapper(
     W,
-    1180,
+    970,
     <>
       {/* Start */}
       <NodeEllipse cx={cx} cy={30} rx={90} ry={22} label={l === "ru" ? "Начало" : "Boshlash"} />
@@ -780,9 +755,9 @@ function ClassicFractalSVG(l: Lang) {
       {/* Diamond i < N ? */}
       <NodeDiamond cx={cx} cy={256} w={160} h={80} label={"i < N ?"} />
       {/* no branch exits to the right then down */}
-      <Edge points={[[cx + 80, 256], [600, 256], [600, 960], [cx, 960]]} label={no} labelDx={6} labelDy={-6} />
+      <Edge points={[[cx + 80, 256], [600, 256], [600, 730], [cx, 730]]} label={no} labelDx={6} labelDy={-6} />
       {/* yes branch down */}
-      <Edge points={[[cx, 296], [cx, 324]]} label={yes} labelDx={8} labelDy={-6} />
+      <Edge points={[[cx, 296], [cx, 324]]} label={yes} labelDx={8} labelDy={8} />
 
       {/* choose Tk */}
       <NodeRect
@@ -801,7 +776,7 @@ function ClassicFractalSVG(l: Lang) {
       {/* Diamond i > warmup ? */}
       <NodeDiamond cx={cx} cy={506} w={180} h={82} label={l === "ru" ? "i > warmup ?" : "i > warmup ?"} />
       {/* yes -> plot point, then merge */}
-      <Edge points={[[cx, 547], [cx, 575]]} label={yes} labelDx={8} labelDy={-6} />
+      <Edge points={[[cx, 547], [cx, 575]]} label={yes} labelDx={8} labelDy={8} />
       <NodeRect
         x={cx - 180}
         y={575}
@@ -816,210 +791,145 @@ function ClassicFractalSVG(l: Lang) {
       {/* i = i + 1 (merge point) */}
       <NodeRect x={cx - 130} y={643} w={260} h={42} label={"i = i + 1"} />
       {/* loop back to "i < N ?" (left side) */}
-      <Edge points={[[cx - 130, 664], [110, 664], [110, 256], [cx - 80, 256]]} />
+      <Edge points={[[cx - 130, 664], [80, 664], [80, 256], [cx - 80, 256]]} />
 
       {/* rasterization */}
       <NodeRect
         x={cx - 190}
-        y={960}
+        y={730}
         w={380}
         h={46}
         label={l === "ru" ? "растеризация → воксели" : "rasterizatsiya → vokssellar"}
       />
-      <Edge points={[[cx, 1006], [cx, 1032]]} />
+      <Edge points={[[cx, 776], [cx, 802]]} />
 
       {/* marching cubes */}
-      <NodeRect x={cx - 150} y={1032} w={300} h={42} label={"marching cubes → 3D"} />
-      <Edge points={[[cx, 1074], [cx, 1090]]} />
+      <NodeRect x={cx - 150} y={802} w={300} h={42} label={"marching cubes → 3D"} />
+      <Edge points={[[cx, 844], [cx, 870]]} />
 
       {/* Output */}
       <NodeParallelogram
         x={cx - 170}
-        y={1090}
+        y={870}
         w={340}
         h={42}
         label={l === "ru" ? "Вывод: 3D-модель" : "Chiqish: 3D-model"}
       />
-      <Edge points={[[cx, 1132], [cx, 1148]]} />
+      <Edge points={[[cx, 912], [cx, 928]]} />
 
       {/* End */}
-      <NodeEllipse cx={cx} cy={1162} rx={90} ry={18} label={l === "ru" ? "Конец" : "Tugadi"} />
+      <NodeEllipse cx={cx} cy={944} rx={90} ry={18} label={l === "ru" ? "Конец" : "Tugadi"} />
     </>,
   );
 }
 
-// ═══ SVG 3: Classic academic two-panel block diagram ══════════════════════════
+// ═══ SVG 3: DCNF CRF — clean single-column flowchart ═════════════════════════
 function ClassicTwoPanelSVG(l: Lang) {
-  const ru = l === "ru";
-  const ha   = ru ? "да"  : "ха";
-  const nyet = ru ? "нет" : "йўқ";
+  const W = 720;
+  const cx = 300;
+  const yes = l === "ru" ? "да" : l === "en" ? "yes" : "ha";
+  const no  = l === "ru" ? "нет" : l === "en" ? "no" : "yo'q";
 
-  // ── Shared drawing helpers (white-bg academic style) ──────────────────────
-  const S: React.SVGProps<SVGElement> = { fill:"#fff", stroke:"#111", strokeWidth:1.5 } as never;
+  const lbl = {
+    start:  l === "ru" ? "Начало"  : l === "en" ? "Start"  : "Boshlash",
+    input:  l === "ru" ? "Вход: x, λ, β_k, γ_k" : l === "en" ? "Input: x, λ, β_k, γ_k" : "Kirish: x, λ, β_k, γ_k",
+    slic:   l === "ru" ? "SLIC → n суперпикселей (~500)" : l === "en" ? "SLIC → n superpixels (~500)" : "SLIC → n superpiksel (~500)",
+    forP:   l === "ru" ? "для каждого p = 1..n" : l === "en" ? "for each p = 1..n" : "har bir p = 1..n uchun",
+    unary:  l === "ru" ? "z_p = DA_V2(p)  [unary глубина]" : l === "en" ? "z_p = DA_V2(p)  [unary depth]" : "z_p = DA_V2(p)  [unary chuqurlik]",
+    forQ:   l === "ru" ? "для каждого q ∈ N(p)" : l === "en" ? "for each q ∈ N(p)" : "har bir q ∈ N(p) uchun",
+    sim:    "S^k_pq = exp(−γ_k · ‖s_p − s_q‖)  k = 1..K",
+    rpq:    "R_pq = Σ_k  β_k · S^k_pq",
+    backQ:  l === "ru" ? "↩ след. q" : l === "en" ? "↩ next q" : "↩ keyingi q",
+    backP:  l === "ru" ? "↩ след. p" : l === "en" ? "↩ next p" : "↩ keyingi p",
+    matrix: "A = I + D − R ,   D_pp = Σ_q R_pq",
+    inv:    l === "ru" ? "A обратима?" : l === "en" ? "A invertible?" : "A teskari?",
+    reg:    "A ← A + εI",
+    map:    "y* = A⁻¹ z",
+    gf:     "Guided filter + adaptive blend",
+    depth:  l === "ru" ? "Карта глубины y → 3D меш" : l === "en" ? "Depth map y → 3D mesh" : "Chuqurlik xaritasi y → 3D mesh",
+    end:    l === "ru" ? "Конец" : l === "en" ? "End" : "Tugadi",
+  };
 
-  function Oval({ cx, cy, label }: { cx:number; cy:number; label:string }) {
-    return (
-      <g>
-        <ellipse cx={cx} cy={cy} rx={68} ry={20} fill="#fff" stroke="#111" strokeWidth={1.5}/>
-        <text x={cx} y={cy+5} textAnchor="middle" fontSize={13} fontWeight={700} fill="#111">{label}</text>
-      </g>
-    );
-  }
+  return svgWrapper(
+    W,
+    960,
+    <>
+      {/* 1. Start */}
+      <NodeEllipse cx={cx} cy={30} rx={90} ry={22} label={lbl.start} />
+      <Edge points={[[cx, 52], [cx, 78]]} />
 
-  function IO({ x, y, w, h, label }: { x:number; y:number; w:number; h:number; label:string }) {
-    const sk = 14;
-    return (
-      <g>
-        <polygon points={`${x+sk},${y} ${x+w},${y} ${x+w-sk},${y+h} ${x},${y+h}`} fill="#fff" stroke="#111" strokeWidth={1.5}/>
-        <text x={x+w/2} y={y+h/2+4} textAnchor="middle" fontSize={10} fill="#111">{label}</text>
-      </g>
-    );
-  }
+      {/* 2. Input */}
+      <NodeParallelogram x={cx - 180} y={78} w={360} h={42} label={lbl.input} />
+      <Edge points={[[cx, 120], [cx, 146]]} />
 
-  function Proc({ x, y, w, h, label }: { x:number; y:number; w:number; h:number; label:string }) {
-    const lines = label.split('\n');
-    return (
-      <g>
-        <rect x={x} y={y} width={w} height={h} rx={2} fill="#fff" stroke="#111" strokeWidth={1.5}/>
-        {lines.map((ln,i)=>(
-          <text key={i} x={x+w/2} y={y+h/2-(lines.length-1)*6.5+i*13+4} textAnchor="middle" fontSize={10} fill="#111">{ln}</text>
-        ))}
-      </g>
-    );
-  }
+      {/* 3. SLIC */}
+      <NodeRect x={cx - 180} y={146} w={360} h={40} label={lbl.slic} />
+      <Edge points={[[cx, 186], [cx, 212]]} />
 
-  function Dec({ cx, cy, w, h, label }: { cx:number; cy:number; w:number; h:number; label:string }) {
-    const pts = `${cx},${cy-h/2} ${cx+w/2},${cy} ${cx},${cy+h/2} ${cx-w/2},${cy}`;
-    const lines = label.split('\n');
-    return (
-      <g>
-        <polygon points={pts} fill="#fff" stroke="#111" strokeWidth={1.5}/>
-        {lines.map((ln,i)=>(
-          <text key={i} x={cx} y={cy-(lines.length-1)*6.5+i*13+4} textAnchor="middle" fontSize={10} fill="#111">{ln}</text>
-        ))}
-      </g>
-    );
-  }
+      {/* 4. FOR p loop header */}
+      <NodeRect x={cx - 140} y={212} w={280} h={36} label={lbl.forP}
+        fill={PAPER_FILL} stroke={PAPER_STROKE} />
+      <Edge points={[[cx, 248], [cx, 274]]} />
 
-  // Straight arrow (line + solid arrowhead polygon)
-  function Ar({ x1,y1,x2,y2 }: { x1:number; y1:number; x2:number; y2:number }) {
-    const dx=x2-x1, dy=y2-y1, d=Math.sqrt(dx*dx+dy*dy);
-    if (d < 1) return null;
-    const nx=dx/d, ny=dy/d, s=4;
-    const hx=x2-nx*9, hy=y2-ny*9;
-    return (
-      <g>
-        <line x1={x1} y1={y1} x2={hx} y2={hy} stroke="#111" strokeWidth={1.5}/>
-        <polygon points={`${x2},${y2} ${hx-ny*s},${hy+nx*s} ${hx+ny*s},${hy-nx*s}`} fill="#111"/>
-      </g>
-    );
-  }
+      {/* 5. Unary depth */}
+      <NodeRect x={cx - 190} y={274} w={380} h={38} label={lbl.unary} />
+      <Edge points={[[cx, 312], [cx, 338]]} />
 
-  // Multi-segment path arrow (markerEnd)
-  function Ap({ d }: { d:string }) {
-    return <path d={d} fill="none" stroke="#111" strokeWidth={1.5} markerEnd="url(#acArr)"/>;
-  }
+      {/* 6. FOR q loop header */}
+      <NodeRect x={cx - 140} y={338} w={280} h={36} label={lbl.forQ}
+        fill={PAPER_FILL} stroke={PAPER_STROKE} />
+      <Edge points={[[cx, 374], [cx, 400]]} />
 
-  function Lbl({ x, y, text }: { x:number; y:number; text:string }) {
-    return <text x={x} y={y} fontSize={10} fill="#444" fontStyle="italic">{text}</text>;
-  }
+      {/* 7. Similarity S^k_pq */}
+      <NodeRect x={cx - 190} y={400} w={380} h={38} label={lbl.sim} size={12} />
+      <Edge points={[[cx, 438], [cx, 464]]} />
 
-  const L = 188; // left panel center x
-  const R = 553; // right panel center x
+      {/* 8. Pairwise R_pq */}
+      <NodeRect x={cx - 190} y={464} w={380} h={36} label={lbl.rpq} />
 
-  return (
-    <div style={{ background:"#fff", border:"1px solid #bbb", borderRadius:8, overflowX:"auto" }}>
-      <svg viewBox="0 0 730 600" style={{ width:"100%", minWidth:560, height:"auto", display:"block" }}>
-        <defs>
-          <marker id="acArr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-            <polygon points="0,0 8,4 0,8" fill="#111"/>
-          </marker>
-        </defs>
+      {/* q loop-back: from right edge of R_pq → right → up → back into FOR q header */}
+      <Edge points={[[cx + 190, 482], [530, 482], [530, 356], [cx + 140, 356]]} />
+      <text x={535} y={422} fontSize={12} fill="#fbbf24" fontFamily="system-ui,sans-serif" fontStyle="italic">
+        {lbl.backQ}
+      </text>
 
-        {/* Panel divider */}
-        <line x1="370" y1="0" x2="370" y2="648" stroke="#ddd" strokeWidth={1} strokeDasharray="5,4"/>
+      {/* p loop-back: from same area but further right → up → back into FOR p header */}
+      <Edge points={[[cx + 190, 488], [560, 488], [560, 230], [cx + 140, 230]]} />
+      <text x={565} y={360} fontSize={12} fill="#fbbf24" fontFamily="system-ui,sans-serif" fontStyle="italic">
+        {lbl.backP}
+      </text>
 
-        {/* Caption */}
-        <text x={L} y={8} textAnchor="middle" fontSize={10} fill="#888" fontStyle="italic">
-          {ru ? "Главный алгоритм (DCNF CRF)" : "Asosiy algoritm (DCNF CRF)"}
-        </text>
+      <Edge points={[[cx, 500], [cx, 524]]} />
 
-        {/* ══════════════════════════════════════════════════════
-            LEFT PANEL
-        ══════════════════════════════════════════════════════ */}
+      {/* 9. Matrix A */}
+      <NodeRect x={cx - 190} y={524} w={380} h={38} label={lbl.matrix} size={12} />
+      <Edge points={[[cx, 562], [cx, 590]]} />
 
-        {/* Start */}
-        <Oval cx={L} cy={30} label={ru?"Начало":"Бошлаш"}/>
-        <Ar x1={L} y1={50} x2={L} y2={68}/>
+      {/* 10. Decision: A invertible? */}
+      <NodeDiamond cx={cx} cy={632} w={210} h={84} label={lbl.inv} />
 
-        {/* Input params */}
-        <IO x={L-100} y={68} w={200} h={36} label="λ,  β_k,  γ_k"/>
-        <Ar x1={L} y1={104} x2={L} y2={120}/>
+      {/* no → right → A←A+εI box → back up to Matrix A */}
+      <Edge points={[[cx + 105, 632], [600, 632], [600, 543], [cx + 190, 543]]} label={no} labelDx={6} labelDy={14} />
+      <NodeRect x={cx + 170} y={574} w={160} h={38} label={lbl.reg} size={12} />
 
-        {/* ── OUTER LOOP BOX: p ── */}
-        <rect x={18} y={120} width={338} height={362} fill="none" stroke="#111" strokeWidth={1.5}/>
-        <Proc x={L-80} y={128} w={160} h={36} label="p = 0...n"/>
-        <Ar x1={L} y1={164} x2={L} y2={181}/>
+      {/* yes → down */}
+      <Edge points={[[cx, 674], [cx, 700]]} label={yes} labelDx={8} labelDy={10} />
 
-        {/* ── INNER LOOP BOX 1: q ── */}
-        <rect x={30} y={181} width={314} height={294} fill="none" stroke="#111" strokeWidth={1.5}/>
-        <Proc x={L-75} y={188} w={150} h={36} label="q ∈ N(p)"/>
-        <Ar x1={L} y1={224} x2={L} y2={241}/>
+      {/* 11. MAP solution */}
+      <NodeRect x={cx - 160} y={700} w={320} h={42} label={lbl.map} bold />
+      <Edge points={[[cx, 742], [cx, 768]]} />
 
-        {/* ── INNER LOOP BOX 2: k ── */}
-        <rect x={42} y={241} width={290} height={227} fill="none" stroke="#111" strokeWidth={1.5}/>
-        <Proc x={L-70} y={249} w={140} h={36} label="k = 1...K"/>
-        <Ar x1={L} y1={285} x2={L} y2={302}/>
+      {/* 12. Guided filter */}
+      <NodeRect x={cx - 200} y={768} w={400} h={40} label={lbl.gf} />
+      <Edge points={[[cx, 808], [cx, 834]]} />
 
-        {/* Diamond: CRF condition */}
-        <Dec cx={L} cy={334} w={162} h={66} label={ru?"CRF(k,β,p,q)?":"CRF(k,β,p,q)?"}/>
+      {/* 13. Depth → 3D */}
+      <NodeParallelogram x={cx - 190} y={834} w={380} h={42} label={lbl.depth} />
+      <Edge points={[[cx, 876], [cx, 896]]} />
 
-        {/* HA → right → "записать r_pq" box → loop back */}
-        <Ar x1={L+81} y1={334} x2={274} y2={334}/>
-        <Lbl x={L+83} y={329} text={ha}/>
-        <Proc x={276} y={316} w={74} h={36} label={ru?"записать\nr_pq":"r_pq\nyozish"}/>
-        {/* Loop back from box → up → back to k proc top */}
-        <Ap d={`M313,316 L313,258 L258,258`}/>
-
-        {/* НЕТ → down */}
-        <Ar x1={L} y1={367} x2={L} y2={385}/>
-        <Lbl x={L+4} y={380} text={nyet}/>
-
-        {/* k loop back: left side of box 2 → up to k proc */}
-        <Ap d={`M42,410 L26,410 L26,255 L118,255`}/>
-
-        {/* q loop back: left side of box 1 → up to q proc */}
-        <Ap d={`M30,456 L14,456 L14,192 L113,192`}/>
-
-        {/* p loop back: left side of outer box → up to p proc */}
-        <Ap d={`M18,484 L2,484 L2,132 L108,132`}/>
-
-        {/* After loops: MAP solve */}
-        <Ar x1={L} y1={482} x2={L} y2={502}/>
-        <Proc x={L-122} y={502} w={244} h={42} label={ru?"MAP: y* = A⁻¹z  →  depth map":"MAP: y* = A⁻¹z  →  depth map"}/>
-        <Ar x1={L} y1={544} x2={L} y2={562}/>
-
-        {/* End */}
-        <Oval cx={L} cy={580} label={ru?"Конец":"Тамом"}/>
-
-
-        {/* ══════════════════════════════════════════════════════
-            RIGHT PANEL  (cx = R = 553)
-            Layout:
-              k>0? HA  → RIGHT  → S^k compute at cx=650 (x=594)
-              k>0? НЕТ → LEFT   → k=0? diamond at cx=462
-                k=0? HA   → DOWN → ω & return E at cx=462 (x=402)
-                k=0? НЕТ  → LEFT → "k<0" note
-            Both leaf paths merge at y=490, cx=R
-        ══════════════════════════════════════════════════════ */}
-        {/* Caption */}
-        <text x={185} y={553} textAnchor="middle" fontSize={9} fill="#888">
-          {ru
-            ? "Рис. DCNF CRF блок-схема: главный цикл + рекурсивная функция"
-            : "Rasm. DCNF CRF blok-sxema: asosiy tsikl + rekursiv funksiya"}
-        </text>
-      </svg>
-    </div>
+      {/* 14. End */}
+      <NodeEllipse cx={cx} cy={912} rx={90} ry={22} label={lbl.end} />
+    </>,
   );
 }
 
@@ -1034,7 +944,7 @@ export default function FractalGenerator() {
     "architecture" | "classic_depth" | "classic_fractal" | "classic_academic"
   >("architecture");
 
-  const l = lang as "ru" | "uz";
+  const l = lang as Lang;
 
   return (
     <div className="space-y-8">

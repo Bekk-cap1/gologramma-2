@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useLang } from "@/components/LanguageContext";
 import { t } from "@/lib/translations";
 
-type DrawFn = (ctx: CanvasRenderingContext2D, time: number, w: number, h: number) => void;
+type DrawFn = (ctx: CanvasRenderingContext2D, time: number, w: number, h: number, filmColor?: string) => void;
 
 const STEPS_DRAW: DrawFn[] = [
   // Step 1: Laser on
@@ -229,7 +229,7 @@ const STEPS_DRAW: DrawFn[] = [
   },
 
   // Step 5: Hologram recorded
-  (ctx, time, w, h) => {
+  (ctx, time, w, h, filmColor = "#0D1526") => {
     ctx.clearRect(0, 0, w, h);
 
     const filmX = w / 2 - 20;
@@ -237,7 +237,7 @@ const STEPS_DRAW: DrawFn[] = [
     const filmH = h - 60;
     const filmY = 30;
 
-    ctx.fillStyle = "#0D1526";
+    ctx.fillStyle = filmColor;
     ctx.strokeStyle = "#9C27B0";
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -287,7 +287,8 @@ const STEP_TEXT_KEYS = [
 ] as const;
 
 export default function Recording() {
-  const { lang } = useLang();
+  const { lang, theme } = useLang();
+  const isDark = theme === "dark";
   const [step, setStep] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
@@ -299,9 +300,10 @@ export default function Recording() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     timeRef.current += 0.016;
-    STEPS_DRAW[step](ctx, timeRef.current, canvas.width, canvas.height);
+    STEPS_DRAW[step](ctx, timeRef.current, canvas.width, canvas.height,
+      isDark ? "#0D1526" : "#A0B0C0");
     rafRef.current = requestAnimationFrame(drawFrame);
-  }, [step]);
+  }, [step, isDark]);
 
   useEffect(() => {
     timeRef.current = 0;
@@ -344,7 +346,7 @@ export default function Recording() {
       {/* Canvas */}
       <div
         className="rounded-xl overflow-hidden mb-4"
-        style={{ background: '#060B18', border: '1px solid var(--border-color)' }}
+        style={{ background: 'var(--canvas-bg)', border: '1px solid var(--border-color)' }}
       >
         <canvas
           ref={canvasRef}

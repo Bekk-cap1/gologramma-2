@@ -393,7 +393,7 @@ export default function MathTab() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <code className="text-sm px-2 py-0.5 rounded" style={{ background: '#0D1526', color: item.color, fontFamily: 'monospace' }}>
+                    <code className="text-sm px-2 py-0.5 rounded" style={{ background: 'var(--code-bg)', color: item.color, fontFamily: 'monospace' }}>
                       {item.formula}
                     </code>
                     <span className="text-xs font-semibold" style={{ color: item.color }}>{item.name[guideLang]}</span>

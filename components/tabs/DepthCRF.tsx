@@ -1290,7 +1290,7 @@ export default function DepthCRF() {
 
               {/* Gaussian Splat canvas */}
               {splatMode && (
-                <div className="mt-3 rounded-xl overflow-hidden" style={{ border: "1px solid #a855f744", background: "#060b18" }}>
+                <div className="mt-3 rounded-xl overflow-hidden" style={{ border: "1px solid #a855f744", background: "var(--canvas-bg)" }}>
                   <div className="px-3 py-2 text-xs font-bold flex items-center gap-2" style={{ color: "#c084fc", borderBottom: "1px solid #a855f733" }}>
                     <span>✦</span>
                     <span>Gaussian Splatting — {lang === "ru" ? "каждый пиксель = гауссиан, размер по градиенту глубины" : "har piksel = gaussian, o'lcham chuqurlik gradientidan"}</span>
@@ -1305,7 +1305,7 @@ export default function DepthCRF() {
               )}
 
               {/* ── Layer-based CGH ── */}
-              <div className="mt-4 rounded-xl p-3 space-y-3" style={{ background: "#0a0f1a", border: "1px solid #22d3ee44" }}>
+              <div className="mt-4 rounded-xl p-3 space-y-3" style={{ background: "var(--canvas-bg)", border: "1px solid #22d3ee44" }}>
                 <div className="text-xs font-bold" style={{ color: "#22d3ee" }}>
                   〰 Layer-based CGH — {lang === "ru" ? "метод из статьи Kumano et al. 2025" : "Kumano et al. 2025 usuli"}
                 </div>
@@ -1358,7 +1358,7 @@ export default function DepthCRF() {
                         />
                       </div>
                       {/* ASM panel */}
-                      <div className="rounded-lg space-y-2 p-2" style={{ border: "1px solid #22c55e33", background: "#052010" }}>
+                      <div className="rounded-lg space-y-2 p-2" style={{ border: "1px solid #22c55e33", background: "var(--canvas-bg-raised)" }}>
                         <div className="text-[11px] font-bold" style={{ color: "#22c55e" }}>
                           {lang === "ru" ? "ASM реконструкция (симуляция воспроизведения)" : "ASM rekonstruksiyasi (qayta tiklash simulyatsiyasi)"}
                         </div>
@@ -1408,7 +1408,7 @@ export default function DepthCRF() {
                     </div>
 
                     {/* ── Holographic tomography 3D volume ── */}
-                    <div className="rounded-lg p-3 space-y-2 mt-2" style={{ border: "1px solid #3b82f633", background: "#020c1a" }}>
+                    <div className="rounded-lg p-3 space-y-2 mt-2" style={{ border: "1px solid #3b82f633", background: "var(--canvas-bg)" }}>
                       <div className="text-[11px] font-bold" style={{ color: "#60a5fa" }}>
                         {lang === "ru" ? "Голографическая томография → 3D объект" : "Golografik tomografiya → 3D ob'ekt"}
                       </div>
@@ -1429,7 +1429,7 @@ export default function DepthCRF() {
                       {volMode && (
                         <canvas
                           ref={volCanvasRef}
-                          style={{ display: "block", width: "100%", borderRadius: 8, background: "#020810" }}
+                          style={{ display: "block", width: "100%", borderRadius: 8, background: "var(--canvas-bg)" }}
                         />
                       )}
                     </div>
@@ -1515,7 +1515,7 @@ export default function DepthCRF() {
                       <div className="space-y-1">
                         <div className="text-xs font-semibold" style={{ color: "#06b6d4" }}>{T[titleKey][lang]}</div>
                         <div className="overflow-x-auto rounded-lg" style={{ border: "1px solid #333" }}>
-                          <table className="w-full text-sm border-collapse" style={{ background: "#0a0a12" }}>
+                          <table className="w-full text-sm border-collapse" style={{ background: "var(--canvas-bg)" }}>
                             <thead>
                               <tr>
                                 <th rowSpan={2} className={`${thBase} text-left`} style={{ color: "var(--text-secondary)", minWidth: 140 }}>

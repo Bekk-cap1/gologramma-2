@@ -22,6 +22,12 @@
   --control-hover: #123052;
   --control-active: #00E5FF22;
   --shadow-soft: 0 14px 38px rgba(0, 0, 0, 0.28);
+  /* Canvas / viewer backgrounds */
+  --canvas-bg: #060B18;
+  --canvas-bg-raised: #0D1526;
+  --canvas-grid: #1E3A5F;
+  --canvas-text: #90A4AE;
+  --code-bg: #0D1526;
 }
 
 [data-theme="light"] {
@@ -40,6 +46,12 @@
   --control-hover: #DFF0F8;
   --control-active: #007EA718;
   --shadow-soft: 0 14px 38px rgba(20, 32, 51, 0.10);
+  /* Canvas / viewer backgrounds */
+  --canvas-bg: #E8EEF6;
+  --canvas-bg-raised: #EDF2F7;
+  --canvas-grid: #B0BEC5;
+  --canvas-text: #546E7A;
+  --code-bg: #E8EEF6;
 }
 
 body {

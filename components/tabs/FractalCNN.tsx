@@ -536,10 +536,10 @@ function buildPythagorasTree3D(level: number): THREE.BufferGeometry {
 }
 
 // ─── helper: draw a synthetic sample image on an offscreen canvas ─────────────
-function drawSample(canvas: HTMLCanvasElement, type: SampleType) {
+function drawSample(canvas: HTMLCanvasElement, type: SampleType, bgColor = "#050A14") {
   const ctx = canvas.getContext("2d")!;
   const w = canvas.width, h = canvas.height;
-  ctx.fillStyle = "#050A14";
+  ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, w, h);
 
   if (type === "pyramid") {
@@ -1044,7 +1044,8 @@ const STEP_VISIBLE: Record<string, (s: PipelineSettings) => boolean> = {
 };
 
 export default function FractalCNN() {
-  const { lang } = useLang();
+  const { lang, theme } = useLang();
+  const isDark = theme === "dark";
   // Fallback for API-returned objects that only have { ru, uz } keys
   const tl = (obj: { ru: string; uz: string } | string): string =>
     typeof obj === "string" ? obj : ((obj as Record<string, string>)[lang] ?? obj.ru);
@@ -1544,7 +1545,7 @@ export default function FractalCNN() {
     setCnnError(null);
     const off = document.createElement("canvas");
     off.width = MESH_RES; off.height = MESH_RES;
-    drawSample(off, type);
+    drawSample(off, type, isDark ? "#050A14" : "#EDF2F7");
     const dataUrl = off.toDataURL();
     setPreviewUrl((prev) => { if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev); return dataUrl; });
     const img = new Image();
@@ -2070,7 +2071,7 @@ export default function FractalCNN() {
                         <span className="text-xs w-28 shrink-0" style={{ color: cls === cnnApiResult.type ? "#69F0AE" : "var(--text-secondary)" }}>
                           {CLASS_LABELS[cls] ?? cls}
                         </span>
-                        <div className="flex-1 rounded-full overflow-hidden" style={{ height: 6, background: "#1E3A5F" }}>
+                        <div className="flex-1 rounded-full overflow-hidden" style={{ height: 6, background: "var(--border-color)" }}>
                           <div className="h-full rounded-full transition-all"
                             style={{ width: `${score}%`, background: cls === cnnApiResult.type ? "#69F0AE" : "#1E3A5F88" }}
                           />
@@ -2364,7 +2365,7 @@ export default function FractalCNN() {
                       </div>
 
                       {/* Confidence mini-bar */}
-                      <div className="rounded-full overflow-hidden mb-2" style={{ height: 5, background: "#1E3A5F" }}>
+                      <div className="rounded-full overflow-hidden mb-2" style={{ height: 5, background: "var(--border-color)" }}>
                         <div className="h-full rounded-full transition-all duration-500"
                           style={{ width: `${Math.max(0, Math.min(100, step.confidence))}%`, background: confColor }}
                         />
@@ -2438,7 +2439,7 @@ export default function FractalCNN() {
                           {step.evidence.length > 5 && (
                             <button onClick={() => setShowAllEvidence(v => !v)}
                               className="text-[10px] mt-1 px-2 py-0.5 rounded-full"
-                              style={{ background: "#1E3A5F", color: tbColor, border: `1px solid ${tbColor}44` }}>
+                              style={{ background: "var(--control-bg)", color: tbColor, border: `1px solid ${tbColor}44` }}>
                               {showAllEvidence ? TX.collapse[lang] : `${TX.moreN[lang]} ${step.evidence.length - 5}`}
                             </button>
                           )}
@@ -2447,7 +2448,7 @@ export default function FractalCNN() {
 
                       {/* Formula */}
                       {step.formula && (
-                        <div className="rounded px-3 py-2 mt-2 font-mono text-xs" style={{ background: "#0a0e1a", border: "1px solid var(--border-color)", color: "#fcd34d" }}>
+                        <div className="rounded px-3 py-2 mt-2 font-mono text-xs" style={{ background: "var(--code-bg)", border: "1px solid var(--border-color)", color: "#fcd34d" }}>
                           {step.formula}
                         </div>
                       )}
@@ -2508,7 +2509,7 @@ export default function FractalCNN() {
       </div>
 
       {/* ── Three.js canvas — always in DOM ── */}
-      <div className="rounded-xl overflow-hidden relative" style={{ border: "1px solid var(--border-color)", background: "#060B18" }}>
+      <div className="rounded-xl overflow-hidden relative" style={{ border: "1px solid var(--border-color)", background: "var(--canvas-bg)" }}>
         <div className="absolute top-2 left-3 z-10 text-xs font-bold" style={{ color: "#9C27B0" }}>
           {hasImage ? TX.view3d[lang] : "3D"}
         </div>
@@ -2526,7 +2527,7 @@ export default function FractalCNN() {
         />
         {webglError && (
           <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm"
-            style={{ background: "#060B18", color: "#f59e0b" }}>
+            style={{ background: "var(--canvas-bg)", color: "#f59e0b" }}>
             {webglError}
           </div>
         )}
@@ -2535,7 +2536,7 @@ export default function FractalCNN() {
         </div>
         {steps?.final.generation_method && (
           <div className="absolute bottom-2 left-3 text-[11px] font-semibold px-2 py-0.5 rounded-full z-10"
-            style={{ background: "#060B18CC", color: "#90CAF9", border: "1px solid #2E4A6F" }}>
+            style={{ background: "color-mix(in srgb, var(--canvas-bg) 80%, transparent)", color: "#90CAF9", border: "1px solid #2E4A6F" }}>
             {steps.final.generation_method === "recursive_boundary" ? TX.genBoundary[lang]
               : steps.final.generation_method === "escape_depth" ? TX.genEscape[lang]
               : steps.final.generation_method === "neural_depth" ? TX.genNeural[lang]
@@ -2698,7 +2699,7 @@ export default function FractalCNN() {
                   {/* Left: number + picture */}
                   <div className="flex items-center gap-3 sm:flex-col sm:gap-2 shrink-0">
                     <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0" style={{ background: `${s.color}22`, color: s.color, border: `2px solid ${s.color}66` }}>{s.n}</div>
-                    <div className="rounded-lg flex items-center justify-center overflow-hidden" style={{ width: 72, height: 72, background: "#060B18", border: `1px solid ${s.color}33` }}>
+                    <div className="rounded-lg flex items-center justify-center overflow-hidden" style={{ width: 72, height: 72, background: "var(--canvas-bg)", border: `1px solid ${s.color}33` }}>
                       {s.canvas === "src" && hasImage
                         ? <canvas ref={pipeSrcRef} width={68} height={68} style={{ width: 68, height: 68, imageRendering: "pixelated" }} />
                         : s.canvas === "depth" && hasImage
@@ -2716,7 +2717,7 @@ export default function FractalCNN() {
                       <span className="text-sm font-bold" style={{ color: s.color }}>{s.title}</span>
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: `${s.color}18`, color: s.color }}>{s.io}</span>
                     </div>
-                    <div className="rounded-lg px-3 py-2 mb-2 font-mono text-xs" style={{ background: "#0D1526", border: "1px solid #1E3A5F", color: "#E8EAF6" }}>{s.formula}</div>
+                    <div className="rounded-lg px-3 py-2 mb-2 font-mono text-xs" style={{ background: "var(--code-bg)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>{s.formula}</div>
                     <div className="text-xs mb-1.5" style={{ color: "var(--text-secondary)" }}>{s.desc}</div>
                     {/* Step 4: real top-4 probability bars */}
                     {s.bars && cnnApiResult && (
@@ -2724,7 +2725,7 @@ export default function FractalCNN() {
                         {Object.entries(cnnApiResult.all_scores).sort(([, a], [, b]) => b - a).slice(0, 4).map(([cls, sc]) => (
                           <div key={cls} className="flex items-center gap-2">
                             <span className="text-[10px] w-24 shrink-0 truncate" style={{ color: cls === cnnApiResult.type ? "#69F0AE" : "var(--text-secondary)" }}>{CLASS_LABELS[cls] ?? cls}</span>
-                            <div className="flex-1 rounded-full overflow-hidden" style={{ height: 5, background: "#1E3A5F" }}>
+                            <div className="flex-1 rounded-full overflow-hidden" style={{ height: 5, background: "var(--border-color)" }}>
                               <div className="h-full rounded-full" style={{ width: `${sc}%`, background: cls === cnnApiResult.type ? "#69F0AE" : "#37474F" }} />
                             </div>
                             <span className="text-[10px] w-9 text-right font-mono" style={{ color: cls === cnnApiResult.type ? "#69F0AE" : "#546E7A" }}>{sc.toFixed(1)}%</span>
@@ -2769,9 +2770,9 @@ export default function FractalCNN() {
               return (
                 <span key={s} className="flex items-center gap-1">
                   <span className="px-2 py-0.5 rounded text-xs" style={{
-                    background: isGeo ? "#F59E0B14" : "#0D1526",
-                    border: `1px solid ${isGeo ? "#F59E0B55" : "#1E3A5F"}`,
-                    color: isGeo ? "#F5B544" : "#E8EAF6",
+                    background: isGeo ? "#F59E0B14" : "var(--canvas-bg-raised)",
+                    border: `1px solid ${isGeo ? "#F59E0B55" : "var(--border-color)"}`,
+                    color: isGeo ? "#F5B544" : "var(--text-primary)",
                     whiteSpace: "nowrap",
                   }}>{s}</span>
                   {i < arr.length - 1 && <span style={{ color: isGeo ? "#F59E0B55" : "#1E3A5F" }}>→</span>}
