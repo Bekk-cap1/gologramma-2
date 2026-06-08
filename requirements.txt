@@ -1,22 +1,32 @@
+# Python dependencies for the FastAPI backend and fractal_3d pipeline.
 fastapi
+uvicorn
+pydantic
+python-multipart
+
+# Core image/math stack.
 numpy
 pandas
 pillow
-pydantic
-torch
-torchvision
-tqdm
-uvicorn
-# fractal_3d 4-layer reconstruction system
 scipy
 scikit-image
 scikit-learn
 matplotlib
 trimesh
+tqdm
 httpx
-pytest
-# optional: multi-agent LLM orchestration (system falls back to local mode without it)
-anthropic
+
+# CNN / neural depth stack.
+torch
+torchvision
+transformers>=4.44,<5
+safetensors
+
+# Optional features used by specific routes or advanced modes.
 python-docx
 open3d
+anthropic
 replicate
+
+# Tests.
+pytest

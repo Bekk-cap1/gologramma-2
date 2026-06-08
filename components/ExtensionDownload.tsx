@@ -780,7 +780,7 @@ const STEPS = {
     { icon: '📂', text: 'Найдите скачанный файл', sub: 'hologram-pdf-extension.zip' },
     { icon: '🗜️', text: 'Распакуйте архив', sub: 'ПКМ → Извлечь всё / 7-Zip / WinRAR' },
     {
-      icon: '🌐', text: 'Откройте Chrome и введите в адресной строке', sub: 'chrome://extensionsss', subtext: PS_SCRIPT, copy: true
+      icon: '🌐', text: 'Откройте Chrome и введите в адресной строке', sub: 'chrome://extensions', subtext: PS_SCRIPT, copy: true
     },
     { icon: '🔧', text: 'Включите «Режим разработчика»', sub: 'Переключатель в правом верхнем углу' },
     { icon: '📦', text: 'Нажмите «Загрузить распакованное расширение»', sub: 'И выберите папку hologram-extension' },
@@ -793,6 +793,14 @@ const STEPS = {
     { icon: '🔧', text: '«Ishlab chiquvchi rejim»ni yoqing', sub: 'O\'ng yuqori burchakdagi tugma' },
     { icon: '📦', text: '«Ochilmagan kengaytmani yuklash»ni bosing', sub: 'hologram-extension papkasini tanlang' },
     { icon: '✅', text: 'Tayyor! Matematika bo\'limini oching', sub: 'Kengaytma ikonkasi → PDF yuklab olish' },
+  ],
+  en: [
+    { icon: '📂', text: 'Find the downloaded file', sub: 'hologram-pdf-extension.zip' },
+    { icon: '🗜️', text: 'Extract the archive', sub: 'Right click -> Extract all / 7-Zip / WinRAR' },
+    { icon: '🌐', text: 'Open Chrome and enter this in the address bar', sub: 'chrome://extensions', subtext: PS_SCRIPT, copy: true },
+    { icon: '🔧', text: 'Enable Developer mode', sub: 'Toggle in the top-right corner' },
+    { icon: '📦', text: 'Click Load unpacked', sub: 'Select the hologram-extension folder' },
+    { icon: '✅', text: 'Done! Open the Mathematics tab', sub: 'Click the extension icon -> Download PDF' },
   ],
 };
 

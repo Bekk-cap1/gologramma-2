@@ -126,6 +126,7 @@ function toDeg(rad: number) { return rad * 180 / Math.PI; }
 
 export default function MathTab() {
   const { lang } = useLang();
+  const guideLang = lang === 'uz' ? 'uz' : 'ru';
   const [lambda, setLambda] = useState(632.8);
   const [theta, setTheta] = useState(30);
   const [deltaLambda, setDeltaLambda] = useState(0.01);
@@ -379,7 +380,9 @@ export default function MathTab() {
       {/* Block D — When and where to use each formula */}
       <div className="rounded-xl p-5" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
         <h3 className="font-bold text-base mb-4" style={{ color: 'var(--accent-amber)' }}>
-          {lang === 'ru' ? 'D. Где и когда использовать каждую формулу' : 'D. Har bir formulani qayerda va qachon ishlatish kerak'}
+          {lang === 'uz'
+            ? 'D. Har bir formulani qayerda va qachon ishlatish kerak'
+            : 'D. Где и когда использовать каждую формулу'}
         </h3>
         <div className="space-y-3">
           {FORMULA_GUIDE.map((item, i) => (
@@ -393,19 +396,19 @@ export default function MathTab() {
                     <code className="text-sm px-2 py-0.5 rounded" style={{ background: '#0D1526', color: item.color, fontFamily: 'monospace' }}>
                       {item.formula}
                     </code>
-                    <span className="text-xs font-semibold" style={{ color: item.color }}>{item.name[lang]}</span>
+                    <span className="text-xs font-semibold" style={{ color: item.color }}>{item.name[guideLang]}</span>
                   </div>
                   <div className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>
-                    <span className="font-semibold" style={{ color: '#E8EAF6' }}>{lang === 'ru' ? 'Когда:' : 'Qachon:'}</span>{' '}
-                    {item.when[lang]}
+                    <span className="font-semibold" style={{ color: '#E8EAF6' }}>{guideLang === 'ru' ? 'Когда:' : 'Qachon:'}</span>{' '}
+                    {item.when[guideLang]}
                   </div>
                   <div className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>
-                    <span className="font-semibold" style={{ color: '#E8EAF6' }}>{lang === 'ru' ? 'Зачем:' : 'Nima uchun:'}</span>{' '}
-                    {item.why[lang]}
+                    <span className="font-semibold" style={{ color: '#E8EAF6' }}>{guideLang === 'ru' ? 'Зачем:' : 'Nima uchun:'}</span>{' '}
+                    {item.why[guideLang]}
                   </div>
                   <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    <span className="font-semibold" style={{ color: '#E8EAF6' }}>{lang === 'ru' ? 'Типичный результат:' : 'Odatiy natija:'}</span>{' '}
-                    {item.example[lang]}
+                    <span className="font-semibold" style={{ color: '#E8EAF6' }}>{guideLang === 'ru' ? 'Типичный результат:' : 'Odatiy natija:'}</span>{' '}
+                    {item.example[guideLang]}
                   </div>
                 </div>
               </div>

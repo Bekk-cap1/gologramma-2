@@ -46,7 +46,7 @@ def depth_comparison_grid(image, depth_unary, depth_crf, depth_da=None,
             da_caption = "neural reference · quality ceiling"
         else:
             da_panel = np.zeros_like(np.asarray(depth_crf, dtype=np.float32))
-            da_caption = "n/a · install requirements-neural"
+            da_caption = "n/a - install requirements.txt"
         panels.append(("Depth Anything V2" if da_available else "DA V2 (n/a)",
                        da_panel, "inferno", "#a855f7", da_caption))
 
