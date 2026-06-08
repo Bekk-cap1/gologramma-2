@@ -648,6 +648,147 @@ const HOLO_OBJECTS_BASE: { id: HologramObject; nameKey: 'holoCube' | 'holoSphere
   { id: 'pyramid', nameKey: 'holoPyramid', icon: '🔺' },
 ];
 
+type CghPoint = { x: number; y: number; z: number; amp: number };
+
+function getCghPoints(object: HologramObject): CghPoint[] {
+  if (object === 'cube') {
+    return [
+      [-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1],
+      [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1],
+      [0, 0, 0],
+    ].map(([x, y, z]) => ({ x: x * 0.45, y: y * 0.45, z: z * 0.45, amp: 1 }));
+  }
+
+  if (object === 'sphere') {
+    const points: CghPoint[] = [];
+    const latBands = 4;
+    const lonBands = 8;
+    for (let lat = 0; lat <= latBands; lat++) {
+      const theta = (lat / latBands) * Math.PI;
+      const sinTheta = Math.sin(theta);
+      const cosTheta = Math.cos(theta);
+      for (let lon = 0; lon < lonBands; lon++) {
+        const phi = (lon / lonBands) * Math.PI * 2;
+        points.push({
+          x: Math.cos(phi) * sinTheta * 0.42,
+          y: Math.sin(phi) * sinTheta * 0.42,
+          z: cosTheta * 0.42,
+          amp: 1,
+        });
+      }
+    }
+    return points;
+  }
+
+  return [
+    { x: 0, y: -0.45, z: 0, amp: 1.1 },
+    { x: -0.42, y: 0.3, z: -0.42, amp: 1 },
+    { x: 0.42, y: 0.3, z: -0.42, amp: 1 },
+    { x: 0.42, y: 0.3, z: 0.42, amp: 1 },
+    { x: -0.42, y: 0.3, z: 0.42, amp: 1 },
+  ];
+}
+
+function drawCghPlate(
+  canvas: HTMLCanvasElement,
+  object: HologramObject,
+  phase: number,
+  quality: 'good' | 'blurry' | 'fail',
+) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const W = canvas.width;
+  const H = canvas.height;
+  ctx.fillStyle = '#060B18';
+  ctx.fillRect(0, 0, W, H);
+
+  if (quality === 'fail') {
+    ctx.fillStyle = '#546E7A';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('CGH не записан', W / 2, H / 2 - 8);
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#37474F';
+    ctx.fillText('нужны объектный и опорный лучи', W / 2, H / 2 + 10);
+    return;
+  }
+
+  const points = getCghPoints(object);
+  const k = (Math.PI * 2) / 0.06;
+  const refTiltX = 0.55;
+  const refTiltY = -0.12;
+  const objPlaneZ = 1.1;
+  const pxScaleX = 2.0;
+  const pxScaleY = 1.3;
+  const detail = quality === 'good' ? 1.0 : 0.45;
+
+  const intensities = new Float32Array(W * H);
+  let minI = Infinity;
+  let maxI = -Infinity;
+
+  for (let py = 0; py < H; py++) {
+    for (let px = 0; px < W; px++) {
+      const x = ((px / (W - 1)) - 0.5) * pxScaleX;
+      const y = ((py / (H - 1)) - 0.5) * pxScaleY;
+
+      const refPhase = k * (x * refTiltX + y * refTiltY) + phase;
+      let re = Math.cos(refPhase);
+      let im = Math.sin(refPhase);
+
+      let objRe = 0;
+      let objIm = 0;
+      for (const p of points) {
+        const dx = x - p.x;
+        const dy = y - p.y;
+        const dz = objPlaneZ - p.z;
+        const r = Math.sqrt(dx * dx + dy * dy + dz * dz) + 1e-6;
+        const amp = (p.amp * detail) / r;
+        const ph = k * r;
+        objRe += amp * Math.cos(ph);
+        objIm += amp * Math.sin(ph);
+      }
+
+      re += objRe;
+      im += objIm;
+      const intensity = re * re + im * im;
+      const idx = py * W + px;
+      intensities[idx] = intensity;
+      if (intensity < minI) minI = intensity;
+      if (intensity > maxI) maxI = intensity;
+    }
+  }
+
+  const img = ctx.createImageData(W, H);
+  const range = Math.max(1e-9, maxI - minI);
+  for (let py = 0; py < H; py++) {
+    for (let px = 0; px < W; px++) {
+      const idx = py * W + px;
+      const t = (intensities[idx] - minI) / range;
+      const contrast = quality === 'good' ? 1.0 : 0.7;
+      const v = Math.max(0, Math.min(1, Math.pow(t, contrast)));
+      const r = Math.round(255 * v);
+      const g = Math.round(175 * v);
+      const b = Math.round(40 * v);
+      const i4 = idx * 4;
+      img.data[i4] = r;
+      img.data[i4 + 1] = g;
+      img.data[i4 + 2] = b;
+      img.data[i4 + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, H - 18, W, 18);
+  ctx.fillStyle = '#FFB300';
+  ctx.font = 'bold 9px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`CGH | ${object.toUpperCase()} | λ=0.06`, W / 2, H - 9);
+}
+
 function drawHologramPreview(
   canvas: HTMLCanvasElement,
   object: HologramObject,
@@ -921,64 +1062,25 @@ export default function OpticalTable() {
     });
   }, [lang]);
 
-  // Draw fringe preview mini-canvas — proper sinusoidal I(y) = (1+cos(2πy/T))/2
+  // Compute path lengths for simulation panel
+  const refLength = rays
+    .filter(r => r.rayType === 'reference')
+    .reduce((sum, r) => sum + Math.hypot(r.x2 - r.x1, r.y2 - r.y1), 0);
+  const objLength = rays
+    .filter(r => r.rayType === 'object')
+    .reduce((sum, r) => sum + Math.hypot(r.x2 - r.x1, r.y2 - r.y1), 0);
+  const pathDiff = Math.abs(refLength - objLength);
+  const coherenceLength = 40000;
+  const pathOk = pathDiff < coherenceLength;
+
+  // Draw CGH plate — recompute only when setup changes, not every frame
   useEffect(() => {
     const canvas = fringeCanvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const W = 200, H = 120;
-    ctx.fillStyle = '#060B18';
-    ctx.fillRect(0, 0, W, H);
-
-    if (!interferenceInfo.hasInterference || !isFinite(interferenceInfo.d_nm) || interferenceInfo.d_nm <= 0) {
-      ctx.fillStyle = '#546E7A';
-      ctx.font = '11px monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('— нет интерференции —', W / 2, H / 2 - 8);
-      ctx.font = '10px monospace';
-      ctx.fillStyle = '#37474F';
-      ctx.fillText('нужны оба луча на плёнке', W / 2, H / 2 + 10);
-      return;
-    }
-
-    // Map d_nm → pixel period: show 6-16 fringes regardless of d
-    const targetFringes = Math.min(16, Math.max(4, Math.round(6000 / interferenceInfo.d_nm)));
-    const periodPx = H / targetFringes;
-    // Animated phase offset
-    const phase = (animFrame / 120) * Math.PI * 2;
-
-    // Pixel-accurate sinusoidal pattern via ImageData
-    const img = ctx.createImageData(W, H);
-    for (let py = 0; py < H; py++) {
-      // I = (1 + cos(2π·y/T + phase)) / 2  → range [0,1]
-      const intensity = 0.5 + 0.5 * Math.cos((2 * Math.PI * py) / periodPx + phase);
-      // Amber colour: R=255, G=179, B=0, scaled by intensity
-      const r = Math.round(255 * intensity);
-      const g = Math.round(179 * intensity);
-      const b = 0;
-      const a = Math.round(200 * intensity + 30); // dark lines slightly visible
-      for (let px = 0; px < W; px++) {
-        const i4 = (py * W + px) * 4;
-        img.data[i4]     = r;
-        img.data[i4 + 1] = g;
-        img.data[i4 + 2] = b;
-        img.data[i4 + 3] = a;
-      }
-    }
-    ctx.putImageData(img, 0, 0);
-
-    // Scale bar: show actual fringe period label
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(0, H - 18, W, 18);
-    ctx.fillStyle = '#FFB300';
-    ctx.font = 'bold 9px monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`d = ${interferenceInfo.d_nm.toFixed(0)} нм  ·  N = ${interferenceInfo.N.toFixed(0)} лин/мм`, W / 2, H - 9);
-  }, [interferenceInfo, animFrame]);
+    const quality: 'good' | 'blurry' | 'fail' =
+      interferenceInfo.hasInterference ? (pathDiff < coherenceLength ? 'good' : 'blurry') : 'fail';
+    drawCghPlate(canvas, selectedObject, 0, quality);
+  }, [interferenceInfo, selectedObject, pathDiff, coherenceLength]);
 
   // Helper: get canvas-space coords for the rotation handle of a component (world coords)
   const getRotationHandlePos = useCallback((comp: OpticalComponent): { x: number; y: number } => {
@@ -1171,17 +1273,6 @@ export default function OpticalTable() {
     }
   }, []);
 
-  // Compute path lengths for simulation panel
-  const refLength = rays
-    .filter(r => r.rayType === 'reference')
-    .reduce((sum, r) => sum + Math.hypot(r.x2 - r.x1, r.y2 - r.y1), 0);
-  const objLength = rays
-    .filter(r => r.rayType === 'object')
-    .reduce((sum, r) => sum + Math.hypot(r.x2 - r.x1, r.y2 - r.y1), 0);
-  const pathDiff = Math.abs(refLength - objLength);
-  const coherenceLength = 40000;
-  const pathOk = pathDiff < coherenceLength;
-
   const holoObjects = HOLO_OBJECTS_BASE.map(o => ({ ...o, name: t[o.nameKey][lang] }));
 
   // Setup checklist
@@ -1311,7 +1402,7 @@ export default function OpticalTable() {
 
         {/* Info panel */}
         <div
-          className="flex-1 min-w-[200px] rounded-xl p-4 space-y-3"
+          className="flex-1 min-w-50 rounded-xl p-4 space-y-3"
           style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}
         >
           <div className="font-bold text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -1362,6 +1453,9 @@ export default function OpticalTable() {
           style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', minWidth: 180 }}
         >
           <div className="font-bold text-sm" style={{ color: '#9C27B0' }}>{t.holoResult[lang]}</div>
+          <div className="text-xs" style={{ color: '#90A4AE' }}>
+            {t.cghReconstruct[lang]}
+          </div>
 
           {/* Object selector */}
           <div className="flex gap-2">
@@ -1398,6 +1492,23 @@ export default function OpticalTable() {
                   ? `✓ ${holoObjects.find(o => o.id === selectedObject)?.name} — ${lang === 'uz' ? 'yozildi' : 'записан'}`
                   : t.holoBlurry[lang])
               : t.holoFail[lang]}
+          </div>
+        </div>
+
+        {/* CGH plate panel — next to hologram result */}
+        <div className="rounded-xl p-4 space-y-3"
+          style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', minWidth: 260 }}>
+          <div className="font-bold text-sm" style={{ color: '#90A4AE' }}>{t.fringePreview[lang]}</div>
+          <canvas
+            ref={fringeCanvasRef}
+            width={240}
+            height={160}
+            style={{ display: 'block', borderRadius: 6, border: '1px solid #1E3A5F', width: '100%' }}
+          />
+          <div className="text-xs font-mono text-center" style={{ color: '#FFB300' }}>
+            {interferenceInfo.hasInterference && isFinite(interferenceInfo.d_nm)
+              ? t.fringeHint[lang]
+              : t.noInterference[lang]}
           </div>
         </div>
       </div>
@@ -1510,25 +1621,6 @@ export default function OpticalTable() {
               <div className="pt-1" style={{ color: pathOk ? '#69F0AE' : '#FF6666' }}>
                 {pathOk ? t.pathOkMsg[lang] : t.pathFailMsg[lang]}
               </div>
-            </div>
-          </div>
-
-          {/* Section B — Interference fringe preview */}
-          <div className="rounded-lg p-3 space-y-2"
-            style={{ background: '#060B18', border: '1px solid #1E3A5F' }}>
-            <div className="text-xs font-bold" style={{ color: '#90A4AE' }}>
-              {t.fringePreview[lang]}
-            </div>
-            <canvas
-              ref={fringeCanvasRef}
-              width={200}
-              height={120}
-              style={{ display: 'block', borderRadius: 6, border: '1px solid #1E3A5F' }}
-            />
-            <div className="text-xs font-mono text-center" style={{ color: '#FFB300' }}>
-              {interferenceInfo.hasInterference && isFinite(interferenceInfo.d_nm)
-                ? `d = ${interferenceInfo.d_nm.toFixed(0)} ${t.nmUnit[lang]} | N = ${interferenceInfo.N.toFixed(0)} ${t.linesPerMm[lang]}`
-                : t.noInterference[lang]}
             </div>
           </div>
 

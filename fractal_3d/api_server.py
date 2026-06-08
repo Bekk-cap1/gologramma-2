@@ -245,7 +245,7 @@ def _ifs_recovery_step(ifs: dict, ifs_canon: dict) -> dict:
 
     metrics = [
         {"label": {"ru": "Метод", "uz": "Usul"},
-         "value": _RECOVERY_LABELS.get(method, _RECOVERY_LABELS["unknown"])["ru"]},
+         "value": _RECOVERY_LABELS.get(method, _RECOVERY_LABELS["unknown"])},
         {"label": {"ru": "Кол-во преобразований", "uz": "Almashtirishlar soni"},
          "value": str(src.get("num_transforms", len(transforms)))},
         {"label": {"ru": "Тип", "uz": "Tur"},
@@ -305,7 +305,7 @@ def _tiebreak_step(decision: dict) -> Optional[dict]:
         "layer": 3,
         "title": {"ru": "Геометрический тай-брейк", "uz": "Geometrik tay-brek"},
         "confidence": conf,
-        "hint": "переопределил CNN" if applied else "подтвердил",
+        "hint": {"ru": "переопределил CNN", "uz": "CNNni bekor qildi"} if applied else {"ru": "подтвердил", "uz": "tasdiqladi"},
         "metrics": [],
         "tiebreak_applied": applied,
     }
@@ -536,7 +536,7 @@ def analyze_steps(req: AnalyzeStepsRequest):
         verify = compare(img, render, is_escape_time=is_escape) or {}
 
         cnn_available = bool(cnn.get("available", False))
-        cnn_hint = str(cnn.get("class")) if cnn_available else "модель не загружена"
+        cnn_hint = str(cnn.get("class")) if cnn_available else {"ru": "модель не загружена", "uz": "model yuklanmagan"}
 
         steps = [
             {
@@ -902,6 +902,7 @@ class SplatSyntheticRequest(BaseModel):
     menger_level: int = 4
     ifs_points: int = 2_000_000
     ifs_warmup: int = 20
+    voxel_pitch: Optional[float] = None
 
 
 class SplatPhotoRequest(BaseModel):
@@ -969,6 +970,7 @@ def _run_splat(job_id: str, kind: str, **kw):
                                            menger_level=kw.get("menger_level", 4),
                                            ifs_points=kw.get("ifs_points", 2_000_000),
                                            ifs_warmup=kw.get("ifs_warmup", 20),
+                                           voxel_pitch=kw.get("voxel_pitch", None),
                                            progress=progress)
             else:
                 manifest = build_photo(kw["image_path"], str(job_dir),
@@ -1015,17 +1017,25 @@ def splat360_synthetic(req: SplatSyntheticRequest):
                                 detail="No depth mesh yet. Run 2D -> 3D first, then build 360° from Depth mesh.")
     job_id = _uuid.uuid4().hex[:12]
     _register_splat_job(job_id)
-    _threading.Thread(target=_run_splat, args=(job_id, "synthetic"),
-                      kwargs={"mesh_path": mesh_path, "n_views": req.n_views,
-                              "img_size": req.img_size,
-                              "elevations": req.elevations,
-                              "fractal_type": fractal_type,
-                              "resolution": req.resolution,
-                              "power": req.power,
-                              "max_iter": req.max_iter,
-                              "menger_level": req.menger_level,
-                              "ifs_points": req.ifs_points,
-                              "ifs_warmup": req.ifs_warmup}, daemon=True).start()
+    _threading.Thread(
+        target=_run_splat,
+        args=(job_id, "synthetic"),
+        kwargs={
+            "mesh_path": mesh_path,
+            "n_views": req.n_views,
+            "img_size": req.img_size,
+            "elevations": req.elevations,
+            "fractal_type": fractal_type,
+            "resolution": req.resolution,
+            "power": req.power,
+            "max_iter": req.max_iter,
+            "menger_level": req.menger_level,
+            "ifs_points": req.ifs_points,
+            "ifs_warmup": req.ifs_warmup,
+            "voxel_pitch": req.voxel_pitch,
+        },
+        daemon=True,
+    ).start()
     return {"job_id": job_id}
 
 

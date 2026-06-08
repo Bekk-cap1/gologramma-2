@@ -1,78 +1,95 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useLang } from "@/components/LanguageContext";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { createHologramScene } from "@/lib/hologram-renderer";
+import type { HologramControls } from "@/lib/hologram-renderer";
+import { createSplatPoints, sortSplatPoints } from "@/lib/splat-renderer";
+import {
+  layerBasedCGH, asmReconstruct,
+  phaseToImageData, intensityToImageData,
+  PIXEL_PITCH, LAMBDA_G,
+  type LayerCGHResult, type ASMReconResult,
+} from "@/lib/fft-holography";
 
 // ─── Inline translations ───────────────────────────────────────────────────────
 const T = {
-  title:          { ru: "DCNF-CRF: Оценка глубины",                   uz: "DCNF-CRF: Chuqurlikni baholash" },
-  subtitle:       { ru: "Загрузите изображение и исследуйте карту глубины DCNF, сравнение методов и ablation-анализ.", uz: "Rasm yuklang va DCNF chuqurlik xaritasi, usullarni taqqoslash hamda ablation tahlilini o'rganing." },
-  dropTitle:      { ru: "Перетащите изображение сюда",                 uz: "Rasmni bu yerga torting" },
-  or:             { ru: "или",                                          uz: "yoki" },
-  chooseFile:     { ru: "Выбрать файл",                                 uz: "Fayl tanlash" },
-  sourceImg:      { ru: "Исходное изображение",                         uz: "Asl rasm" },
-  reset:          { ru: "Сбросить",                                     uz: "Qayta boshlash" },
-  depthLabel:     { ru: "Глубина:",                                     uz: "Chuqurlik:" },
-  crfLabel:       { ru: "CRF:",                                         uz: "CRF:" },
-  // Actions
-  depthBtn:       { ru: "Карта глубины (DCNF)",                        uz: "Chuqurlik xaritasi (DCNF)" },
-  depthLoading:   { ru: "Анализирую...",                                uz: "Tahlil qilinmoqda..." },
-  compareBtn:     { ru: "📊 Сравнить методы depth",                    uz: "📊 Usullarni taqqoslash" },
-  compareLoading: { ru: "Сравниваю...",                                 uz: "Taqqoslanmoqda..." },
-  ablationBtn:    { ru: "🔬 Ablation: вклад признаков",                 uz: "🔬 Ablation: belgilar hissasi" },
-  ablationLoading:{ ru: "Считаю...",                                    uz: "Hisoblanmoqda..." },
-  offline:        { ru: "API недоступен. Запустите: python -m fractal_3d.api_server", uz: "API mavjud emas. Ishga tushiring: python -m fractal_3d.api_server" },
-  // Depth method
-  mAuto:          { ru: "🧠 Авто",                                      uz: "🧠 Avto" },
-  mNeural:        { ru: "🔬 Neural (DCNF CRF)",                         uz: "🔬 Neural (DCNF CRF)" },
-  mMath:          { ru: "📐 Математический",                            uz: "📐 Matematik" },
-  // CRF sub-mode
-  crfAuto:        { ru: "Авто",                                         uz: "Avto" },
-  crfNone:        { ru: "DA V2 (чистый)",                               uz: "DA V2 (sof)" },
-  crfLight:       { ru: "+ лёгкий CRF",                                 uz: "+ yengil CRF" },
-  crfFull:        { ru: "CRF-style",                                    uz: "CRF-uslub" },
-  // Photo banner
-  photoDetected:  { ru: "📷 Обнаружено фото → Neural Depth",           uz: "📷 Foto aniqlandi → Neural Depth" },
-  depthMethod:    { ru: "Метод глубины:",                               uz: "Chuqurlik usuli:" },
-  // Comparison section
-  compTitle:      { ru: "Сравнение методов (Liu et al. CVPR 2015)",     uz: "Usullarni taqqoslash (Liu et al. CVPR 2015)" },
-  compCaption:    { ru: "Unary only (y*=z) vs Full CRF (y*=A⁻¹z, A=I+D−R)", uz: "Unary only vs Full CRF" },
-  compNumTitle:   { ru: "Числовое сравнение",                           uz: "Raqamli taqqoslash" },
-  compNote:       { ru: "Сравнение по Liu et al. (Figure 4): эффект CRF на слабом unary. DA V2 — нейросеть-reference (потолок).", uz: "Liu et al. bo'yicha taqqoslash (4-rasm): CRF ta'siri. DA V2 — neyroset-reference (chegara)." },
-  compMake3dNote: { ru: "Make3D (Saxena et al. 2008) — классический плоскостной бейзлайн (кусочно-плоская модель + MRF), прямой предшественник Liu et al. Сравнение показывает место DCNF CRF относительно плоскостного подхода.", uz: "Make3D (Saxena et al. 2008) — klassik tekislikka asoslangan baza. Liu et al. ning bevosita salafi. DCNF CRF ning tekislik yondashuviga nisbatan o'rnini ko'rsatadi." },
-  effectTitle:    { ru: "Эффект DCNF CRF (vs сырой unary)",            uz: "DCNF CRF ta'siri (xom unary vs)" },
-  // Metric labels
-  edgeAlign:      { ru: "Совпадение границ",                            uz: "Chegara mos kelishi" },
-  usefulDetail:   { ru: "Полезные детали",                              uz: "Foydali tafsilotlar" },
-  texCoh:         { ru: "Текстурная связность",                         uz: "Tekstura bog'liqligi" },
-  smoothness:     { ru: "Гладкость",                                    uz: "Silliqlik" },
-  gradEnergy:     { ru: "Детализация",                                  uz: "Tafsilotlilik" },
-  depthRange:     { ru: "Диапазон",                                     uz: "Diapazon" },
-  metricLbl:      { ru: "Метрика",                                      uz: "Ko'rsatkich" },
-  // diff cards
-  crfVsUnary:     { ru: "CRF изменил Unary",                           uz: "CRF Unaryni o'zgartirdi" },
-  daVsCrf:        { ru: "DA V2 vs CRF",                                 uz: "DA V2 vs CRF" },
-  daVsUnary:      { ru: "DA V2 vs Unary",                               uz: "DA V2 vs Unary" },
-  relNote:        { ru: "Относительные метрики (без ground truth). Зелёным — лучший из Unary/CRF; DA V2 — reference (серым).", uz: "Nisbiy ko'rsatkichlar (ground truth'siz). Yashil — Unary/CRF ichida eng yaxshi; DA V2 — reference (kulrang)." },
-  // Ablation section
-  ablTitle:       { ru: "Ablation study нашего метода (Liu Table 2 style)", uz: "Bizning usulning ablation tadqiqoti (Liu Jadval 2)" },
-  ablConfig:      { ru: "Конфигурация",                                 uz: "Konfiguratsiya" },
-  ablEdge:        { ru: "Совпадение границ",                            uz: "Chegara mos kelishi" },
-  ablSmooth:      { ru: "Гладкость",                                    uz: "Silliqlik" },
-  ablTex:         { ru: "Текстурная связность",                         uz: "Tekstura bog'liqligi" },
-  ablRange:       { ru: "Диапазон",                                     uz: "Diapazon" },
-  ablCaption:     { ru: "Каждая строка добавляет один pairwise-признак нашего метода (color → histogram → LBP → spatial).", uz: "Har bir satr bizning usulning bitta pairwise-belgisini qo'shadi (color → histogram → LBP → spatial)." },
-  // Depth step images
-  depthImagesTitle: { ru: "Карта глубины (DCNF)",                      uz: "Chuqurlik xaritasi (DCNF)" },
-  // Liu et al. standard metric tables
-  liuTable1Title:  { ru: "Таблица 1. Сравнение методов (Make3D dataset, Liu et al. CVPR 2015)", uz: "Jadval 1. Usullarni taqqoslash (Make3D dataset, Liu et al. CVPR 2015)" },
-  liuTable2Title:  { ru: "Таблица 2. Ablation study (Make3D dataset, Liu et al. CVPR 2015)",    uz: "Jadval 2. Ablation tadqiqoti (Make3D dataset, Liu et al. CVPR 2015)" },
-  liuTable1Cap:   { ru: "Стандартные метрики глубины: ↓ меньше — лучше, ↑ больше — лучше. Жирным — лучший результат в каждом столбце.", uz: "Standart chuqurlik ko'rsatkichlari: ↓ kichik — yaxshi, ↑ katta — yaxshi. Qalin — har bir ustundagi eng yaxshi natija." },
-  liuTable2Cap:   { ru: "Каждая строка: добавляется один компонент. DA V2 используется как псевдо-эталон (нет реального GT для фракталов).", uz: "Har bir satr: bitta komponent qo'shiladi. DA V2 psevdo-etalon sifatida ishlatiladi (fraktallar uchun haqiqiy GT yo'q)." },
-  lowerBetter:    { ru: "Ошибки (↓ меньше — лучше)",                   uz: "Xatolar (↓ kichik — yaxshi)" },
-  higherBetter:   { ru: "Точность (↑ больше — лучше)",                  uz: "Aniqlik (↑ katta — yaxshi)" },
-  methodCol:      { ru: "Метод",                                         uz: "Usul" },
-  pseudoGtNote:   { ru: "* Псевдо-GT: Depth Anything V2 с выравниванием по масштабу и сдвигу (min-max нормализация).", uz: "* Psevdo-GT: Depth Anything V2, masshtab va siljish bo'yicha moslashtirish (min-max normalizatsiya)." },
+  title:          { ru: "DCNF-CRF: Оценка глубины",                   uz: "DCNF-CRF: Chuqurlikni baholash",          en: "DCNF-CRF: Depth Estimation"              },
+  subtitle:       { ru: "Загрузите изображение и исследуйте карту глубины DCNF, сравнение методов и ablation-анализ.", uz: "Rasm yuklang va DCNF chuqurlik xaritasi, usullarni taqqoslash hamda ablation tahlilini o'rganing.", en: "Upload an image and explore the DCNF depth map, method comparison, and ablation analysis." },
+  dropTitle:      { ru: "Перетащите изображение сюда",                 uz: "Rasmni bu yerga torting",                 en: "Drop image here"                          },
+  or:             { ru: "или",                                          uz: "yoki",                                    en: "or"                                       },
+  chooseFile:     { ru: "Выбрать файл",                                 uz: "Fayl tanlash",                            en: "Choose file"                              },
+  sourceImg:      { ru: "Исходное изображение",                         uz: "Asl rasm",                                en: "Source image"                             },
+  reset:          { ru: "Сбросить",                                     uz: "Qayta boshlash",                          en: "Reset"                                    },
+  depthLabel:     { ru: "Глубина:",                                     uz: "Chuqurlik:",                              en: "Depth:"                                   },
+  crfLabel:       { ru: "CRF:",                                         uz: "CRF:",                                    en: "CRF:"                                     },
+  depthBtn:       { ru: "Карта глубины (DCNF)",                        uz: "Chuqurlik xaritasi (DCNF)",               en: "Depth map (DCNF)"                         },
+  depthLoading:   { ru: "Анализирую...",                                uz: "Tahlil qilinmoqda...",                    en: "Analysing..."                             },
+  compareBtn:     { ru: "📊 Сравнить методы depth",                    uz: "📊 Usullarni taqqoslash",                 en: "📊 Compare depth methods"                },
+  compareLoading: { ru: "Сравниваю...",                                 uz: "Taqqoslanmoqda...",                       en: "Comparing..."                             },
+  ablationBtn:    { ru: "🔬 Ablation: вклад признаков",                 uz: "🔬 Ablation: belgilar hissasi",           en: "🔬 Ablation: feature contribution"        },
+  ablationLoading:{ ru: "Считаю...",                                    uz: "Hisoblanmoqda...",                        en: "Computing..."                             },
+  offline:        { ru: "API недоступен. Запустите: python -m fractal_3d.api_server", uz: "API mavjud emas. Ishga tushiring: python -m fractal_3d.api_server", en: "API offline. Run: python -m fractal_3d.api_server" },
+  mAuto:          { ru: "🧠 Авто",                                      uz: "🧠 Avto",                                 en: "🧠 Auto"                                  },
+  mNeural:        { ru: "🔬 Neural (DCNF CRF)",                         uz: "🔬 Neural (DCNF CRF)",                    en: "🔬 Neural (DCNF CRF)"                    },
+  mMath:          { ru: "📐 Математический",                            uz: "📐 Matematik",                            en: "📐 Mathematical"                          },
+  crfAuto:        { ru: "Авто",                                         uz: "Avto",                                    en: "Auto"                                     },
+  crfNone:        { ru: "DA V2 (чистый)",                               uz: "DA V2 (sof)",                             en: "DA V2 (pure)"                             },
+  crfLight:       { ru: "+ лёгкий CRF",                                 uz: "+ yengil CRF",                            en: "+ light CRF"                              },
+  crfFull:        { ru: "CRF-style",                                    uz: "CRF-uslub",                               en: "CRF-style"                                },
+  photoDetected:  { ru: "📷 Обнаружено фото → Neural Depth",           uz: "📷 Foto aniqlandi → Neural Depth",        en: "📷 Photo detected → Neural Depth"        },
+  depthMethod:    { ru: "Метод глубины:",                               uz: "Chuqurlik usuli:",                        en: "Depth method:"                            },
+  compTitle:      { ru: "Сравнение методов (Liu et al. CVPR 2015)",     uz: "Usullarni taqqoslash (Liu et al. CVPR 2015)", en: "Method comparison (Liu et al. CVPR 2015)" },
+  compCaption:    { ru: "Unary only (y*=z) vs Full CRF (y*=A⁻¹z, A=I+D−R)", uz: "Unary only vs Full CRF",           en: "Unary only (y*=z) vs Full CRF (y*=A⁻¹z, A=I+D−R)" },
+  compNumTitle:   { ru: "Числовое сравнение",                           uz: "Raqamli taqqoslash",                      en: "Numerical comparison"                     },
+  compNote:       { ru: "Сравнение по Liu et al. (Figure 4): эффект CRF на слабом unary. DA V2 — нейросеть-reference (потолок).", uz: "Liu et al. bo'yicha taqqoslash (4-rasm): CRF ta'siri. DA V2 — neyroset-reference (chegara).", en: "Comparison per Liu et al. (Figure 4): CRF effect on weak unary. DA V2 — neural reference (quality ceiling)." },
+  compMake3dNote: { ru: "Make3D (Saxena et al. 2008) — классический плоскостной бейзлайн (кусочно-плоская модель + MRF), прямой предшественник Liu et al. Сравнение показывает место DCNF CRF относительно плоскостного подхода.", uz: "Make3D (Saxena et al. 2008) — klassik tekislikka asoslangan baza. Liu et al. ning bevosita salafi. DCNF CRF ning tekislik yondashuviga nisbatan o'rnini ko'rsatadi.", en: "Make3D (Saxena et al. 2008) — classic piecewise-planar baseline (MRF), direct predecessor of Liu et al. Shows where DCNF CRF stands vs the planar approach." },
+  effectTitle:    { ru: "Эффект DCNF CRF (vs сырой unary)",            uz: "DCNF CRF ta'siri (xom unary vs)",        en: "DCNF CRF effect (vs raw unary)"           },
+  edgeAlign:      { ru: "Совпадение границ",                            uz: "Chegara mos kelishi",                     en: "Edge alignment"                           },
+  usefulDetail:   { ru: "Полезные детали",                              uz: "Foydali tafsilotlar",                     en: "Useful detail"                            },
+  texCoh:         { ru: "Текстурная связность",                         uz: "Tekstura bog'liqligi",                    en: "Texture coherence"                        },
+  smoothness:     { ru: "Гладкость",                                    uz: "Silliqlik",                               en: "Smoothness"                               },
+  gradEnergy:     { ru: "Детализация",                                  uz: "Tafsilotlilik",                           en: "Gradient energy"                          },
+  depthRange:     { ru: "Диапазон",                                     uz: "Diapazon",                                en: "Depth range"                              },
+  metricLbl:      { ru: "Метрика",                                      uz: "Ko'rsatkich",                             en: "Metric"                                   },
+  crfVsUnary:     { ru: "CRF изменил Unary",                           uz: "CRF Unaryni o'zgartirdi",                 en: "CRF vs Unary delta"                       },
+  daVsCrf:        { ru: "DA V2 vs CRF",                                 uz: "DA V2 vs CRF",                            en: "DA V2 vs CRF"                             },
+  daVsUnary:      { ru: "DA V2 vs Unary",                               uz: "DA V2 vs Unary",                          en: "DA V2 vs Unary"                           },
+  relNote:        { ru: "Относительные метрики (без ground truth). Зелёным — лучший из Unary/CRF; DA V2 — reference (серым).", uz: "Nisbiy ko'rsatkichlar (ground truth'siz). Yashil — Unary/CRF ichida eng yaxshi; DA V2 — reference (kulrang).", en: "Relative metrics (no ground truth). Green — best of Unary/CRF; DA V2 — reference (grey)." },
+  ablTitle:       { ru: "Ablation study нашего метода (Liu Table 2 style)", uz: "Bizning usulning ablation tadqiqoti (Liu Jadval 2)", en: "Ablation study of our method (Liu Table 2 style)" },
+  ablConfig:      { ru: "Конфигурация",                                 uz: "Konfiguratsiya",                          en: "Configuration"                            },
+  ablEdge:        { ru: "Совпадение границ",                            uz: "Chegara mos kelishi",                     en: "Edge alignment"                           },
+  ablSmooth:      { ru: "Гладкость",                                    uz: "Silliqlik",                               en: "Smoothness"                               },
+  ablTex:         { ru: "Текстурная связность",                         uz: "Tekstura bog'liqligi",                    en: "Texture coherence"                        },
+  ablRange:       { ru: "Диапазон",                                     uz: "Diapazon",                                en: "Depth range"                              },
+  ablCaption:     { ru: "Каждая строка добавляет один pairwise-признак нашего метода (color → histogram → LBP → spatial).", uz: "Har bir satr bizning usulning bitta pairwise-belgisini qo'shadi (color → histogram → LBP → spatial).", en: "Each row adds one pairwise feature of our method (color → histogram → LBP → spatial)." },
+  depthImagesTitle: { ru: "Карта глубины (DCNF)",                      uz: "Chuqurlik xaritasi (DCNF)",               en: "Depth map (DCNF)"                         },
+  liuTable1Title:  { ru: "Таблица 1. Сравнение методов (Make3D dataset, Liu et al. CVPR 2015)", uz: "Jadval 1. Usullarni taqqoslash (Make3D dataset, Liu et al. CVPR 2015)", en: "Table 1. Method comparison (Make3D dataset, Liu et al. CVPR 2015)" },
+  liuTable2Title:  { ru: "Таблица 2. Ablation study (Make3D dataset, Liu et al. CVPR 2015)",    uz: "Jadval 2. Ablation tadqiqoti (Make3D dataset, Liu et al. CVPR 2015)",    en: "Table 2. Ablation study (Make3D dataset, Liu et al. CVPR 2015)"   },
+  liuTable1Cap:   { ru: "Стандартные метрики глубины: ↓ меньше — лучше, ↑ больше — лучше. Жирным — лучший результат в каждом столбце.", uz: "Standart chuqurlik ko'rsatkichlari: ↓ kichik — yaxshi, ↑ katta — yaxshi. Qalin — har bir ustundagi eng yaxshi natija.", en: "Standard depth metrics: ↓ lower — better, ↑ higher — better. Bold — best in each column." },
+  liuTable2Cap:   { ru: "Каждая строка: добавляется один компонент. DA V2 используется как псевдо-эталон (нет реального GT для фракталов).", uz: "Har bir satr: bitta komponent qo'shiladi. DA V2 psevdo-etalon sifatida ishlatiladi (fraktallar uchun haqiqiy GT yo'q).", en: "Each row adds one component. DA V2 used as pseudo ground truth (no real GT for fractals)." },
+  lowerBetter:    { ru: "Ошибки (↓ меньше — лучше)",                   uz: "Xatolar (↓ kichik — yaxshi)",             en: "Errors (↓ lower — better)"               },
+  higherBetter:   { ru: "Точность (↑ больше — лучше)",                  uz: "Aniqlik (↑ katta — yaxshi)",              en: "Accuracy (↑ higher — better)"            },
+  methodCol:      { ru: "Метод",                                         uz: "Usul",                                    en: "Method"                                   },
+  pseudoGtNote:   { ru: "* Псевдо-GT: Depth Anything V2 с выравниванием по масштабу и сдвигу (min-max нормализация).", uz: "* Psevdo-GT: Depth Anything V2, masshtab va siljish bo'yicha moslashtirish (min-max normalizatsiya).", en: "* Pseudo-GT: Depth Anything V2 with scale-and-shift alignment (min-max normalisation)." },
+  holBtn:         { ru: "🔮 Показать как голограмму",                   uz: "🔮 Gologramma sifatida ko'rsatish",        en: "🔮 Show as hologram"                     },
+  holLoading:     { ru: "Строю голограмму...",                           uz: "Gologramma qurilmoqda...",                 en: "Building hologram..."                     },
+  holDesc:        { ru: "CRF depth → 3D голограмма. Водите мышью для поворота на 150°.", uz: "CRF depth → 3D gologramma. Sichqoncha bilan 150° aylantiring.", en: "CRF depth → 3D hologram. Drag to rotate 150°." },
+  splatBtn:       { ru: "✦ Gaussian Splat",                             uz: "✦ Gaussian Splat",                        en: "✦ Gaussian Splat"                         },
+  splatLoading:   { ru: "Строю сплаты...",                               uz: "Splatlar qurilmoqda...",                   en: "Building splats..."                       },
+  splatDesc:      { ru: "Каждый пиксель → 3D-гауссиан. Размер по градиенту глубины. Вращайте мышью.", uz: "Har piksel → 3D-gaussian. O'lcham chuqurlik gradientidan. Sichqoncha bilan aylantiring.", en: "Each pixel → 3D Gaussian. Size from depth gradient. Drag to rotate." },
+  cghBtn:         { ru: "〰 Layer CGH (Fresnel)",                        uz: "〰 Layer CGH (Fresnel)",                   en: "〰 Layer CGH (Fresnel)"                   },
+  cghLoading:     { ru: "Считаю CGH...",                                 uz: "CGH hisoblanmoqda...",                     en: "Computing CGH..."                         },
+  cghDesc:        { ru: "Глубина → слои → фазовая голограмма (метод из статьи Kumano et al. 2025)", uz: "Chuqurlik → qatlamlar → faza gologrammasi (Kumano et al. 2025 usuli)", en: "Depth → layers → phase hologram (Kumano et al. 2025 method)" },
+  cghLayers:      { ru: "слоёв:",                                        uz: "qatlam:",                                  en: "layers:"                                  },
+  asmBtn:         { ru: "👁 ASM реконструкция",                         uz: "👁 ASM rekonstruksiyasi",                  en: "👁 ASM reconstruction"                   },
+  asmLoading:     { ru: "Реконструирую...",                              uz: "Rekonstruksiya qilinmoqda...",             en: "Reconstructing..."                        },
+  asmDesc:        { ru: "Симуляция воспроизведения голограммы (band-limited ASM, λ=520нм)", uz: "Gologrammani qayta tiklash simulyatsiyasi (band-limited ASM, λ=520нм)", en: "Hologram playback simulation (band-limited ASM, λ=520nm)" },
+  volBtn:         { ru: "🔷 3D из CGH (томография)",                    uz: "🔷 CGHdan 3D (tomografiya)",               en: "🔷 3D from CGH (tomography)"             },
+  volLoading:     { ru: "Сканирую слои...",                              uz: "Qatlamlar skanlanmoqda...",                en: "Scanning layers..."                       },
+  volDesc:        { ru: "ASM при N глубинах → 3D точечное облако. Метод: цифровая голографическая микроскопия.", uz: "N chuqurlikda ASM → 3D nuqta buluti. Usul: raqamli golografik mikroskopiya.", en: "ASM at N depths → 3D point cloud. Method: digital holographic microscopy." },
 };
 
 // ─── API response types (exact shapes from FractalCNN) ────────────────────────
@@ -187,11 +204,19 @@ function MetricRow({ label, values }: { label: string; values?: DepthMetricTripl
 }
 
 // ─── interpretMetrics helper ──────────────────────────────────────────────────
-function interpretMetrics(m: ComparisonMetrics, lang: "ru" | "uz"): string {
+function interpretMetrics(m: ComparisonMetrics, lang: string): string {
   const ea = m.edge_alignment;
   const edgeGain = ea.unary > 1e-9 ? (ea.crf / ea.unary - 1) * 100 : 0;
   if (lang === "uz") {
     return `DCNF CRF chegara mos kelishini ${edgeGain.toFixed(0)}% ga yaxshiladi (xom unary bilan taqqoslaganda). Bu Liu et al., 4-rasmda pairwise silliqlik ta'sirini ko'rsatadi. DA V2 neyroset-reference sifatida ko'rsatilgan (raqobatchi emas).`;
+  }
+  if (lang === "en") {
+    const parts: string[] = [];
+    if (edgeGain > 15) parts.push(`DCNF CRF improved edge alignment by ${edgeGain.toFixed(0)}% over raw unary.`);
+    else if (edgeGain > 0) parts.push(`DCNF CRF improved edge alignment by ${edgeGain.toFixed(0)}%.`);
+    parts.push("This demonstrates the pairwise smoothness effect (Liu et al., Figure 4).");
+    parts.push("DA V2 is shown as a neural reference (quality ceiling), not a competitor.");
+    return parts.join(" ");
   }
   const parts: string[] = [];
   if (edgeGain > 15) {
@@ -205,13 +230,16 @@ function interpretMetrics(m: ComparisonMetrics, lang: "ru" | "uz"): string {
 }
 
 // ─── interpretAblation helper ─────────────────────────────────────────────────
-function interpretAblation(table: AblationRow[], lang: "ru" | "uz"): string {
+function interpretAblation(table: AblationRow[], lang: string): string {
   if (table.length === 0) return "";
   const first = table[0].metrics.edge_alignment;
   const last = table[table.length - 1].metrics.edge_alignment;
   const gain = first > 1e-9 ? ((last / first - 1) * 100).toFixed(0) : "0";
   if (lang === "uz") {
     return `Bizning usulning to'liq konfiguratsiyasi chegara mos kelishini ${gain}% ga yaxshiladi (faqat unary bilan taqqoslaganda). Har bir pairwise-belgi (color, histogram, LBP, spatial) hissa qo'shadi: bu Liu DCNF-CRF ni bizning asosiy chuqurlik usuli sifatida asoslaydi.`;
+  }
+  if (lang === "en") {
+    return `Our full configuration improved edge alignment by ${gain}% over unary-only. Each pairwise feature (color, histogram, LBP, spatial) contributes — justifying Liu DCNF-CRF as our primary depth method.`;
   }
   return `Полная конфигурация нашего метода улучшила совпадение границ на ${gain}% относительно unary-only. Каждый pairwise-признак (color, histogram, LBP, spatial) вносит вклад: это обосновывает финальный Liu DCNF-CRF как наш основной depth method.`;
 }
@@ -245,6 +273,41 @@ export default function DepthCRF() {
   const [ablationLoading, setAblationLoading]   = useState(false);
   const [ablationError, setAblationError]       = useState(false);
   const [ablationData, setAblationData]         = useState<AblationData | null>(null);
+
+  // ── Hologram state ────────────────────────────────────────────────────────────
+  const [holMode, setHolMode] = useState(false);
+  const [holLoading, setHolLoading] = useState(false);
+  const [holTick, setHolTick] = useState(0);
+  const [holInvert, setHolInvert] = useState(false);
+  const holCanvasRef = useRef<HTMLCanvasElement>(null);
+  const holGeoRef = useRef<THREE.BufferGeometry | null>(null);
+  const holRafRef = useRef<number | null>(null);
+
+  // ── Holographic volume state ──────────────────────────────────────────────────
+  const [volMode, setVolMode] = useState(false);
+  const [volLoading, setVolLoading] = useState(false);
+  const [volTick, setVolTick] = useState(0);
+  const volCanvasRef = useRef<HTMLCanvasElement>(null);
+  const volGeoRef = useRef<THREE.BufferGeometry | null>(null);
+  const volRafRef = useRef<number | null>(null);
+
+  // ── Layer CGH + ASM state ─────────────────────────────────────────────────────
+  const [cghLoading, setCghLoading] = useState(false);
+  const [cghResult, setCghResult] = useState<LayerCGHResult | null>(null);
+  const [cghLayers, setCghLayers] = useState(8);
+  const [asmLoading, setAsmLoading] = useState(false);
+  const [asmResult, setAsmResult] = useState<ASMReconResult | null>(null);
+  const [asmZ, setAsmZ] = useState(0.45); // mm
+  const cghCanvasRef = useRef<HTMLCanvasElement>(null);
+  const asmCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // ── Gaussian Splat state ──────────────────────────────────────────────────────
+  const [splatMode, setSplatMode] = useState(false);
+  const [splatLoading, setSplatLoading] = useState(false);
+  const [splatTick, setSplatTick] = useState(0);
+  const splatCanvasRef = useRef<HTMLCanvasElement>(null);
+  const splatGeoRef = useRef<THREE.BufferGeometry | null>(null);
+  const splatRafRef = useRef<number | null>(null);
 
   // ── Canvas refs ───────────────────────────────────────────────────────────
   const fileInputRef    = useRef<HTMLInputElement>(null);
@@ -284,6 +347,588 @@ export default function DepthCRF() {
     img.onload = () => processImage(img);
     img.src = url;
   }, [processImage]);
+
+  // ── Hologram: depth image → 3D point cloud ───────────────────────────────────
+  const showHologram = useCallback(async (invertOverride?: boolean) => {
+    if (!depthStepImages || depthStepImages.length === 0) return;
+    const knownIds = ["full_crf", "crf", "depth", "depth_crf", "result", "full", "crf_result", "depth_map"];
+    let depthImg = depthStepImages.find((s) => knownIds.includes(s.id));
+    if (!depthImg) depthImg = depthStepImages.find((s) => {
+      const t = s.title.toLowerCase();
+      return t.includes("crf") || t.includes("depth") || t.includes("full");
+    });
+    if (!depthImg) depthImg = depthStepImages[depthStepImages.length - 1];
+    const depthData = depthImg.data;
+    if (!depthData || !previewUrl) return;
+
+    const doInvert = invertOverride ?? holInvert;
+    setHolLoading(true);
+
+    const offscreen = document.createElement("canvas");
+    const offCtx = offscreen.getContext("2d")!;
+
+    const depthImgEl = new Image();
+    const srcImgEl = new Image();
+
+    await Promise.all([
+      new Promise<void>((res) => { depthImgEl.onload = () => res(); depthImgEl.src = depthData; }),
+      new Promise<void>((res) => { srcImgEl.onload = () => res(); srcImgEl.src = previewUrl; }),
+    ]);
+
+    const W = Math.min(depthImgEl.width, 256);
+    const H = Math.min(depthImgEl.height, 256);
+    offscreen.width = W;
+    offscreen.height = H;
+
+    offCtx.drawImage(depthImgEl, 0, 0, W, H);
+    const depthPixels = offCtx.getImageData(0, 0, W, H).data;
+
+    offCtx.drawImage(srcImgEl, 0, 0, W, H);
+    const colorPixels = offCtx.getImageData(0, 0, W, H).data;
+
+    const n = W * H;
+    const rawDepth = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const di = i * 4;
+      rawDepth[i] = (depthPixels[di] + depthPixels[di + 1] + depthPixels[di + 2]) / (3 * 255);
+    }
+
+    // 2-pass 3×3 box filter: smooths IFS/noisy depth maps while preserving edges
+    const smoothed = new Float32Array(n);
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1; x < W - 1; x++) {
+        const i = y * W + x;
+        smoothed[i] = (
+          rawDepth[i - W - 1] + rawDepth[i - W] + rawDepth[i - W + 1] +
+          rawDepth[i - 1]     + rawDepth[i]      + rawDepth[i + 1] +
+          rawDepth[i + W - 1] + rawDepth[i + W]  + rawDepth[i + W + 1]
+        ) / 9;
+      }
+    }
+    // second pass
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1; x < W - 1; x++) {
+        const i = y * W + x;
+        rawDepth[i] = (
+          smoothed[i - W - 1] + smoothed[i - W] + smoothed[i - W + 1] +
+          smoothed[i - 1]     + smoothed[i]      + smoothed[i + 1] +
+          smoothed[i + W - 1] + smoothed[i + W]  + smoothed[i + W + 1]
+        ) / 9;
+      }
+    }
+
+    let dMin = 1, dMax = 0;
+    for (let i = 0; i < n; i++) {
+      if (rawDepth[i] < dMin) dMin = rawDepth[i];
+      if (rawDepth[i] > dMax) dMax = rawDepth[i];
+    }
+    const dRange = Math.max(dMax - dMin, 0.01);
+    const depthScale = 1.5;
+
+    // Sample every other pixel to reduce density; skip near-background points
+    const STEP = 2;
+    const posArr: number[] = [];
+    const colArr: number[] = [];
+
+    for (let y = 0; y < H; y += STEP) {
+      for (let x = 0; x < W; x += STEP) {
+        const i = y * W + x;
+        const depthNorm = (rawDepth[i] - dMin) / dRange;
+        const dv = doInvert ? 1 - depthNorm : depthNorm;
+        if (dv < 0.08) continue; // skip flat background
+
+        posArr.push(
+          (x / W - 0.5) * 4,
+          -(y / H - 0.5) * 4,
+          (dv - 0.5) * depthScale,
+        );
+        // Source image luminance → holographic cyan tint
+        // Bright areas stay bright, dark areas go dim — shape stays recognizable
+        const di = i * 4;
+        const lum = (colorPixels[di] * 0.299 + colorPixels[di + 1] * 0.587 + colorPixels[di + 2] * 0.114) / 255;
+        const br = 0.25 + lum * 0.75; // 0.25..1.0
+        colArr.push(
+          br * 0.15,   // R — low: stays cyan/blue
+          br * 0.85,   // G
+          br * 1.0,    // B — high
+        );
+      }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(posArr), 3));
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(colArr), 3));
+
+    holGeoRef.current = geo;
+    setHolTick((t) => t + 1);
+    setHolLoading(false);
+    setHolMode(true);
+  }, [depthStepImages, previewUrl, holInvert]);
+
+  // ── THREE.js hologram renderer ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!holMode || !holGeoRef.current || !holCanvasRef.current) return;
+    const canvas = holCanvasRef.current;
+
+    if (holRafRef.current !== null) { cancelAnimationFrame(holRafRef.current); holRafRef.current = null; }
+
+    canvas.width = 520;
+    canvas.height = 420;
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(520, 420);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setClearColor(0x0a0a14);
+
+    try {
+      const geo = holGeoRef.current.clone();
+      const hol = createHologramScene(geo, canvas);
+
+      let lastT = performance.now() / 1000;
+      let running = true;
+
+      const anim = () => {
+        if (!running) return;
+        holRafRef.current = requestAnimationFrame(anim);
+        const t = performance.now() / 1000;
+        const dt = Math.min(t - lastT, 0.05);
+        lastT = t;
+        hol.controls.update(dt);
+        try { renderer.render(hol.scene, hol.camera); } catch { /* skip */ }
+      };
+      anim();
+
+      return () => {
+        running = false;
+        if (holRafRef.current !== null) cancelAnimationFrame(holRafRef.current);
+        hol.controls.dispose();
+        renderer.dispose();
+      };
+    } catch {
+      setHolMode(false);
+    }
+  }, [holTick, holMode]);
+
+  // ── Gaussian Splat: depth image → 3D splats ──────────────────────────────────
+  const showSplat = useCallback(async () => {
+    if (!depthStepImages || depthStepImages.length === 0) return;
+    const knownIds = ["full_crf", "crf", "depth", "depth_crf", "result", "full", "crf_result", "depth_map"];
+    let depthImg = depthStepImages.find((s) => knownIds.includes(s.id));
+    if (!depthImg) depthImg = depthStepImages[depthStepImages.length - 1];
+    if (!depthImg?.data || !previewUrl) return;
+
+    setSplatLoading(true);
+
+    const offscreen = document.createElement("canvas");
+    const offCtx = offscreen.getContext("2d")!;
+    const depthImgEl = new Image();
+    const srcImgEl = new Image();
+
+    await Promise.all([
+      new Promise<void>((res) => { depthImgEl.onload = () => res(); depthImgEl.src = depthImg!.data; }),
+      new Promise<void>((res) => { srcImgEl.onload = () => res(); srcImgEl.src = previewUrl; }),
+    ]);
+
+    const W = Math.min(depthImgEl.width, 192);
+    const H = Math.min(depthImgEl.height, 192);
+    offscreen.width = W; offscreen.height = H;
+
+    offCtx.drawImage(depthImgEl, 0, 0, W, H);
+    const depthPixels = offCtx.getImageData(0, 0, W, H).data;
+    offCtx.drawImage(srcImgEl, 0, 0, W, H);
+    const colorPixels = offCtx.getImageData(0, 0, W, H).data;
+
+    const rawDepth = new Float32Array(W * H);
+    for (let i = 0; i < W * H; i++) {
+      const d = i * 4;
+      rawDepth[i] = (depthPixels[d] + depthPixels[d + 1] + depthPixels[d + 2]) / (3 * 255);
+    }
+
+    // 2-pass 3×3 box filter to remove IFS/fractal depth noise
+    const sm2 = new Float32Array(W * H);
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1; x < W - 1; x++) {
+        const i = y * W + x;
+        sm2[i] = (
+          rawDepth[i - W - 1] + rawDepth[i - W] + rawDepth[i - W + 1] +
+          rawDepth[i - 1]     + rawDepth[i]      + rawDepth[i + 1] +
+          rawDepth[i + W - 1] + rawDepth[i + W]  + rawDepth[i + W + 1]
+        ) / 9;
+      }
+    }
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1; x < W - 1; x++) {
+        const i = y * W + x;
+        rawDepth[i] = (
+          sm2[i - W - 1] + sm2[i - W] + sm2[i - W + 1] +
+          sm2[i - 1]     + sm2[i]      + sm2[i + 1] +
+          sm2[i + W - 1] + sm2[i + W]  + sm2[i + W + 1]
+        ) / 9;
+      }
+    }
+
+    let dMin = 1, dMax = 0;
+    for (let i = 0; i < W * H; i++) {
+      if (rawDepth[i] < dMin) dMin = rawDepth[i];
+      if (rawDepth[i] > dMax) dMax = rawDepth[i];
+    }
+    const dRange = Math.max(dMax - dMin, 0.01);
+
+    const STEP = 2;
+    const depthScale = 1.8;
+    const posArr: number[] = [];
+    const colArr: number[] = [];
+    const sizeArr: number[] = [];
+
+    for (let y = STEP; y < H - STEP; y += STEP) {
+      for (let x = STEP; x < W - STEP; x += STEP) {
+        const i = y * W + x;
+        const depthNorm = (rawDepth[i] - dMin) / dRange;
+        if (depthNorm < 0.02) continue;
+
+        // Local gradient: estimate depth discontinuity
+        const gx = rawDepth[i + 1] - rawDepth[i - 1];
+        const gy = rawDepth[i + W] - rawDepth[i - W];
+        const gradient = Math.sqrt(gx * gx + gy * gy);
+
+        // Gaussian size: large in smooth regions, small at edges
+        const baseSize = 0.085;
+        const splatSize = baseSize / (1 + gradient * 30);
+
+        posArr.push(
+          (x / W - 0.5) * 4,
+          -(y / H - 0.5) * 4,
+          (depthNorm - 0.5) * depthScale,
+        );
+
+        // Source image color — boosted to be visible on dark background
+        const ci = i * 4;
+        const r = colorPixels[ci] / 255;
+        const g = colorPixels[ci + 1] / 255;
+        const b = colorPixels[ci + 2] / 255;
+        const lum = r * 0.299 + g * 0.587 + b * 0.114;
+        // Ensure minimum brightness of 0.45 so dark source images still show
+        const boost = lum < 0.45 ? (0.45 / Math.max(lum, 0.02)) : 1.1;
+        colArr.push(
+          Math.min(r * boost + depthNorm * 0.08, 1.0),
+          Math.min(g * boost + depthNorm * 0.15, 1.0),
+          Math.min(b * boost + depthNorm * 0.08, 1.0),
+        );
+        sizeArr.push(splatSize);
+      }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(posArr), 3));
+    geo.setAttribute("aColor",   new THREE.Float32BufferAttribute(new Float32Array(colArr), 3));
+    geo.setAttribute("aSize",    new THREE.Float32BufferAttribute(new Float32Array(sizeArr), 1));
+
+    splatGeoRef.current = geo;
+    setSplatTick((t) => t + 1);
+    setSplatLoading(false);
+    setSplatMode(true);
+  }, [depthStepImages, previewUrl]);
+
+  // ── Holographic tomography: ASM at N depths → 3D point cloud ─────────────────
+  const showVolume = useCallback(async () => {
+    if (!cghResult) return;
+    setVolLoading(true);
+    setVolMode(false);
+
+    const { phaseG, W, H } = cghResult;
+    const N_PLANES = 12;
+    const Z_MIN = 0.05e-3, Z_MAX = 0.80e-3;
+
+    // Source image colors
+    const srcR = new Float32Array(W * H);
+    const srcG = new Float32Array(W * H);
+    const srcB = new Float32Array(W * H);
+    if (previewUrl) {
+      const off = document.createElement("canvas");
+      off.width = W; off.height = H;
+      const ctx = off.getContext("2d")!;
+      const img = new Image();
+      await new Promise<void>((res) => { img.onload = () => res(); img.src = previewUrl; });
+      ctx.drawImage(img, 0, 0, W, H);
+      const px = ctx.getImageData(0, 0, W, H).data;
+      for (let i = 0; i < W * H; i++) {
+        srcR[i] = px[i * 4] / 255;
+        srcG[i] = px[i * 4 + 1] / 255;
+        srcB[i] = px[i * 4 + 2] / 255;
+      }
+    }
+
+    // Depth-from-focus: for each pixel store the best-focus z-plane index
+    // Focus metric: variance-of-Laplacian (sharpness at each pixel)
+    const bestFocus = new Float32Array(W * H);      // best focus score per pixel
+    const bestZIdx  = new Int16Array(W * H).fill(-1); // which z-plane was sharpest
+
+    for (let n = 0; n < N_PLANES; n++) {
+      const z = Z_MIN + (n / (N_PLANES - 1)) * (Z_MAX - Z_MIN);
+      await new Promise((r) => setTimeout(r, 0));
+
+      const { intensity } = asmReconstruct(phaseG, W, H, z);
+
+      // Variance-of-Laplacian as focus measure (suppresses interference fringes better than gradient)
+      for (let y = 1; y < H - 1; y++) {
+        for (let x = 1; x < W - 1; x++) {
+          const i = y * W + x;
+          const lap = Math.abs(
+            intensity[i - W] + intensity[i + W] +
+            intensity[i - 1] + intensity[i + 1] -
+            4 * intensity[i]
+          );
+          if (lap > bestFocus[i]) {
+            bestFocus[i] = lap;
+            bestZIdx[i] = n;
+          }
+        }
+      }
+    }
+
+    // Global focus threshold — keep only pixels with strong-enough focus
+    let sumF = 0;
+    for (let i = 0; i < W * H; i++) sumF += bestFocus[i];
+    const meanF = sumF / (W * H);
+    let varSum = 0;
+    for (let i = 0; i < W * H; i++) varSum += (bestFocus[i] - meanF) ** 2;
+    const stdF = Math.sqrt(varSum / (W * H));
+    const threshold = meanF + stdF * 0.8;
+
+    const posArr: number[] = [];
+    const colArr: number[] = [];
+    const sizeArr: number[] = [];
+
+    const STEP = 2;
+    for (let y = STEP; y < H - STEP; y += STEP) {
+      for (let x = STEP; x < W - STEP; x += STEP) {
+        const i = y * W + x;
+        if (bestFocus[i] < threshold || bestZIdx[i] < 0) continue;
+
+        const n = bestZIdx[i];
+        const z = Z_MIN + (n / (N_PLANES - 1)) * (Z_MAX - Z_MIN);
+        const zWorld = ((Z_MAX - z) / (Z_MAX - Z_MIN) - 0.5) * 2.5;
+        const fStr = Math.min((bestFocus[i] - threshold) / (stdF * 1.5 + 1e-9), 1.0);
+
+        posArr.push((x / W - 0.5) * 4, -(y / H - 0.5) * 4, zWorld);
+
+        const lum = srcR[i] * 0.299 + srcG[i] * 0.587 + srcB[i] * 0.114;
+        const br = 0.3 + lum * 0.7;
+        colArr.push(br * fStr * 0.15, br * fStr * 0.95, br * fStr * 0.35);
+        sizeArr.push(0.04 + fStr * 0.03);
+      }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(posArr), 3));
+    geo.setAttribute("aColor",   new THREE.Float32BufferAttribute(new Float32Array(colArr), 3));
+    geo.setAttribute("aSize",    new THREE.Float32BufferAttribute(new Float32Array(sizeArr), 1));
+
+    volGeoRef.current = geo;
+    setVolTick((t) => t + 1);
+    setVolLoading(false);
+    setVolMode(true);
+  }, [cghResult, previewUrl]);
+
+  // ── THREE.js holographic volume renderer ──────────────────────────────────────
+  useEffect(() => {
+    if (!volMode || !volGeoRef.current || !volCanvasRef.current) return;
+    const canvas = volCanvasRef.current;
+    if (volRafRef.current !== null) { cancelAnimationFrame(volRafRef.current); volRafRef.current = null; }
+
+    canvas.width = 520; canvas.height = 420;
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(520, 420);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setClearColor(0x020810);
+
+    try {
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.Fog(0x020810, 5, 12);
+
+      const camera = new THREE.PerspectiveCamera(50, 520 / 420, 0.01, 20);
+      camera.position.set(1.8, 1.0, 3.0);
+      camera.lookAt(0, 0, 0);
+
+      const controls = new OrbitControls(camera, canvas);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.07;
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.5;
+
+      const geo = volGeoRef.current!.clone();
+      const points = createSplatPoints(geo, { camera, worldMatrix: new THREE.Matrix4() });
+      scene.add(points);
+
+      let running = true, frame = 0;
+      const anim = () => {
+        if (!running) return;
+        volRafRef.current = requestAnimationFrame(anim);
+        controls.update();
+        if (++frame % 6 === 0) sortSplatPoints(points, camera);
+        renderer.render(scene, camera);
+      };
+      anim();
+
+      return () => {
+        running = false;
+        if (volRafRef.current !== null) cancelAnimationFrame(volRafRef.current);
+        controls.dispose(); renderer.dispose(); geo.dispose();
+      };
+    } catch { setVolMode(false); }
+  }, [volTick, volMode]);
+
+  // ── Layer-based CGH ───────────────────────────────────────────────────────────
+  const showCGH = useCallback(async (nL?: number) => {
+    if (!depthStepImages || depthStepImages.length === 0) return;
+    const knownIds = ["full_crf", "crf", "depth", "depth_crf", "result", "full", "crf_result", "depth_map"];
+    let depthImg = depthStepImages.find((s) => knownIds.includes(s.id));
+    if (!depthImg) depthImg = depthStepImages[depthStepImages.length - 1];
+    if (!depthImg?.data) return;
+
+    const layers = nL ?? cghLayers;
+    setCghLoading(true);
+    setCghResult(null);
+    setAsmResult(null);
+
+    const off = document.createElement("canvas");
+    const ctx = off.getContext("2d")!;
+    const depEl = new Image();
+    await new Promise<void>((res) => { depEl.onload = () => res(); depEl.src = depthImg!.data; });
+
+    const W = Math.min(depEl.width, 256);
+    const H = Math.min(depEl.height, 256);
+    off.width = W; off.height = H;
+
+    ctx.drawImage(depEl, 0, 0, W, H);
+    const depPx = ctx.getImageData(0, 0, W, H).data;
+
+    const n = W * H;
+    const rawDepth = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      rawDepth[i] = (depPx[i * 4] + depPx[i * 4 + 1] + depPx[i * 4 + 2]) / (3 * 255);
+    }
+
+    // Normalise depth
+    let dMin = 1, dMax = 0;
+    for (let i = 0; i < n; i++) {
+      if (rawDepth[i] < dMin) dMin = rawDepth[i];
+      if (rawDepth[i] > dMax) dMax = rawDepth[i];
+    }
+    const dR = Math.max(dMax - dMin, 0.01);
+    const depthNorm = new Float32Array(n);
+    for (let i = 0; i < n; i++) depthNorm[i] = (rawDepth[i] - dMin) / dR;
+
+    // Green luminance from source image
+    const lumG = new Float32Array(n);
+    if (previewUrl) {
+      const srcEl = new Image();
+      await new Promise<void>((res) => { srcEl.onload = () => res(); srcEl.src = previewUrl; });
+      ctx.drawImage(srcEl, 0, 0, W, H);
+      const srcPx = ctx.getImageData(0, 0, W, H).data;
+      for (let i = 0; i < n; i++) {
+        lumG[i] = (srcPx[i * 4] * 0.299 + srcPx[i * 4 + 1] * 0.587 + srcPx[i * 4 + 2] * 0.114) / 255;
+      }
+    } else {
+      for (let i = 0; i < n; i++) lumG[i] = depthNorm[i]; // fallback: depth as luminance
+    }
+
+    // Yield to browser then compute (avoids frozen UI)
+    await new Promise((r) => setTimeout(r, 0));
+    const result = layerBasedCGH(depthNorm, lumG, W, H, layers);
+    setCghResult(result);
+    setCghLoading(false);
+  }, [depthStepImages, previewUrl, cghLayers]);
+
+  // ── ASM reconstruction ────────────────────────────────────────────────────────
+  const showASM = useCallback(async (zMm?: number) => {
+    if (!cghResult) return;
+    setAsmLoading(true);
+    const z = (zMm ?? asmZ) * 1e-3; // mm → m
+    await new Promise((r) => setTimeout(r, 0));
+    const result = asmReconstruct(cghResult.phaseG, cghResult.W, cghResult.H, z);
+    setAsmResult(result);
+    setAsmLoading(false);
+  }, [cghResult, asmZ]);
+
+  // ── Draw CGH phase to canvas ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!cghResult || !cghCanvasRef.current) return;
+    const canvas = cghCanvasRef.current;
+    canvas.width = cghResult.W; canvas.height = cghResult.H;
+    const ctx = canvas.getContext("2d")!;
+    ctx.putImageData(phaseToImageData(cghResult.phaseG, cghResult.W, cghResult.H, ctx), 0, 0);
+  }, [cghResult]);
+
+  // ── Draw ASM reconstruction to canvas ────────────────────────────────────────
+  useEffect(() => {
+    if (!asmResult || !asmCanvasRef.current) return;
+    const canvas = asmCanvasRef.current;
+    canvas.width = asmResult.W; canvas.height = asmResult.H;
+    const ctx = canvas.getContext("2d")!;
+    ctx.putImageData(intensityToImageData(asmResult.intensity, asmResult.W, asmResult.H, ctx, true), 0, 0);
+  }, [asmResult]);
+
+  // ── THREE.js splat renderer ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!splatMode || !splatGeoRef.current || !splatCanvasRef.current) return;
+    const canvas = splatCanvasRef.current;
+
+    if (splatRafRef.current !== null) { cancelAnimationFrame(splatRafRef.current); splatRafRef.current = null; }
+
+    canvas.width = 520; canvas.height = 420;
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setSize(520, 420);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setClearColor(0x060b18);
+
+    try {
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.Fog(0x060b18, 4, 10);
+
+      const camera = new THREE.PerspectiveCamera(50, 520 / 420, 0.01, 20);
+      // Angled view to immediately show depth (not flat front-on)
+      camera.position.set(1.5, 0.8, 2.6);
+      camera.lookAt(0, 0, 0);
+
+      const controls = new OrbitControls(camera, canvas);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.07;
+      controls.minDistance = 0.5;
+      controls.maxDistance = 8;
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.6;
+      controls.target.set(0, 0, 0);
+
+      const geo = splatGeoRef.current.clone();
+      let points = createSplatPoints(geo, { camera, worldMatrix: new THREE.Matrix4() });
+      scene.add(points);
+
+      let running = true;
+      let frameCount = 0;
+
+      const anim = () => {
+        if (!running) return;
+        splatRafRef.current = requestAnimationFrame(anim);
+        controls.update();
+        frameCount++;
+        // Re-sort splats every 6 frames for correct alpha blending
+        if (frameCount % 6 === 0) sortSplatPoints(points, camera);
+        renderer.render(scene, camera);
+      };
+      anim();
+
+      return () => {
+        running = false;
+        if (splatRafRef.current !== null) cancelAnimationFrame(splatRafRef.current);
+        controls.dispose();
+        renderer.dispose();
+        geo.dispose();
+      };
+    } catch {
+      setSplatMode(false);
+    }
+  }, [splatTick, splatMode]);
 
   // ── ACTION 1: Depth map (DCNF) via /analyze_steps ─────────────────────────
   const runDepth = useCallback(async () => {
@@ -568,6 +1213,228 @@ export default function DepthCRF() {
                     )}
                   </div>
                 ))}
+              </div>
+
+              {/* Hologram button */}
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => showHologram()}
+                  disabled={holLoading}
+                  className="px-4 py-2 rounded-lg text-sm font-bold transition-all"
+                  style={{
+                    background: holLoading ? "#1E3A5F" : "#0ea5e922",
+                    border: "1px solid #0ea5e988",
+                    color: holLoading ? "#546E7A" : "#38bdf8",
+                    cursor: holLoading ? "wait" : "pointer",
+                  }}
+                >
+                  {holLoading ? T.holLoading[lang] : T.holBtn[lang]}
+                </button>
+                {holMode && !holLoading && (
+                  <>
+                    <button
+                      onClick={() => { const next = !holInvert; setHolInvert(next); showHologram(next); }}
+                      className="px-3 py-2 rounded-lg text-xs font-bold transition-all"
+                      style={{
+                        background: holInvert ? "#FBBF2422" : "var(--bg-card)",
+                        border: `1px solid ${holInvert ? "#FBBF24" : "var(--border-color)"}`,
+                        color: holInvert ? "#FBBF24" : "var(--text-secondary)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {holInvert ? (lang === "ru" ? "Инвертировано" : "Invert qilingan") : (lang === "ru" ? "Инвертировать" : "Invert")}
+                    </button>
+                    <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>{T.holDesc[lang]}</span>
+                  </>
+                )}
+              </div>
+
+              {/* Hologram canvas */}
+              {holMode && (
+                <canvas
+                  ref={holCanvasRef}
+                  width={520}
+                  height={420}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    maxWidth: 520,
+                    borderRadius: 8,
+                    border: "1px solid var(--border-color)",
+                    marginTop: 12,
+                  }}
+                />
+              )}
+
+              {/* Gaussian Splat button */}
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  onClick={showSplat}
+                  disabled={splatLoading}
+                  className="px-4 py-2 rounded-lg text-sm font-bold transition-all"
+                  style={{
+                    background: splatLoading ? "#1E3A5F" : "#a855f722",
+                    border: "1px solid #a855f788",
+                    color: splatLoading ? "#546E7A" : "#c084fc",
+                    cursor: splatLoading ? "wait" : "pointer",
+                  }}
+                >
+                  {splatLoading ? T.splatLoading[lang] : T.splatBtn[lang]}
+                </button>
+                {splatMode && !splatLoading && (
+                  <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
+                    {T.splatDesc[lang]}
+                  </span>
+                )}
+              </div>
+
+              {/* Gaussian Splat canvas */}
+              {splatMode && (
+                <div className="mt-3 rounded-xl overflow-hidden" style={{ border: "1px solid #a855f744", background: "#060b18" }}>
+                  <div className="px-3 py-2 text-xs font-bold flex items-center gap-2" style={{ color: "#c084fc", borderBottom: "1px solid #a855f733" }}>
+                    <span>✦</span>
+                    <span>Gaussian Splatting — {lang === "ru" ? "каждый пиксель = гауссиан, размер по градиенту глубины" : "har piksel = gaussian, o'lcham chuqurlik gradientidan"}</span>
+                  </div>
+                  <canvas
+                    ref={splatCanvasRef}
+                    width={520}
+                    height={420}
+                    style={{ display: "block", width: "100%", maxWidth: 520 }}
+                  />
+                </div>
+              )}
+
+              {/* ── Layer-based CGH ── */}
+              <div className="mt-4 rounded-xl p-3 space-y-3" style={{ background: "#0a0f1a", border: "1px solid #22d3ee44" }}>
+                <div className="text-xs font-bold" style={{ color: "#22d3ee" }}>
+                  〰 Layer-based CGH — {lang === "ru" ? "метод из статьи Kumano et al. 2025" : "Kumano et al. 2025 usuli"}
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Layer count slider */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{T.cghLayers[lang]}</span>
+                    {[4, 8, 12, 16].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setCghLayers(n)}
+                        className="px-2 py-0.5 rounded text-xs font-mono font-bold transition-all"
+                        style={{
+                          background: cghLayers === n ? "#22d3ee22" : "var(--bg-card)",
+                          border: `1px solid ${cghLayers === n ? "#22d3ee" : "var(--border-color)"}`,
+                          color: cghLayers === n ? "#22d3ee" : "var(--text-secondary)",
+                        }}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => showCGH()}
+                    disabled={cghLoading}
+                    className="px-4 py-2 rounded-lg text-sm font-bold transition-all"
+                    style={{
+                      background: cghLoading ? "#1E3A5F" : "#22d3ee22",
+                      border: "1px solid #22d3ee88",
+                      color: cghLoading ? "#546E7A" : "#22d3ee",
+                      cursor: cghLoading ? "wait" : "pointer",
+                    }}
+                  >
+                    {cghLoading ? T.cghLoading[lang] : T.cghBtn[lang]}
+                  </button>
+                </div>
+
+                {cghResult && (
+                  <div className="space-y-2">
+                    <div className="text-[11px]" style={{ color: "var(--text-secondary)" }}>{T.cghDesc[lang]}</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Phase hologram */}
+                      <div className="rounded-lg overflow-hidden" style={{ border: "1px solid #22d3ee33" }}>
+                        <div className="px-2 py-1 text-[11px] font-bold" style={{ color: "#22d3ee", background: "#22d3ee0a" }}>
+                          {lang === "ru" ? "Фазовая пластина (phase-only)" : "Faza plastinkasi (phase-only)"}
+                        </div>
+                        <canvas
+                          ref={cghCanvasRef}
+                          style={{ display: "block", width: "100%", imageRendering: "pixelated" }}
+                        />
+                      </div>
+                      {/* ASM panel */}
+                      <div className="rounded-lg space-y-2 p-2" style={{ border: "1px solid #22c55e33", background: "#052010" }}>
+                        <div className="text-[11px] font-bold" style={{ color: "#22c55e" }}>
+                          {lang === "ru" ? "ASM реконструкция (симуляция воспроизведения)" : "ASM rekonstruksiyasi (qayta tiklash simulyatsiyasi)"}
+                        </div>
+                        {/* z-distance selector */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>z (мм):</span>
+                          {[0.20, 0.35, 0.45, 0.60, 0.80].map((z) => (
+                            <button
+                              key={z}
+                              onClick={() => setAsmZ(z)}
+                              className="px-1.5 py-0.5 rounded text-[11px] font-mono font-bold transition-all"
+                              style={{
+                                background: asmZ === z ? "#22c55e22" : "transparent",
+                                border: `1px solid ${asmZ === z ? "#22c55e" : "var(--border-color)"}`,
+                                color: asmZ === z ? "#22c55e" : "var(--text-secondary)",
+                              }}
+                            >
+                              {z.toFixed(2)}
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => showASM()}
+                          disabled={asmLoading}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all w-full"
+                          style={{
+                            background: asmLoading ? "#1E3A5F" : "#22c55e22",
+                            border: "1px solid #22c55e88",
+                            color: asmLoading ? "#546E7A" : "#22c55e",
+                            cursor: asmLoading ? "wait" : "pointer",
+                          }}
+                        >
+                          {asmLoading ? T.asmLoading[lang] : T.asmBtn[lang]}
+                        </button>
+                        {asmResult && (
+                          <canvas
+                            ref={asmCanvasRef}
+                            style={{ display: "block", width: "100%", imageRendering: "pixelated", borderRadius: 4 }}
+                          />
+                        )}
+                        {!asmResult && !asmLoading && (
+                          <div className="text-[10px] text-center py-4" style={{ color: "var(--text-secondary)" }}>
+                            {T.asmDesc[lang]}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* ── Holographic tomography 3D volume ── */}
+                    <div className="rounded-lg p-3 space-y-2 mt-2" style={{ border: "1px solid #3b82f633", background: "#020c1a" }}>
+                      <div className="text-[11px] font-bold" style={{ color: "#60a5fa" }}>
+                        {lang === "ru" ? "Голографическая томография → 3D объект" : "Golografik tomografiya → 3D ob'ekt"}
+                      </div>
+                      <div className="text-[10px]" style={{ color: "var(--text-secondary)" }}>{T.volDesc[lang]}</div>
+                      <button
+                        onClick={() => showVolume()}
+                        disabled={volLoading}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                        style={{
+                          background: volLoading ? "#1E3A5F" : "#3b82f622",
+                          border: "1px solid #3b82f688",
+                          color: volLoading ? "#546E7A" : "#60a5fa",
+                          cursor: volLoading ? "wait" : "pointer",
+                        }}
+                      >
+                        {volLoading ? T.volLoading[lang] : T.volBtn[lang]}
+                      </button>
+                      {volMode && (
+                        <canvas
+                          ref={volCanvasRef}
+                          style={{ display: "block", width: "100%", borderRadius: 8, background: "#020810" }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

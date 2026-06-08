@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-export type Lang = "ru" | "uz";
+export type Lang = "ru" | "uz" | "en";
 export type Theme = "dark" | "light";
 
 type AppPreferences = {
@@ -24,7 +24,7 @@ const LANG_KEY = "gologramma-lang";
 const THEME_KEY = "gologramma-theme";
 
 function isLang(value: string | null): value is Lang {
-  return value === "ru" || value === "uz";
+  return value === "ru" || value === "uz" || value === "en";
 }
 
 function isTheme(value: string | null): value is Theme {

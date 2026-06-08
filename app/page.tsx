@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Equipment from "@/components/tabs/Equipment";
 import OpticalScheme from "@/components/tabs/OpticalScheme";
 import Recording from "@/components/tabs/Recording";
@@ -21,10 +21,10 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState(0);
   const { lang, setLang, theme, setTheme } = useLang();
   const controls = {
-    language: { ru: "Язык", uz: "Til" },
-    theme: { ru: "Тема", uz: "Mavzu" },
-    dark: { ru: "Тёмная", uz: "Qora" },
-    light: { ru: "Светлая", uz: "Yorug'" },
+    language: { ru: "Язык", uz: "Til", en: "Lang" },
+    theme: { ru: "Тема", uz: "Mavzu", en: "Theme" },
+    dark: { ru: "Тёмная", uz: "Qora", en: "Dark" },
+    light: { ru: "Светлая", uz: "Yorug'", en: "Light" },
   };
 
   const TABS = [
@@ -43,24 +43,25 @@ export default function Home() {
     { id: 12, label: t.fractalGenTab[lang] },
   ];
 
-  const renderTab = () => {
-    switch (activeTab) {
-      case 0: return <Equipment />;
-      case 1: return <OpticalScheme />;
-      case 2: return <Recording />;
-      case 3: return <MathTab />;
-      case 4: return <Reconstruction />;
-      case 5: return <HologramPiece />;
-      case 6: return <Comparison />;
-      case 7: return <OpticalTable />;
-      case 8: return <ReconstructionSim />;
-      case 9: return <FractalCNN />;
-      case 10: return <DepthCRF />;
-      case 11: return <Splat360 />;
-      case 12: return <FractalGenerator />;
-      default: return <Equipment />;
-    }
-  };
+  // Keep-alive rendering: every tab stays mounted and we toggle visibility with
+  // display:none. This preserves each tab's internal state (uploaded job, fetched
+  // mesh/PLY, selected fractal source) across tab switches — switching no longer
+  // unmounts a tab and throws away its result. (Bug 3)
+  const TAB_PANELS: ReactNode[] = [
+    <Equipment key="equipment" />,
+    <OpticalScheme key="optical-scheme" />,
+    <Recording key="recording" />,
+    <MathTab key="math" />,
+    <Reconstruction key="reconstruction" />,
+    <HologramPiece key="hologram-piece" />,
+    <Comparison key="comparison" />,
+    <OpticalTable key="optical-table" />,
+    <ReconstructionSim key="reconstruction-sim" />,
+    <FractalCNN key="fractal-cnn" />,
+    <DepthCRF key="depth-crf" />,
+    <Splat360 key="splat360" />,
+    <FractalGenerator key="fractal-generator" />,
+  ];
 
   return (
     <div className="flex flex-col min-h-screen" style={{ background: 'var(--bg-primary)' }}>
@@ -78,11 +79,11 @@ export default function Home() {
             <div
               className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs"
               style={{ background: 'var(--control-bg)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
-              title={lang === 'ru' ? 'Папка: C:\\Users\\Genius\\hologram-pdf-extension' : 'Papka: C:\\Users\\Genius\\hologram-pdf-extension'}
+              title={lang === 'ru' ? 'Папка: C:\\Users\\Genius\\hologram-pdf-extension' : lang === 'uz' ? 'Papka: C:\\Users\\Genius\\hologram-pdf-extension' : 'Folder: C:\\Users\\Genius\\hologram-pdf-extension'}
             >
               <span>📄</span>
               <span style={{ color: 'var(--accent-cyan)' }}>
-                {lang === 'ru' ? 'PDF-расширение' : 'PDF kengaytma'}
+                {lang === 'ru' ? 'PDF-расширение' : lang === 'uz' ? 'PDF kengaytma' : 'PDF extension'}
               </span>
               <span style={{ fontFamily: 'monospace', fontSize: '10px', color: 'var(--text-secondary)' }}>
                 chrome://extensions
@@ -111,6 +112,15 @@ export default function Home() {
                 >
                   UZ
                 </button>
+                <button
+                  type="button"
+                  className="app-control-button"
+                  data-active={lang === "en"}
+                  aria-pressed={lang === "en"}
+                  onClick={() => setLang("en")}
+                >
+                  EN
+                </button>
               </div>
 
               {/* Theme switcher */}
@@ -138,9 +148,6 @@ export default function Home() {
             </div>
 
           </div>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            {t.appSubtitle[lang]}
-          </p>
         </div>
       </header>
 
@@ -165,9 +172,13 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* Tab Content */}
+      {/* Tab Content — all panels stay mounted; inactive ones are hidden (Bug 3) */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
-        {renderTab()}
+        {TAB_PANELS.map((panel, i) => (
+          <div key={i} style={{ display: activeTab === i ? "block" : "none" }}>
+            {panel}
+          </div>
+        ))}
       </main>
 
       {/* Footer */}

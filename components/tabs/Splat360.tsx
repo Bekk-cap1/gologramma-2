@@ -7,69 +7,67 @@ import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { useLang } from "@/components/LanguageContext";
+import { createSplatPoints, sortSplatPoints } from "@/lib/splat-renderer";
+import { createHologramScene } from "@/lib/hologram-renderer";
+import type { HologramControls } from "@/lib/hologram-renderer";
 
 // ─── bilingual strings ────────────────────────────────────────────────────────
 const T = {
-  title:         { ru: "360° Splatting", uz: "360° Splatting" },
-  modeSynthetic: { ru: "Синтетика", uz: "Sintetika" },
-  modePhoto:     { ru: "Реальное фото", uz: "Haqiqiy foto" },
+  title:         { ru: "360° Splatting",          uz: "360° Splatting",           en: "360° Splatting"            },
+  modeSynthetic: { ru: "Синтетика",               uz: "Sintetika",                en: "Synthetic"                 },
+  modePhoto:     { ru: "Реальное фото",           uz: "Haqiqiy foto",             en: "Real photo"                },
 
-  // Synthetic panel
-  nViewsLabel:    { ru: "Количество видов (n_views)", uz: "Vidlar soni (n_views)" },
-  elevLabel:      { ru: "Углы высоты (через запятую)", uz: "Balandlik burchaklari (vergul bilan)" },
-  buildBtn:       { ru: "Построить 360° из текущего меша", uz: "Joriy meshdan 360° qurish" },
-  synthNote:      { ru: "Использует последний построенный 3D-меш", uz: "Oxirgi qurilgan 3D-mesh ishlatiladi" },
+  nViewsLabel:    { ru: "Количество видов (n_views)", uz: "Vidlar soni (n_views)", en: "View count (n_views)"     },
+  elevLabel:      { ru: "Углы высоты (через запятую)", uz: "Balandlik burchaklari (vergul bilan)", en: "Elevation angles (comma-separated)" },
+  buildBtn:       { ru: "Построить 360° из текущего меша", uz: "Joriy meshdan 360° qurish", en: "Build 360° from current mesh" },
+  synthNote:      { ru: "Использует последний построенный 3D-меш", uz: "Oxirgi qurilgan 3D-mesh ishlatiladi", en: "Uses the last built 3D mesh"  },
 
-  // Photo panel
-  uploadLabel:    { ru: "Загрузите фотографию", uz: "Fotosuratni yuklang" },
-  chooseFile:     { ru: "Выбрать файл", uz: "Fayl tanlash" },
-  providerLabel:  { ru: "Провайдер", uz: "Provaydar" },
-  providerAuto:   { ru: "Авто", uz: "Auto" },
-  genBtn:         { ru: "Сгенерировать 360°", uz: "360° yaratish" },
-  photoWarning:   { ru: "Невидимые стороны достраиваются генеративной моделью (правдоподобно, не измеренные данные)", uz: "Ko'rinmas tomonlar generativ model bilan to'ldiriladi (ishonchli, lekin o'lchanmagan ma'lumot emas)" },
-  tokenNote:      { ru: "Требуется REPLICATE_API_TOKEN на сервере", uz: "Serverda REPLICATE_API_TOKEN kerak" },
+  uploadLabel:    { ru: "Загрузите фотографию",   uz: "Fotosuratni yuklang",      en: "Upload a photo"            },
+  chooseFile:     { ru: "Выбрать файл",            uz: "Fayl tanlash",             en: "Choose file"               },
+  providerLabel:  { ru: "Провайдер",               uz: "Provaydar",                en: "Provider"                  },
+  providerAuto:   { ru: "Авто",                    uz: "Auto",                     en: "Auto"                      },
+  genBtn:         { ru: "Сгенерировать 360°",      uz: "360° yaratish",            en: "Generate 360°"             },
+  photoWarning:   { ru: "Без Replicate токена: авто-режим строит 3D из карты глубины (depth displacement). Результат — поверхность объекта с реальными цветами.", uz: "Replicate tokensiz: avto-rejim chuqurlik xaritasidan 3D quradi (depth displacement). Natija — haqiqiy ranglar bilan ob'ekt sathi.", en: "Without a Replicate token, auto-mode builds 3D from the depth map (depth displacement). Result: object surface with real colours." },
+  tokenNote:      { ru: "Для AI-генерации задних граней: REPLICATE_API_TOKEN на сервере", uz: "AI orqa tomonlar generatsiyasi uchun: serverda REPLICATE_API_TOKEN", en: "For AI back-face generation: REPLICATE_API_TOKEN on the server" },
 
-  // Status / polling
-  stateQueued:  { ru: "В очереди…", uz: "Navbatda…" },
-  stateRunning: { ru: "Выполняется…", uz: "Bajarilmoqda…" },
-  stateDone:    { ru: "Готово!", uz: "Tayyor!" },
-  stateError:   { ru: "Ошибка", uz: "Xato" },
-  logLabel:     { ru: "Лог:", uz: "Log:" },
+  stateQueued:  { ru: "В очереди…",               uz: "Navbatda…",                en: "Queued…"                   },
+  stateRunning: { ru: "Выполняется…",              uz: "Bajarilmoqda…",            en: "Running…"                  },
+  stateDone:    { ru: "Готово!",                   uz: "Tayyor!",                  en: "Done!"                     },
+  stateError:   { ru: "Ошибка",                    uz: "Xato",                     en: "Error"                     },
+  logLabel:     { ru: "Лог:",                      uz: "Log:",                     en: "Log:"                      },
 
-  // Viewer / switcher
-  viewMesh:       { ru: "Меш", uz: "Mesh" },
-  viewPoints:     { ru: "Точки", uz: "Nuqtalar" },
-  splatNote:      { ru: "Сплат-рендер требует gsplat (CUDA)", uz: "Splat-render gsplat (CUDA) talab qiladi" },
+  viewMesh:       { ru: "Меш",                     uz: "Mesh",                     en: "Mesh"                      },
+  viewPoints:     { ru: "Точки",                   uz: "Nuqtalar",                 en: "Points"                    },
+  viewSplat:      { ru: "Splat (GS)",              uz: "Splat (GS)",               en: "Splat (GS)"                },
+  viewHologram:   { ru: "Голограмма",              uz: "Gologramma",               en: "Hologram"                  },
+  holNote:        { ru: "Параллакс-голограмма: водите мышью — объект поворачивается. 150° обзора.", uz: "Parallaks-gologramma: sichqonchani harakatlantiring — obyekt aylanadi. 150° ko'rish.", en: "Parallax hologram: drag — object rotates. 150° field of view." },
+  splatNote:      { ru: "Splat-режим использует WebGL-шейдеры для отрисовки каждого гауссиана с альфа-блендингом. Без CUDA.", uz: "Splat rejimi WebGL shaderlari orqali har bir gaussiani alfa-birlashtirish bilan chizadi. CUDA talab qilmaydi.", en: "Splat mode uses WebGL shaders to render each Gaussian with alpha blending. No CUDA required." },
 
-  // PLY viewer
-  plyViewerTitle: { ru: "3D Point Cloud (PLY)", uz: "3D Nuqta bulutti (PLY)" },
-  resetCamera:    { ru: "Сбросить камеру", uz: "Kamerani tiklash" },
-  autoRot:        { ru: "Авто-вращение", uz: "Avto-aylantirish" },
-  plyFailed:      { ru: "PLY не загружен — показываю кадры орбиты", uz: "PLY yuklanmadi — orbit kadrlar ko'rsatilmoqda" },
+  plyViewerTitle: { ru: "3D Point Cloud (PLY)",    uz: "3D Nuqta bulutti (PLY)",   en: "3D Point Cloud (PLY)"      },
+  resetCamera:    { ru: "Сбросить камеру",         uz: "Kamerani tiklash",          en: "Reset camera"              },
+  autoRot:        { ru: "Авто-вращение",           uz: "Avto-aylantirish",          en: "Auto-rotate"               },
+  plyFailed:      { ru: "PLY не загружен — показываю кадры орбиты", uz: "PLY yuklanmadi — orbit kadrlar ko'rsatilmoqda", en: "PLY not loaded — showing orbit frames" },
 
-  // Orbit carousel
-  carouselTitle: { ru: "Орбитные кадры (360°)", uz: "Orbit kadrlar (360°)" },
-  prev:          { ru: "◀", uz: "◀" },
-  next:          { ru: "▶", uz: "▶" },
-  frameOf:       { ru: "кадр", uz: "kadr" },
+  carouselTitle: { ru: "Орбитные кадры (360°)",    uz: "Orbit kadrlar (360°)",     en: "Orbit frames (360°)"       },
+  prev:          { ru: "◀",                        uz: "◀",                        en: "◀"                         },
+  next:          { ru: "▶",                        uz: "▶",                        en: "▶"                         },
+  frameOf:       { ru: "кадр",                     uz: "kadr",                     en: "frame"                     },
 
-  // Downloads
-  downloadPly:    { ru: "Скачать .ply", uz: "Yuklab olish .ply" },
-  downloadFrames: { ru: "Скачать кадры", uz: "Kadrlarni yuklab olish" },
+  downloadPly:    { ru: "Скачать .ply",            uz: "Yuklab olish .ply",        en: "Download .ply"             },
+  downloadFrames: { ru: "Скачать кадры",           uz: "Kadrlarni yuklab olish",   en: "Download frames"           },
 
-  // Meta panel
-  metaTitle:     { ru: "Метаданные", uz: "Meta ma'lumotlar" },
-  metaBranch:    { ru: "Ветка:", uz: "Tarmoq:" },
-  metaMethod:    { ru: "Метод:", uz: "Usul:" },
-  metaProvider:  { ru: "Провайдер:", uz: "Provaydar:" },
-  metaNViews:    { ru: "Видов:", uz: "Vidlar:" },
-  metaNGauss:    { ru: "Гауссиан:", uz: "Gaussianlar:" },
-  metaTimeSec:   { ru: "Время (сек):", uz: "Vaqt (sek):" },
-  metaApiCost:   { ru: "Стоимость API:", uz: "API narxi:" },
-  metaNote:      { ru: "Примечание:", uz: "Izoh:" },
+  metaTitle:     { ru: "Метаданные",               uz: "Meta ma'lumotlar",          en: "Metadata"                  },
+  metaBranch:    { ru: "Ветка:",                   uz: "Tarmoq:",                   en: "Branch:"                   },
+  metaMethod:    { ru: "Метод:",                   uz: "Usul:",                     en: "Method:"                   },
+  metaProvider:  { ru: "Провайдер:",               uz: "Provaydar:",                en: "Provider:"                 },
+  metaNViews:    { ru: "Видов:",                   uz: "Vidlar:",                   en: "Views:"                    },
+  metaNGauss:    { ru: "Гауссиан:",                uz: "Gaussianlar:",              en: "Gaussians:"                },
+  metaTimeSec:   { ru: "Время (сек):",             uz: "Vaqt (sek):",               en: "Time (sec):"               },
+  metaApiCost:   { ru: "Стоимость API:",           uz: "API narxi:",                en: "API cost:"                 },
+  voxelPitch:    { ru: "Качество (voxel pitch):",  uz: "Sifat (voxel pitch):",      en: "Quality (voxel pitch):"    },
+  metaNote:      { ru: "Примечание:",              uz: "Izoh:",                     en: "Note:"                     },
 
-  // Offline
-  offline: { ru: "API недоступен. Запустите: python -m fractal_3d.api_server", uz: "API mavjud emas. Ishga tushiring: python -m fractal_3d.api_server" },
+  offline: { ru: "API недоступен. Запустите: python -m fractal_3d.api_server", uz: "API mavjud emas. Ishga tushiring: python -m fractal_3d.api_server", en: "API offline. Run: python -m fractal_3d.api_server" },
 };
 
 const BASE = "http://localhost:8000";
@@ -101,7 +99,7 @@ function createWebGLRenderer(params: THREE.WebGLRendererParameters): THREE.WebGL
 // ─── types ─────────────────────────────────────────────────────────────────────
 type Mode = "synthetic" | "photo";
 type JobState = "queued" | "running" | "done" | "error";
-type ViewSource = "mesh" | "points";
+type ViewSource = "mesh" | "points" | "splat" | "hologram";
 type FractalType = "mandelbulb" | "menger3d" | "ifs3d" | "mesh";
 
 interface JobStatus {
@@ -130,6 +128,7 @@ export default function Splat360() {
   const [mandelIter, setMandelIter] = useState(12);
   const [mengerLevel, setMengerLevel] = useState(4);
   const [ifsPoints, setIfsPoints] = useState(2000000);
+  const [voxelPitch, setVoxelPitch] = useState<number | null>(0.01);
 
   // photo inputs
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -165,6 +164,7 @@ export default function Splat360() {
   const controlsRef = useRef<OrbitControls | null>(null);
   const rafRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const holRef = useRef<{ scene: THREE.Scene; camera: THREE.PerspectiveCamera; controls: HologramControls } | null>(null);
 
   // ── photo file picker ────────────────────────────────────────────────────────
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -256,6 +256,7 @@ export default function Splat360() {
           menger_level: mengerLevel,
           ifs_points: ifsPoints,
           ifs_warmup: 20,
+          voxel_pitch: voxelPitch,
         }),
       });
       if (!res.ok) {
@@ -276,7 +277,8 @@ export default function Splat360() {
     } finally {
       setPosting(false);
     }
-  }, [nViews, imgSize, elevations, fractalType, fractalResolution, mandelPower, mandelIter, mengerLevel, ifsPoints, lang, startPolling]);
+  }, [nViews, imgSize, elevations, fractalType, fractalResolution, mandelPower, mandelIter, mengerLevel, ifsPoints, voxelPitch, lang, startPolling]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   // ── POST photo ────────────────────────────────────────────────────────────────
   const handlePhoto = useCallback(async () => {
@@ -317,10 +319,12 @@ export default function Splat360() {
     const meshUrl = status.files?.mesh ?? null;
     const plyUrl = status.files?.ply ?? null;
     const renderMesh = viewSource === "mesh" && !!meshUrl;
-    const renderPoints = !renderMesh;
+    const renderSplat = viewSource === "splat" && !!plyUrl;
+    const renderHologram = viewSource === "hologram" && !!plyUrl;
+    const renderPoints = viewSource === "points" && !!plyUrl;
+    const renderGenericPoints = !renderMesh && !renderSplat && !renderHologram && !renderPoints && !!plyUrl;
 
-    // If points mode but no ply url, nothing to show
-    if (renderPoints && !plyUrl) return;
+    if (!renderMesh && !renderSplat && !renderHologram && !renderPoints && !renderGenericPoints && !plyUrl) return;
 
     // Dispose previous
     if (rendererRef.current) {
@@ -455,6 +459,27 @@ export default function Splat360() {
           meshUrl,
           (geometry) => {
             ensureGeometryColors(geometry);
+            // Debug: inspect geometry before fitting/scaling
+            try {
+              geometry.computeBoundingBox();
+              const posAttr = geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
+              console.debug("PLY mesh loaded (raw):", {
+                vertices: posAttr ? posAttr.count : undefined,
+                bbox: geometry.boundingBox,
+              });
+              if (posAttr) {
+                let minZ = Infinity, maxZ = -Infinity;
+                for (let i = 0; i < posAttr.count; i++) {
+                  const z = posAttr.getZ(i);
+                  if (z < minZ) minZ = z;
+                  if (z > maxZ) maxZ = z;
+                }
+                console.debug("PLY mesh Z range (pre-scale):", minZ, maxZ);
+              }
+            } catch (e) {
+              console.debug("PLY mesh debug failed:", e);
+            }
+
             geometry.computeVertexNormals();
             const mesh = new THREE.Mesh(
               geometry,
@@ -493,12 +518,25 @@ export default function Splat360() {
           },
         );
       }
-    } else if (renderPoints && plyUrl) {
+    } else if ((renderSplat || renderHologram || renderPoints || renderGenericPoints) && plyUrl) {
       const loader = new PLYLoader();
       loader.load(
         plyUrl,
         (geometry) => {
-          // Center and scale
+          // Debug: inspect raw geometry
+          try {
+            geometry.computeBoundingBox();
+            const bbox = geometry.boundingBox!;
+            const posAttr = geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
+            console.debug("PLY loaded (raw):", {
+              vertices: posAttr ? posAttr.count : undefined,
+              bbox,
+            });
+          } catch (e) {
+            console.debug("PLY debug failed:", e);
+          }
+
+          // Center and scale geometry
           geometry.computeBoundingBox();
           const bbox = geometry.boundingBox!;
           const center = new THREE.Vector3();
@@ -507,13 +545,60 @@ export default function Splat360() {
           const size = new THREE.Vector3();
           bbox.getSize(size);
           const maxDim = Math.max(size.x, size.y, size.z) || 1;
-          const scale = 2 / maxDim;
-          geometry.scale(scale, scale, scale);
+          const geoScale = 2 / maxDim;
+          geometry.scale(geoScale, geoScale, geoScale);
 
-          // Compute point size from bounding box (after scale, maxDim is ~2)
-          const pointSize = (maxDim * scale) / 200;
+          if (renderSplat) {
+            const splatPoints = createSplatPoints(geometry, { camera, worldMatrix: new THREE.Matrix4() });
+            scene.add(splatPoints);
 
-          // Vertex colors
+            const sortOnMove = () => {
+              try {
+                if (cameraRef.current) sortSplatPoints(splatPoints, cameraRef.current);
+              } catch {
+                // skip frame
+              }
+            };
+
+            controlsRef.current?.addEventListener("change", sortOnMove);
+            animate();
+            return;
+          }
+
+          if (renderHologram) {
+            try {
+              const hol = createHologramScene(geometry, canvas);
+              sceneRef.current = hol.scene;
+              cameraRef.current = hol.camera;
+
+              // Replace the scene with hologram scene
+              while (scene.children.length) scene.remove(scene.children[0]);
+              hol.scene.children.forEach((c) => scene.add(c));
+
+              let lastTime = performance.now() / 1000;
+              let holRunning = true;
+
+              const animateHol = () => {
+                if (!holRunning) return;
+                rafRef.current = requestAnimationFrame(animateHol);
+                const t = performance.now() / 1000;
+                const dt = Math.min(t - lastTime, 0.05);
+                lastTime = t;
+                hol.controls.update(dt);
+                try { renderer.render(scene, hol.camera); } catch { /* skip */ }
+              };
+
+              holRef.current = hol;
+              animateHol();
+              return;
+            } catch {
+              // hologram failed → fall through to regular points
+            }
+          }
+
+          // Regular point cloud fallback
+          const pointSize = maxDim * geoScale / 200;
+
           let mat: THREE.PointsMaterial;
           if (ensureGeometryColors(geometry)) {
             mat = new THREE.PointsMaterial({ size: pointSize, vertexColors: true, sizeAttenuation: true });
@@ -527,7 +612,6 @@ export default function Splat360() {
         },
         undefined,
         () => {
-          // Load error → fallback to orbit carousel
           setPlyFailed(true);
         },
       );
@@ -536,6 +620,10 @@ export default function Splat360() {
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       controls.dispose();
+      if (holRef.current) {
+        holRef.current.controls.dispose();
+        holRef.current = null;
+      }
       renderer.dispose();
       rendererRef.current = null;
     };
@@ -575,7 +663,11 @@ export default function Splat360() {
   const orbitFrames: string[] = status?.files?.orbit ?? [];
 
   const isDone = status?.state === "done";
-  const showViewer = isDone && !plyFailed && (viewSource === "mesh" ? !!status?.files?.mesh : !!status?.files?.ply);
+  const showViewer = isDone && !plyFailed && (
+    (viewSource === "mesh" && !!status?.files?.mesh) ||
+    ((viewSource === "splat" || viewSource === "hologram" || viewSource === "points") && !!status?.files?.ply) ||
+    (userViewSource === null && (!!status?.files?.mesh || !!status?.files?.ply))
+  );
   const showOrbit = isDone && (plyFailed || (!status?.files?.ply && !status?.files?.mesh)) && orbitFrames.length > 0;
 
   // ── button style helper ───────────────────────────────────────────────────────
@@ -658,8 +750,8 @@ export default function Splat360() {
             {fractalType === "mesh" && (
               <div style={{ fontSize: 12, color: "#FBBF24", marginTop: 4 }}>
                 {lang === "ru"
-                  ? "Используется последний mesh из вкладки 2D→3D, построенный из depth map."
-                  : "2D→3D sahifasida depth map orqali qurilgan oxirgi mesh ishlatiladi."}
+                  ? "Depth mesh = рельеф (2.5D, только лицевая сторона) из вкладки 2D→3D. Полный 360°-объём из него физически не выйдет — спина плоская. Для настоящего 360° выбери Mandelbulb / Менгера / 3D-IFS."
+                  : "Depth mesh = relyef (2.5D, faqat old tomon) 2D→3D sahifasidan. To'liq 360°-hajm undan chiqmaydi — orqa tomoni tekis. Haqiqiy 360° uchun Mandelbulb / Menger / 3D-IFS tanlang."}
               </div>
             )}
             {fractalType !== "mesh" && (
@@ -780,6 +872,32 @@ export default function Splat360() {
                   />
                 </label>
               )}
+              {/* Voxel pitch for CPU fusion fallback */}
+              <label style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+                <span style={{ display: "block", marginBottom: 4 }}>{lang === "ru" ? "Voxel pitch (м)" : "Voxel pitch (m)"}</span>
+                <input
+                  type="number"
+                  value={voxelPitch ?? 0.01}
+                  min={0.0005}
+                  max={0.1}
+                  step={0.0005}
+                  onChange={(e) => setVoxelPitch(parseFloat(e.target.value) || 0.01)}
+                  style={{
+                    width: "100%",
+                    padding: "6px 10px",
+                    borderRadius: 6,
+                    border: "1px solid var(--border-color)",
+                    background: "var(--bg-secondary)",
+                    color: "var(--text-primary, #e2e8f0)",
+                    fontSize: 14,
+                  }}
+                />
+              </label>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", gridColumn: "1 / -1", marginTop: 6 }}>
+                {lang === "ru"
+                  ? "Меньший voxel pitch → выше детализация и время обработки. Рекомендуется 0.005–0.02 для тестов."
+                  : "Kichikroq voxel pitch → yuqori detallashuv va uzoq ishlov berish. 0.005–0.02 test uchun tavsiya etiladi."}
+              </div>
             </div>
           )}
           <div style={{ marginBottom: 10 }}>
@@ -883,7 +1001,11 @@ export default function Splat360() {
           }}>
             ⚠ {T.photoWarning[lang]}
             <br />
-            <span style={{ opacity: 0.7, fontSize: 11 }}>{T.tokenNote[lang]}</span>
+            <span style={{ opacity: 0.7, fontSize: 11 }}>
+            {provider === "displacement"
+              ? (lang === "ru" ? "Displacement — без API, без токена" : "Displacement — API kerak emas, token kerak emas")
+              : T.tokenNote[lang]}
+          </span>
           </div>
 
           {/* File upload */}
@@ -939,8 +1061,10 @@ export default function Splat360() {
               }}
             >
               <option value="auto">{T.providerAuto[lang]}</option>
-              <option value="replicate">Replicate</option>
-              <option value="local">Local</option>
+              <option value="displacement">{lang === "ru" ? "Displacement (без ИИ)" : "Displacement (AIsiz)"}</option>
+              <option value="hunyuan3d">Hunyuan 3D 3.1</option>
+              <option value="trellis">Trellis</option>
+              <option value="instantmesh">InstantMesh</option>
             </select>
           </div>
 
@@ -1052,13 +1176,28 @@ export default function Splat360() {
             {T.viewMesh[lang]}
           </button>
           <button
-            style={activeBtn(viewSource === "points")}
-            onClick={() => setUserViewSource("points")}
+            style={status?.files?.ply ? activeBtn(viewSource === "splat") : disabledBtn}
+            disabled={!status?.files?.ply}
+            onClick={() => { if (status?.files?.ply) setUserViewSource("splat"); }}
+          >
+            {T.viewSplat[lang]}
+          </button>
+          <button
+            style={status?.files?.ply ? activeBtn(viewSource === "hologram") : disabledBtn}
+            disabled={!status?.files?.ply}
+            onClick={() => { if (status?.files?.ply) setUserViewSource("hologram"); }}
+          >
+            {T.viewHologram[lang]}
+          </button>
+          <button
+            style={status?.files?.ply ? activeBtn(viewSource === "points") : disabledBtn}
+            disabled={!status?.files?.ply}
+            onClick={() => { if (status?.files?.ply) setUserViewSource("points"); }}
           >
             {T.viewPoints[lang]}
           </button>
           <span style={{ fontSize: 11, color: "var(--text-secondary)", fontStyle: "italic", marginLeft: 4 }}>
-            {T.splatNote[lang]}
+            {viewSource === "hologram" ? T.holNote[lang] : T.splatNote[lang]}
           </span>
         </div>
       )}
@@ -1178,6 +1317,7 @@ export default function Splat360() {
                   [T.metaMethod[lang],   "method"],
                   [T.metaProvider[lang], "provider"],
                   [T.metaNViews[lang],   "n_views"],
+                  [T.voxelPitch[lang],  "voxel_pitch"],
                   [T.metaNGauss[lang],   "n_gaussians"],
                   [T.metaTimeSec[lang],  "time_sec"],
                   [T.metaApiCost[lang],  "api_cost"],

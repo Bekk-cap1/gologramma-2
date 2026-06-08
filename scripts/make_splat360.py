@@ -73,6 +73,8 @@ def main() -> None:
                         help="Render image size in pixels (Branch A, default 256).")
     parser.add_argument("--resolution", type=int, default=None,
                         help="Volumetric grid resolution N (fractal Branch A).")
+    parser.add_argument("--voxel-pitch", type=float, default=None,
+                        help="Voxel pitch (meters) for CPU fusion fallback.")
     parser.add_argument("--power", type=float, default=8.0,
                         help="Mandelbulb power (default: 8).")
     parser.add_argument("--max-iter", type=int, default=12,
@@ -108,6 +110,7 @@ def main() -> None:
             max_iter=args.max_iter,
             menger_level=args.menger_level,
             ifs_points=args.ifs_points,
+            voxel_pitch=args.voxel_pitch,
             progress=_progress,
         )
 

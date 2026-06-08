@@ -164,24 +164,21 @@ def reconstruct(image, quality: str = "full", basename: str = "fractal",
         decision["c_imag"] = ep.get("c_imag", decision.get("c_imag", 0.27015))
 
     # 3D synthesis + mesh
+    #
+    # Bug 1 (2D->3D builds from depth, not IFS): the displayed geometry is ALWAYS
+    # a height-field relief extruded from the depth map of the current image, so
+    # the result visually matches the depth map and differs per input. The IFS
+    # chaos-game path no longer drives the exported geometry. ``synthesize`` is
+    # still run, but only to produce the top-down render used by the
+    # analysis-by-synthesis verification metric below (not as a 3D source).
     t_mesh = time.time()
-    synth = synthesize(decision, n_points=n_points)
-    if synth["mode"] == "ifs" and synth["points"] is not None:
-        mesh = build_mesh(points=synth["points"], resolution=res)
-    else:
-        mesh = build_mesh(depth_map=depth_info["depth_map"], resolution=res)
+    synth = synthesize(decision, n_points=n_points)  # verification render only
+    mesh = build_mesh(depth_map=depth_info["depth_map"], resolution=res)
     mesh_time_ms = int((time.time() - t_mesh) * 1000)
 
-    # how the 3D geometry was generated (for the UI viewer label)
+    # how the 3D geometry was generated (for the UI viewer label) — always depth
     neural_depth_used = str(depth_info.get("method", "")).startswith("neural")
-    if neural_depth_used and synth["mode"] != "ifs":
-        generation_method = "neural_depth"
-    elif decision["is_escape_time"]:
-        generation_method = "escape_depth"
-    elif str(decision["final_type"]).lower() == "koch_snowflake":
-        generation_method = "recursive_boundary"
-    else:
-        generation_method = "chaos_game"
+    generation_method = "neural_depth" if neural_depth_used else "depth_relief"
 
     metadata = {
         "fractal_type": decision["final_type"],

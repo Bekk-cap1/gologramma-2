@@ -5,75 +5,74 @@ import { useLang } from "@/components/LanguageContext";
 
 // ─── Bilingual dictionary ────────────────────────────────────────────────────
 const T = {
-  tabTitle:    { ru: "Алгоритм DCNF CRF",              uz: "DCNF CRF algoritmi" },
+  tabTitle:    { ru: "Алгоритм DCNF CRF",  uz: "DCNF CRF algoritmi",  en: "DCNF CRF Algorithm"  },
   tabSubtitle: {
     ru: "Liu et al. CVPR 2015 «Deep Convolutional Neural Fields» + наши добавления: 3 similarity (LAB, histogram, LBP) + DA V2 unary + guided filter",
     uz: "Liu et al. CVPR 2015 «Deep Convolutional Neural Fields» + bizning qo'shimchalarimiz: 3 similarity (LAB, histogram, LBP) + DA V2 unary + guided filter",
+    en: "Liu et al. CVPR 2015 «Deep Convolutional Neural Fields» + our additions: 3 similarities (LAB, histogram, LBP) + DA V2 unary + guided filter",
   },
 
-  // Section A titles
-  secATitle:   { ru: "A. Блок-схема алгоритма (Liu et al. рис. 1 + наши расширения)", uz: "A. Algoritm blok-sxemasi (Liu et al. 1-rasm + bizning kengaytmalar)" },
-  inputImg:    { ru: "Входное изображение (RGB)", uz: "Kirish tasviri (RGB)" },
-  slic:        { ru: "SLIC суперпиксели", uz: "SLIC superpiksellar" },
-  slicSub:     { ru: "over-segmentation, ~500 регионов", uz: "over-segmentatsiya, ~500 hudud" },
-  split:       { ru: "параллельные ветви ↓", uz: "parallel tarmoqlar ↓" },
-  unaryTitle:  { ru: "Unary часть", uz: "Unary qismi" },
-  unaryBody:   { ru: "z_p: глубина суперпикселя\n(DA V2 / Shape-from-Shading /\npseudo-cues)", uz: "z_p: superpiksel chuqurligi\n(DA V2 / Shape-from-Shading /\npseudo-cues)" },
-  unaryFormula:{ ru: "U(y_p) = (y_p − z_p)²", uz: "U(y_p) = (y_p − z_p)²" },
-  pairTitle:   { ru: "Pairwise часть", uz: "Pairwise qismi" },
-  pairBody:    { ru: "K = 3 сходства (для пар p,q):", uz: "K = 3 o'xshashlik (p,q juftliklari uchun):" },
-  pairS1:      { ru: "S¹: цвет LAB", uz: "S¹: LAB rang" },
-  pairS2:      { ru: "S²: цветовая гистограмма", uz: "S²: rang gistogrammasi" },
-  pairS3:      { ru: "S³: LBP текстура", uz: "S³: LBP tekstura" },
-  pairFormula: { ru: "R_pq = Σ_k β_k · S^(k)_pq", uz: "R_pq = Σ_k β_k · S^(k)_pq" },
-  merge:       { ru: "← объединение ветвей →", uz: "← tarmoqlar birlashuvi →" },
-  crfTitle:    { ru: "CRF энергия", uz: "CRF energiyasi" },
-  crfFormula:  { ru: "E(y) = Σ_p (y_p − z_p)² + Σ_(p,q) ½·R_pq·(y_p − y_q)²", uz: "E(y) = Σ_p (y_p − z_p)² + Σ_(p,q) ½·R_pq·(y_p − y_q)²" },
-  laplacianTitle:{ ru: "Матрица A (обобщённый лапласиан)", uz: "A matritsasi (umumlashtirilgan laplasiyen)" },
-  laplacianFormula:{ ru: "A = I + D − R,  D_pp = Σ_q R_pq", uz: "A = I + D − R,  D_pp = Σ_q R_pq" },
-  mapTitle:    { ru: "MAP-решение (closed-form)", uz: "MAP-yechim (yopiq ko'rinishda)" },
-  mapFormula:  { ru: "y* = A⁻¹ z", uz: "y* = A⁻¹ z" },
-  filterTitle: { ru: "Guided filter (де-блок) + blend", uz: "Guided filter (blok-yo'qotish) + blend" },
-  filterSub:   { ru: "сглаживание + сохранение рёбер", uz: "silliqlashtirish + qirralarni saqlash" },
-  depthTitle:  { ru: "Карта глубины → 3D", uz: "Chuqurlik xaritasi → 3D" },
-  depthSub:    { ru: "marching cubes / heightmap → 3D меш", uz: "marching cubes / heightmap → 3D mesh" },
+  secATitle:   { ru: "A. Блок-схема алгоритма (Liu et al. рис. 1 + наши расширения)", uz: "A. Algoritm blok-sxemasi (Liu et al. 1-rasm + bizning kengaytmalar)", en: "A. Algorithm block diagram (Liu et al. Fig. 1 + our extensions)" },
+  inputImg:    { ru: "Входное изображение (RGB)",          uz: "Kirish tasviri (RGB)",                en: "Input image (RGB)"                      },
+  slic:        { ru: "SLIC суперпиксели",                  uz: "SLIC superpiksellar",                 en: "SLIC superpixels"                        },
+  slicSub:     { ru: "over-segmentation, ~500 регионов",   uz: "over-segmentatsiya, ~500 hudud",      en: "over-segmentation, ~500 regions"         },
+  split:       { ru: "параллельные ветви ↓",               uz: "parallel tarmoqlar ↓",                en: "parallel branches ↓"                     },
+  unaryTitle:  { ru: "Unary часть",                        uz: "Unary qismi",                         en: "Unary term"                              },
+  unaryBody:   { ru: "z_p: глубина суперпикселя\n(DA V2 / Shape-from-Shading /\npseudo-cues)", uz: "z_p: superpiksel chuqurligi\n(DA V2 / Shape-from-Shading /\npseudo-cues)", en: "z_p: superpixel depth\n(DA V2 / Shape-from-Shading /\npseudo-cues)" },
+  unaryFormula:{ ru: "U(y_p) = (y_p − z_p)²",             uz: "U(y_p) = (y_p − z_p)²",               en: "U(y_p) = (y_p − z_p)²"                  },
+  pairTitle:   { ru: "Pairwise часть",                     uz: "Pairwise qismi",                      en: "Pairwise term"                           },
+  pairBody:    { ru: "K = 3 сходства (для пар p,q):",     uz: "K = 3 o'xshashlik (p,q juftliklari uchun):", en: "K = 3 similarities (for pairs p,q):" },
+  pairS1:      { ru: "S¹: цвет LAB",                      uz: "S¹: LAB rang",                        en: "S¹: LAB colour"                          },
+  pairS2:      { ru: "S²: цветовая гистограмма",          uz: "S²: rang gistogrammasi",              en: "S²: colour histogram"                    },
+  pairS3:      { ru: "S³: LBP текстура",                  uz: "S³: LBP tekstura",                    en: "S³: LBP texture"                         },
+  pairFormula: { ru: "R_pq = Σ_k β_k · S^(k)_pq",        uz: "R_pq = Σ_k β_k · S^(k)_pq",          en: "R_pq = Σ_k β_k · S^(k)_pq"              },
+  merge:       { ru: "← объединение ветвей →",             uz: "← tarmoqlar birlashuvi →",            en: "← branch merge →"                        },
+  crfTitle:    { ru: "CRF энергия",                        uz: "CRF energiyasi",                      en: "CRF energy"                              },
+  crfFormula:  { ru: "E(y) = Σ_p (y_p − z_p)² + Σ_(p,q) ½·R_pq·(y_p − y_q)²", uz: "E(y) = Σ_p (y_p − z_p)² + Σ_(p,q) ½·R_pq·(y_p − y_q)²", en: "E(y) = Σ_p (y_p − z_p)² + Σ_(p,q) ½·R_pq·(y_p − y_q)²" },
+  laplacianTitle:{ ru: "Матрица A (обобщённый лапласиан)", uz: "A matritsasi (umumlashtirilgan laplasiyen)", en: "Matrix A (generalised Laplacian)"   },
+  laplacianFormula:{ ru: "A = I + D − R,  D_pp = Σ_q R_pq", uz: "A = I + D − R,  D_pp = Σ_q R_pq", en: "A = I + D − R,  D_pp = Σ_q R_pq"         },
+  mapTitle:    { ru: "MAP-решение (closed-form)",          uz: "MAP-yechim (yopiq ko'rinishda)",       en: "MAP solution (closed-form)"              },
+  mapFormula:  { ru: "y* = A⁻¹ z",                        uz: "y* = A⁻¹ z",                          en: "y* = A⁻¹ z"                              },
+  filterTitle: { ru: "Guided filter (де-блок) + blend",   uz: "Guided filter (blok-yo'qotish) + blend", en: "Guided filter (de-block) + blend"      },
+  filterSub:   { ru: "сглаживание + сохранение рёбер",    uz: "silliqlashtirish + qirralarni saqlash",en: "smoothing + edge preservation"           },
+  depthTitle:  { ru: "Карта глубины → 3D",                uz: "Chuqurlik xaritasi → 3D",              en: "Depth map → 3D"                          },
+  depthSub:    { ru: "marching cubes / heightmap → 3D меш", uz: "marching cubes / heightmap → 3D mesh", en: "marching cubes / heightmap → 3D mesh"  },
 
-  // Section B
-  secBTitle:   { ru: "B. Пронумерованный алгоритм (шаги 1–7)", uz: "B. Raqamlangan algoritm (1–7 qadamlar)" },
-  step1Title:  { ru: "SLIC сегментация → n суперпикселей", uz: "SLIC segmentatsiya → n superpiksel" },
-  step1Form:   { ru: "n ≈ 500  (SLIC over-segmentation)", uz: "n ≈ 500  (SLIC over-segmentatsiya)" },
-  step1Exp:    { ru: "Изображение разбивается на ~500 компактных регионов с однородным цветом.", uz: "Tasvir bir xil rangli ~500 ta ixcham hududga bo'linadi." },
-  step2Title:  { ru: "Unary: глубина суперпикселя z_p", uz: "Unary: superpiksel chuqurligi z_p" },
-  step2Form:   { ru: "U(y_p) = (y_p − z_p)²", uz: "U(y_p) = (y_p − z_p)²" },
-  step2Exp:    { ru: "z_p — псевдо-глубина из DA V2 / Shape-from-Shading / геометрических подсказок. U штрафует отклонение y_p от z_p.", uz: "z_p — DA V2 / Shape-from-Shading / geometrik ishora asosida pseudo-chuqurlik. U qiymat y_p ni z_p dan chetlanishi uchun jazo beradi." },
-  step3Title:  { ru: "Pairwise: 3 сходства (color, histogram, LBP)", uz: "Pairwise: 3 o'xshashlik (rang, gistogramma, LBP)" },
-  step3Form:   { ru: "S^(k)_pq = exp(−γ_k · ‖s^(k)_p − s^(k)_q‖);\nR_pq = Σ_k β_k · S^(k)_pq,  β_k ≥ 0;\nV(y_p,y_q) = ½ · R_pq · (y_p − y_q)²", uz: "S^(k)_pq = exp(−γ_k · ‖s^(k)_p − s^(k)_q‖);\nR_pq = Σ_k β_k · S^(k)_pq,  β_k ≥ 0;\nV(y_p,y_q) = ½ · R_pq · (y_p − y_q)²" },
-  step3Exp:    { ru: "Чем похожее соседние суперпиксели (по цвету, гистограмме, LBP-текстуре) — тем сильнее они должны иметь близкую глубину.", uz: "Qo'shni superpiksellar bir-biriga qanchalik o'xshash bo'lsa (rang, gistogramma, LBP-tekstura) — ularning chuqurligi shunchalik yaqin bo'lishi kerak." },
-  step4Title:  { ru: "CRF энергия E(y)", uz: "CRF energiyasi E(y)" },
-  step4Form:   { ru: "E(y) = Σ U + Σ V = yᵀAy − 2zᵀy + zᵀz\nA = I + D − R,  D_pp = Σ_q R_pq", uz: "E(y) = Σ U + Σ V = yᵀAy − 2zᵀy + zᵀz\nA = I + D − R,  D_pp = Σ_q R_pq" },
-  step4Exp:    { ru: "Суммируем unary- и pairwise-штрафы. В матричном виде задача становится квадратичной.", uz: "Unary va pairwise jarimalarni yig'amiz. Matritsa ko'rinishida masala kvadratik bo'ladi." },
-  step5Title:  { ru: "MAP-решение (closed-form)", uz: "MAP-yechim (yopiq ko'rinish)" },
-  step5Form:   { ru: "y* = A⁻¹ z", uz: "y* = A⁻¹ z" },
-  step5Exp:    { ru: "A — положительно-полуопределённая матрица. Систему Ay = z решают итеративными методами (например, CG-решателем) без явного обращения A⁻¹.", uz: "A — musbat-yarim aniq matritsa. Ay = z tizimi iterativ usullar (masalan, CG-yechuvchi) bilan A⁻¹ ni aniq hisoblash zarur bo'lmasdan yechiladi." },
-  step6Title:  { ru: "Guided filter + blend → финальная карта", uz: "Guided filter + blend → yakuniy xarita" },
-  step6Form:   { ru: "y_final = GuidedFilter(y*, I_rgb, r, ε)", uz: "y_final = GuidedFilter(y*, I_rgb, r, ε)" },
-  step6Exp:    { ru: "Guided filter по исходному RGB сглаживает карту, сохраняя резкие рёбра; blend смешивает с исходной для контраста.", uz: "Guided filter asl RGB bo'yicha xaritani silliqlab, keskin qirralarni saqlab qoladi; blend kontrast uchun asl bilan aralashtiriladi." },
-  step7Title:  { ru: "Карта глубины → marching cubes / heightmap → 3D", uz: "Chuqurlik xaritasi → marching cubes / heightmap → 3D" },
-  step7Form:   { ru: "mesh = MarchingCubes(vol) | Heightmap → TriangleMesh", uz: "mesh = MarchingCubes(vol) | Heightmap → TriangleMesh" },
-  step7Exp:    { ru: "Финальная 2D-карта глубины используется как heightmap или изосурфейс для 3D-меша в WebGL/Three.js.", uz: "Yakuniy 2D-chuqurlik xaritasi WebGL/Three.js da 3D-mesh uchun heightmap yoki izosurface sifatida ishlatiladi." },
+  secBTitle:   { ru: "B. Пронумерованный алгоритм (шаги 1–7)", uz: "B. Raqamlangan algoritm (1–7 qadamlar)", en: "B. Numbered algorithm (steps 1–7)"  },
+  step1Title:  { ru: "SLIC сегментация → n суперпикселей", uz: "SLIC segmentatsiya → n superpiksel", en: "SLIC segmentation → n superpixels"        },
+  step1Form:   { ru: "n ≈ 500  (SLIC over-segmentation)",  uz: "n ≈ 500  (SLIC over-segmentatsiya)", en: "n ≈ 500  (SLIC over-segmentation)"         },
+  step1Exp:    { ru: "Изображение разбивается на ~500 компактных регионов с однородным цветом.", uz: "Tasvir bir xil rangli ~500 ta ixcham hududga bo'linadi.", en: "The image is split into ~500 compact regions with uniform colour." },
+  step2Title:  { ru: "Unary: глубина суперпикселя z_p",   uz: "Unary: superpiksel chuqurligi z_p",   en: "Unary: superpixel depth z_p"             },
+  step2Form:   { ru: "U(y_p) = (y_p − z_p)²",             uz: "U(y_p) = (y_p − z_p)²",               en: "U(y_p) = (y_p − z_p)²"                  },
+  step2Exp:    { ru: "z_p — псевдо-глубина из DA V2 / Shape-from-Shading / геометрических подсказок. U штрафует отклонение y_p от z_p.", uz: "z_p — DA V2 / Shape-from-Shading / geometrik ishora asosida pseudo-chuqurlik. U qiymat y_p ni z_p dan chetlanishi uchun jazo beradi.", en: "z_p — pseudo-depth from DA V2 / Shape-from-Shading / geometric cues. U penalises deviation of y_p from z_p." },
+  step3Title:  { ru: "Pairwise: 3 сходства (color, histogram, LBP)", uz: "Pairwise: 3 o'xshashlik (rang, gistogramma, LBP)", en: "Pairwise: 3 similarities (colour, histogram, LBP)" },
+  step3Form:   { ru: "S^(k)_pq = exp(−γ_k · ‖s^(k)_p − s^(k)_q‖);\nR_pq = Σ_k β_k · S^(k)_pq,  β_k ≥ 0;\nV(y_p,y_q) = ½ · R_pq · (y_p − y_q)²", uz: "S^(k)_pq = exp(−γ_k · ‖s^(k)_p − s^(k)_q‖);\nR_pq = Σ_k β_k · S^(k)_pq,  β_k ≥ 0;\nV(y_p,y_q) = ½ · R_pq · (y_p − y_q)²", en: "S^(k)_pq = exp(−γ_k · ‖s^(k)_p − s^(k)_q‖);\nR_pq = Σ_k β_k · S^(k)_pq,  β_k ≥ 0;\nV(y_p,y_q) = ½ · R_pq · (y_p − y_q)²" },
+  step3Exp:    { ru: "Чем похожее соседние суперпиксели (по цвету, гистограмме, LBP-текстуре) — тем сильнее они должны иметь близкую глубину.", uz: "Qo'shni superpiksellar bir-biriga qanchalik o'xshash bo'lsa (rang, gistogramma, LBP-tekstura) — ularning chuqurligi shunchalik yaqin bo'lishi kerak.", en: "The more similar neighbouring superpixels are (colour, histogram, LBP texture), the closer their depths should be." },
+  step4Title:  { ru: "CRF энергия E(y)",                  uz: "CRF energiyasi E(y)",                 en: "CRF energy E(y)"                         },
+  step4Form:   { ru: "E(y) = Σ U + Σ V = yᵀAy − 2zᵀy + zᵀz\nA = I + D − R,  D_pp = Σ_q R_pq", uz: "E(y) = Σ U + Σ V = yᵀAy − 2zᵀy + zᵀz\nA = I + D − R,  D_pp = Σ_q R_pq", en: "E(y) = Σ U + Σ V = yᵀAy − 2zᵀy + zᵀz\nA = I + D − R,  D_pp = Σ_q R_pq" },
+  step4Exp:    { ru: "Суммируем unary- и pairwise-штрафы. В матричном виде задача становится квадратичной.", uz: "Unary va pairwise jarimalarni yig'amiz. Matritsa ko'rinishida masala kvadratik bo'ladi.", en: "Sum unary and pairwise penalties. In matrix form the problem becomes quadratic." },
+  step5Title:  { ru: "MAP-решение (closed-form)",          uz: "MAP-yechim (yopiq ko'rinish)",         en: "MAP solution (closed-form)"              },
+  step5Form:   { ru: "y* = A⁻¹ z",                        uz: "y* = A⁻¹ z",                          en: "y* = A⁻¹ z"                              },
+  step5Exp:    { ru: "A — положительно-полуопределённая матрица. Систему Ay = z решают итеративными методами (например, CG-решателем) без явного обращения A⁻¹.", uz: "A — musbat-yarim aniq matritsa. Ay = z tizimi iterativ usullar (masalan, CG-yechuvchi) bilan A⁻¹ ni aniq hisoblash zarur bo'lmasdan yechiladi.", en: "A is a positive semi-definite matrix. The system Ay = z is solved iteratively (e.g. CG solver) without explicitly inverting A." },
+  step6Title:  { ru: "Guided filter + blend → финальная карта", uz: "Guided filter + blend → yakuniy xarita", en: "Guided filter + blend → final map"  },
+  step6Form:   { ru: "y_final = GuidedFilter(y*, I_rgb, r, ε)", uz: "y_final = GuidedFilter(y*, I_rgb, r, ε)", en: "y_final = GuidedFilter(y*, I_rgb, r, ε)" },
+  step6Exp:    { ru: "Guided filter по исходному RGB сглаживает карту, сохраняя резкие рёбра; blend смешивает с исходной для контраста.", uz: "Guided filter asl RGB bo'yicha xaritani silliqlab, keskin qirralarni saqlab qoladi; blend kontrast uchun asl bilan aralashtiriladi.", en: "Guided filter on the source RGB smooths the map while preserving sharp edges; blend mixes with the original for contrast." },
+  step7Title:  { ru: "Карта глубины → marching cubes / heightmap → 3D", uz: "Chuqurlik xaritasi → marching cubes / heightmap → 3D", en: "Depth map → marching cubes / heightmap → 3D" },
+  step7Form:   { ru: "mesh = MarchingCubes(vol) | Heightmap → TriangleMesh", uz: "mesh = MarchingCubes(vol) | Heightmap → TriangleMesh", en: "mesh = MarchingCubes(vol) | Heightmap → TriangleMesh" },
+  step7Exp:    { ru: "Финальная 2D-карта глубины используется как heightmap или изосурфейс для 3D-меша в WebGL/Three.js.", uz: "Yakuniy 2D-chuqurlik xaritasi WebGL/Three.js da 3D-mesh uchun heightmap yoki izosurface sifatida ishlatiladi.", en: "The final 2D depth map is used as a heightmap or isosurface for a 3D mesh in WebGL/Three.js." },
 
-  // Section C
-  secCTitle:   { ru: "C. Метрики оценки качества", uz: "C. Sifat baholash metrikalari" },
+  secCTitle:   { ru: "C. Метрики оценки качества", uz: "C. Sifat baholash metrikalari", en: "C. Quality evaluation metrics" },
   secCNote:    {
     ru: "Метрики из Liu et al. Tables 1–3. Требуют ground-truth глубину; в нашем приложении мы используем относительные метрики без GT при сравнении методов.",
     uz: "Liu et al. Tables 1–3 dan metrikalar. Ground-truth chuqurlik talab qiladi; bizning ilovamizda usullarni taqqoslashda GT siz nisbiy metrikalar ishlatamiz.",
+    en: "Metrics from Liu et al. Tables 1–3. Require ground-truth depth; in our app we use relative metrics without GT when comparing methods.",
   },
-  colMetric:   { ru: "Метрика", uz: "Metrika" },
-  colFormula:  { ru: "Формула", uz: "Formula" },
-  colName:     { ru: "Название", uz: "Nomi" },
-  lowerBetter: { ru: "Меньше = лучше", uz: "Kichikroq = yaxshiroq" },
-  higherBetter:{ ru: "Больше = лучше", uz: "Kattaroq = yaxshiroq" },
-  popClose:    { ru: "Закрыть", uz: "Yopish" },
+  colMetric:   { ru: "Метрика",       uz: "Metrika",         en: "Metric"          },
+  colFormula:  { ru: "Формула",       uz: "Formula",         en: "Formula"         },
+  colName:     { ru: "Название",      uz: "Nomi",            en: "Name"            },
+  lowerBetter: { ru: "Меньше = лучше",uz: "Kichikroq = yaxshiroq", en: "Lower = better" },
+  higherBetter:{ ru: "Больше = лучше",uz: "Kattaroq = yaxshiroq",  en: "Higher = better"},
+  popClose:    { ru: "Закрыть",       uz: "Yopish",          en: "Close"           },
 } as const;
 
 // ─── Metrics data ────────────────────────────────────────────────────────────
@@ -941,11 +940,8 @@ function ClassicTwoPanelSVG(l: Lang) {
         <line x1="370" y1="0" x2="370" y2="648" stroke="#ddd" strokeWidth={1} strokeDasharray="5,4"/>
 
         {/* Caption */}
-        <text x={L} y={13} textAnchor="middle" fontSize={10} fill="#888" fontStyle="italic">
+        <text x={L} y={8} textAnchor="middle" fontSize={10} fill="#888" fontStyle="italic">
           {ru ? "Главный алгоритм (DCNF CRF)" : "Asosiy algoritm (DCNF CRF)"}
-        </text>
-        <text x={R} y={13} textAnchor="middle" fontSize={10} fill="#888" fontStyle="italic">
-          {ru ? "CRF(k,β,p,q) — функция" : "CRF(k,β,p,q) — funksiya"}
         </text>
 
         {/* ══════════════════════════════════════════════════════
@@ -1016,62 +1012,8 @@ function ClassicTwoPanelSVG(l: Lang) {
                 k=0? НЕТ  → LEFT → "k<0" note
             Both leaf paths merge at y=490, cx=R
         ══════════════════════════════════════════════════════ */}
-
-        {/* Start */}
-        <Oval cx={R} cy={30} label={ru?"Начало":"Бошлаш"}/>
-        <Ar x1={R} y1={50} x2={R} y2={68}/>
-
-        {/* Input: function signature */}
-        <IO x={R-108} y={68} w={216} h={36} label="CRF(k, β, z_p, p, q)"/>
-        <Ar x1={R} y1={104} x2={R} y2={122}/>
-
-        {/* Diamond: k>0? */}
-        <Dec cx={R} cy={152} w={132} h={60} label="k > 0 ?"/>
-
-        {/* ── PATH A: HA (k>0) → RIGHT → compute boxes ── */}
-        {/* Arrow right from diamond to cx=650, then down to top of compute box */}
-        <Ap d={`M${R+66},152 L650,152 L650,272`}/>
-        <Lbl x={R+68} y={147} text={ha}/>
-        {/* Compute: S^k + R_pq accumulation */}
-        <Proc x={594} y={272} w={112} h={50}
-          label={ru?"S^k=exp(−γ·‖s_p−s_q‖)\nR_pq += β_k·S^k":"S^k=exp(−γ·‖s_p−s_q‖)\nR_pq += β_k·S^k"}/>
-        <Ar x1={650} y1={322} x2={650} y2={344}/>
-        <Proc x={594} y={344} w={112} h={36} label="return CRF(k−1,β,z,p,q)"/>
-        {/* Merge right path → down → left → junction at (R, 490) */}
-        <Ap d={`M650,380 L650,490 L${R},490`}/>
-
-        {/* ── PATH B: НЕТ (k=0 case) → LEFT → k=0? diamond ── */}
-        <Ap d={`M${R-66},152 L462,152 L462,238`}/>
-        <Lbl x={R-130} y={147} text={nyet}/>
-
-        {/* Diamond k=0? at cx=462, cy=266 */}
-        <Dec cx={462} cy={266} w={110} h={54} label="k = 0 ?"/>
-
-        {/* ── PATH B1: k=0 HA → DOWN → ω box → return E ── */}
-        <Ar x1={462} y1={293} x2={462} y2={312}/>
-        <Lbl x={466} y={308} text={ha}/>
-        <Proc x={402} y={312} w={120} h={36} label={ru?"ω = {U, V, R_pq}":"ω = {U, V, R_pq}"}/>
-        <Ar x1={462} y1={348} x2={462} y2={368}/>
-        <Proc x={402} y={368} w={120} h={36} label="return E_total"/>
-        {/* Merge left path → down → right → junction at (R, 490) */}
-        <Ap d={`M462,404 L462,490 L${R},490`}/>
-
-        {/* ── PATH B2: k=0 НЕТ → LEFT → note (k<0 impossible) ── */}
-        <Ap d={`M407,266 L387,266 L387,490 L${R},490`}/>
-        <Lbl x={388} y={261} text={nyet}/>
-        <text x={384} y={280} fontSize={9} fill="#888" fontStyle="italic">
-          {ru?"(k < 0, невозможно)":"(k < 0, mumkin emas)"}
-        </text>
-
-        {/* Junction dot and final arrow to End */}
-        <circle cx={R} cy={490} r={3} fill="#111"/>
-        <Ar x1={R} y1={493} x2={R} y2={512}/>
-
-        {/* End */}
-        <Oval cx={R} cy={530} label={ru?"Конец":"Тамом"}/>
-
         {/* Caption */}
-        <text x={365} y={548} textAnchor="middle" fontSize={9} fill="#888">
+        <text x={185} y={553} textAnchor="middle" fontSize={9} fill="#888">
           {ru
             ? "Рис. DCNF CRF блок-схема: главный цикл + рекурсивная функция"
             : "Rasm. DCNF CRF blok-sxema: asosiy tsikl + rekursiv funksiya"}

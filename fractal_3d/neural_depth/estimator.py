@@ -80,7 +80,7 @@ def _dense_unary_from_image(image, method="auto", unary_source="auto"):
     return normalize_depth(pseudo_depth_from_image(image)), "pseudo_cues", "pseudo"
 
 
-def estimate_depth_compare(image, method="auto", segments=500, compactness=10.0,
+def estimate_depth_compare(image, method="auto", segments=900, compactness=10.0,
                            unary_source="shape_from_shading",
                            fractal_aware=False, eta=0.8):
     """Comparison that reproduces Liu et al. Figure 4 (weak unary → strong CRF).
@@ -272,7 +272,7 @@ def _single_depth_metrics(image_r, depth):
     }
 
 
-def estimate_depth_ablation(image, segments=500, compactness=10.0,
+def estimate_depth_ablation(image, segments=900, compactness=10.0,
                             unary_source="shape_from_shading",
                             include_fractal=False, eta=0.8):
     """Ablation over the pairwise similarities (Liu et al. Table 2 style).
@@ -354,7 +354,7 @@ def _depth_quality(depth):
     return float(np.clip(confidence, 0.1, 0.99))
 
 
-def estimate_depth(image, method="auto", segments=500, compactness=10.0, target_size=256,
+def estimate_depth(image, method="auto", segments=900, compactness=10.0, target_size=256,
                    crf_strength="auto", unary_source="auto",
                    fractal_aware=False, eta=0.8, dump_dir=None):
     """Estimate depth from an image using DCNF-CRF + optional Depth Anything V2.

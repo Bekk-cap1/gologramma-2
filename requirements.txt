@@ -18,3 +18,5 @@ pytest
 # optional: multi-agent LLM orchestration (system falls back to local mode without it)
 anthropic
 python-docx
+open3d
+replicate

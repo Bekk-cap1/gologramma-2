@@ -125,167 +125,166 @@ const THREE_H = 400;
 
 // ─── inline translations (keeps translations.ts clean) ────────────────────────
 const TX = {
-  circle:      { ru: "Circle -> Sphere", uz: "Circle -> Sphere" },
-  square:      { ru: "Square -> Cube", uz: "Square -> Cube" },
-  title:       { ru: "2D → 3D Реконструкция (Geometry-Aware Fractal CNN)", uz: "2D → 3D Rekonstruktsiya (Geometry-Aware Fractal CNN)" },
-  subtitle:    { ru: "Загрузите любое изображение — приложение создаст карту глубины и трёхмерный рельеф на основе яркости пикселей, имитируя работу Fractal CNN.", uz: "Istalgan rasmni yuklang — ilova piksel yorqinligi asosida chuqurlik xaritasi va 3D rel'ef yaratadi, Fractal CNN ishini taqlid qiladi." },
-  dropTitle:   { ru: "Перетащите изображение сюда", uz: "Rasmni bu yerga torting" },
-  or:          { ru: "или", uz: "yoki" },
-  chooseFile:  { ru: "Выбрать файл", uz: "Fayl tanlash" },
-  samples:     { ru: "Примеры:", uz: "Namunalar:" },
-  pyramid:     { ru: "Пирамида", uz: "Piramida" },
-  sphere:      { ru: "Сфера", uz: "Sfera" },
-  cube:        { ru: "Куб", uz: "Kub" },
-  sierpinski:  { ru: "Фрактал (Серпинский)", uz: "Fraktal (Serpinski)" },
-  mandelbrot:  { ru: "Мандельброт", uz: "Mandelbrot" },
-  fractalHdr:  { ru: "Фракталы (для CNN):", uz: "Fraktallar (CNN uchun):" },
-  simpleHdr:   { ru: "Простые формы:", uz: "Oddiy shakllar:" },
-  reset:       { ru: "Сбросить", uz: "Qayta boshlash" },
-  sourceImg:   { ru: "Исходное изображение", uz: "Asl rasm" },
-  depthMap:    { ru: "Карта глубины", uz: "Chuqurlik xaritasi" },
-  view3d:      { ru: "3D Объект", uz: "3D Obyekt" },
-  depthScale:  { ru: "Масштаб глубины", uz: "Chuqurlik masshtabi" },
-  smoothing:   { ru: "Сглаживание", uz: "Silliqlik" },
-  wireframe:   { ru: "Каркас", uz: "Sxema" },
-  autoRot:     { ru: "Авто-вращение", uz: "Avto-aylantirish" },
-  dragHint:    { ru: "Тащить = вращать · Колёсико = масштаб", uz: "Torting = aylantirish · G'ildirak = masshtab" },
-  modeHeight:  { ru: "Карта высот", uz: "Balandlik xaritasi" },
-  modeFractal: { ru: "3D Фрактал", uz: "3D Fraktal" },
-  fractalLvl:  { ru: "Детализация", uz: "Tafsilot" },
-  archTitle:   { ru: "Архитектура Geometry-Aware Fractal CNN", uz: "Geometry-Aware Fractal CNN arxitekturasi" },
-  archHint:    { ru: "Кликните на шаг для подробностей", uz: "Tafsilotlar uchun bosqichni bosing" },
-  // CNN API panel
-  cnnBtn:      { ru: "🧠 CNN Анализ", uz: "🧠 CNN Tahlil" },
-  cnnLoading:  { ru: "Анализирую...", uz: "Tahlil qilinmoqda..." },
-  cnnResult:   { ru: "Результат CNN", uz: "CNN natijasi" },
-  cnnType:     { ru: "Тип фрактала:", uz: "Fraktal turi:" },
-  cnnConf:     { ru: "Уверенность:", uz: "Ishonch:" },
-  cnnModel:    { ru: "3D модель:", uz: "3D model:" },
-  cnnParams:   { ru: "Параметры:", uz: "Parametrlar:" },
-  cnnApply:    { ru: "Применить к 3D", uz: "3D ga qo'llash" },
-  cnnOffline:  { ru: "API недоступен. Запустите: python -m fractal_3d.api_server", uz: "API mavjud emas. Ishga tushiring: python -m fractal_3d.api_server" },
-  cnnScores:   { ru: "Оценки классов:", uz: "Sinf ballari:" },
-  cnnShowParams: { ru: "Параметры", uz: "Parametrlar" },
-  cnnParamsHint: { ru: "Предсказание параметров — обратная задача, точность низкая. Классификация надёжнее.", uz: "Parametrlarni bashorat qilish — teskari masala, aniqligi past." },
-  // Step-by-step reconstruction panel
-  stepsTitle:   { ru: "🔬 Пошаговая реконструкция (4 слоя)", uz: "🔬 Bosqichma-bosqich rekonstruksiya (4 qatlam)" },
-  stepsBtn:     { ru: "▶ Запустить разбор", uz: "▶ Tahlilni boshlash" },
-  stepsLoading: { ru: "Анализирую слои...", uz: "Qatlamlar tahlil qilinmoqda..." },
-  stepsOffline: { ru: "API недоступен. Запустите: python -m fractal_3d.api_server", uz: "API mavjud emas. Ishga tushiring: python -m fractal_3d.api_server" },
-  finalVerdict: { ru: "Итоговое решение", uz: "Yakuniy qaror" },
-  depthTitle:   { ru: "Карта глубины (из бэкенда)", uz: "Chuqurlik xaritasi" },
-  escParams:    { ru: "Параметры escape", uz: "Escape parametrlari" },
-  escSsim:      { ru: "SSIM к эталону", uz: "Etalonga SSIM" },
-  escMethod:    { ru: "Метод", uz: "Usul" },
-  escView:      { ru: "Вид (zoom/центр)", uz: "Ko'rinish (zoom/markaz)" },
-  layerLbl:     { ru: "Слой", uz: "Qatlam" },
-  build3dBtn:   { ru: "🔮 Построить реальный 3D меш", uz: "🔮 Haqiqiy 3D mesh qurish" },
-  build3dLoad:  { ru: "Реконструирую меш на бэкенде...", uz: "Backendda mesh rekonstruksiya qilinmoqda..." },
-  build3dTpl:   { ru: "Шаблон (быстро)", uz: "Shablon (tez)" },
-  build3dHint:  { ru: "Финальный шаг: строит 3D объект ниже из самого изображения (IFS/глубина → marching cubes)", uz: "Yakuniy bosqich: 3D obyekt rasmning o'zidan quriladi (IFS/chuqurlik → marching cubes)" },
-  build3dLow:   { ru: "⚠ Низкая уверенность — будет построена приблизительная модель", uz: "⚠ Past ishonch — taxminiy model quriladi" },
-  meshBackend:  { ru: "✅ реальный меш из бэкенда", uz: "✅ backenddan haqiqiy mesh" },
-  meshTemplate: { ru: "▢ шаблонный генератор", uz: "▢ shablon generatori" },
-  pipeTitle:   { ru: "Пайплайн 2D → 3D: пошагово", uz: "2D → 3D quvuri: bosqichma-bosqich" },
-  pipeHint:    { ru: "Как изображение превращается в 3D-модель — каждый этап с формулой", uz: "Tasvir qanday 3D-modelga aylanadi — har bosqich formula bilan" },
-  pipeline:    { ru: "Полный конвейер:", uz: "To'liq quvur:" },
-  // detection panel
-  detPanel:    { ru: "Анализ изображения (ИИ)", uz: "Tasvil tahlili (AI)" },
-  detType:     { ru: "Обнаруженный тип:", uz: "Aniqlangan tur:" },
-  detConf:     { ru: "Уверенность:", uz: "Ishonch:" },
-  detReason:   { ru: "Основание:", uz: "Asos:" },
-  det3d:       { ru: "Сгенерированная 3D-модель:", uz: "Yaratilgan 3D-model:" },
-  detPolys:    { ru: "Полигонов:", uz: "Poligonlar:" },
-  detRecur:    { ru: "Глубина рекурсии:", uz: "Rekursiya chuqurligi:" },
-  exportOBJ:   { ru: "Экспорт OBJ", uz: "OBJ eksport" },
-  fractalLvl2: { ru: "Уровень рекурсии", uz: "Rekursiya darajasi" },
-  // ── stage-5: tie-break / recovery / pose / generation ──────────────────────
-  tbTitle:       { ru: "Тай-брейк: геометрия переопределила CNN", uz: "Tay-brek: geometriya CNN ni qayta belgiladi" },
-  tbReason:      { ru: "Причина", uz: "Sabab" },
-  tbCnnThought:  { ru: "CNN считал", uz: "CNN deb hisobladi" },
-  tbGeoDecided:  { ru: "Геометрия решила", uz: "Geometriya qaror qildi" },
-  recCanonical:  { ru: "📐 Каноничная IFS", uz: "📐 Kanonik IFS" },
-  recBlind:      { ru: "🔍 Blind Recovery", uz: "🔍 Blind Recovery" },
-  recSkipped:    { ru: "⏭ IFS пропущен", uz: "⏭ IFS o'tkazildi" },
-  poseTitle:     { ru: "Подгонка позы", uz: "Poza moslash" },
-  poseScale:     { ru: "Масштаб", uz: "Masshtab" },
-  poseAngle:     { ru: "Поворот", uz: "Burilish" },
-  poseShift:     { ru: "Сдвиг", uz: "Siljish" },
-  poseFit:       { ru: "IoU подгонки", uz: "IoU mosligi" },
-  theoDim:       { ru: "Теоретич. D", uz: "Nazariy D" },
-  transformsLbl: { ru: "Преобразования (матрицы)", uz: "Almashtirishlar (matritsalar)" },
-  showAll:       { ru: "показать все", uz: "barchasini ko'rsatish" },
-  collapse:      { ru: "свернуть", uz: "yig'ish" },
-  evidenceLbl:   { ru: "Доказательства", uz: "Dalillar" },
-  moreN:         { ru: "ещё", uz: "yana" },
-  genMethodLbl:  { ru: "Метод генерации", uz: "Yaratish usuli" },
-  genChaos:      { ru: "Chaos Game (100K точек)", uz: "Chaos Game (100K nuqta)" },
-  genBoundary:   { ru: "Рекурсивная граница + extrusion", uz: "Rekursiv chegara + extrusion" },
-  genEscape:     { ru: "Escape-time карта глубины", uz: "Escape-time chuqurlik xaritasi" },
-  recMethodLbl:  { ru: "Метод восстановления", uz: "Tiklash usuli" },
+  circle:      { ru: "Circle -> Sphere",  uz: "Circle -> Sphere",  en: "Circle -> Sphere"  },
+  square:      { ru: "Square -> Cube",    uz: "Square -> Cube",    en: "Square -> Cube"    },
+  title:       { ru: "2D → 3D Реконструкция (Geometry-Aware Fractal CNN)", uz: "2D → 3D Rekonstruktsiya (Geometry-Aware Fractal CNN)", en: "2D → 3D Reconstruction (Geometry-Aware Fractal CNN)" },
+  subtitle:    { ru: "Загрузите любое изображение — приложение создаст карту глубины и трёхмерный рельеф на основе яркости пикселей, имитируя работу Fractal CNN.", uz: "Istalgan rasmni yuklang — ilova piksel yorqinligi asosida chuqurlik xaritasi va 3D rel'ef yaratadi, Fractal CNN ishini taqlid qiladi.", en: "Upload any image — the app builds a depth map and 3D relief from pixel brightness, simulating a Fractal CNN." },
+  dropTitle:   { ru: "Перетащите изображение сюда", uz: "Rasmni bu yerga torting",        en: "Drop image here"              },
+  or:          { ru: "или",                          uz: "yoki",                            en: "or"                           },
+  chooseFile:  { ru: "Выбрать файл",                 uz: "Fayl tanlash",                    en: "Choose file"                  },
+  samples:     { ru: "Примеры:",                     uz: "Namunalar:",                      en: "Samples:"                     },
+  pyramid:     { ru: "Пирамида",                     uz: "Piramida",                        en: "Pyramid"                      },
+  sphere:      { ru: "Сфера",                        uz: "Sfera",                           en: "Sphere"                       },
+  cube:        { ru: "Куб",                          uz: "Kub",                             en: "Cube"                         },
+  sierpinski:  { ru: "Фрактал (Серпинский)",         uz: "Fraktal (Serpinski)",             en: "Fractal (Sierpinski)"         },
+  mandelbrot:  { ru: "Мандельброт",                  uz: "Mandelbrot",                      en: "Mandelbrot"                   },
+  fractalHdr:  { ru: "Фракталы (для CNN):",          uz: "Fraktallar (CNN uchun):",         en: "Fractals (for CNN):"          },
+  simpleHdr:   { ru: "Простые формы:",               uz: "Oddiy shakllar:",                 en: "Simple shapes:"               },
+  reset:       { ru: "Сбросить",                     uz: "Qayta boshlash",                  en: "Reset"                        },
+  sourceImg:   { ru: "Исходное изображение",         uz: "Asl rasm",                        en: "Source image"                 },
+  depthMap:    { ru: "Карта глубины",                uz: "Chuqurlik xaritasi",              en: "Depth map"                    },
+  view3d:      { ru: "3D Объект",                    uz: "3D Obyekt",                       en: "3D Object"                    },
+  depthScale:  { ru: "Масштаб глубины",              uz: "Chuqurlik masshtabi",             en: "Depth scale"                  },
+  smoothing:   { ru: "Сглаживание",                  uz: "Silliqlik",                       en: "Smoothing"                    },
+  wireframe:   { ru: "Каркас",                       uz: "Sxema",                           en: "Wireframe"                    },
+  autoRot:     { ru: "Авто-вращение",                uz: "Avto-aylantirish",                en: "Auto-rotate"                  },
+  dragHint:    { ru: "Тащить = вращать · Колёсико = масштаб", uz: "Torting = aylantirish · G'ildirak = masshtab", en: "Drag = rotate · Scroll = zoom" },
+  modeHeight:  { ru: "Карта высот",                  uz: "Balandlik xaritasi",              en: "Height map"                   },
+  modeFractal: { ru: "3D Фрактал",                   uz: "3D Fraktal",                      en: "3D Fractal"                   },
+  fractalLvl:  { ru: "Детализация",                  uz: "Tafsilot",                        en: "Detail level"                 },
+  archTitle:   { ru: "Архитектура Geometry-Aware Fractal CNN", uz: "Geometry-Aware Fractal CNN arxitekturasi", en: "Geometry-Aware Fractal CNN Architecture" },
+  archHint:    { ru: "Кликните на шаг для подробностей", uz: "Tafsilotlar uchun bosqichni bosing", en: "Click a step for details" },
+  cnnBtn:      { ru: "🧠 CNN Анализ",                uz: "🧠 CNN Tahlil",                   en: "🧠 CNN Analysis"              },
+  cnnLoading:  { ru: "Анализирую...",                uz: "Tahlil qilinmoqda...",            en: "Analysing..."                 },
+  cnnResult:   { ru: "Результат CNN",                uz: "CNN natijasi",                    en: "CNN result"                   },
+  cnnType:     { ru: "Тип фрактала:",                uz: "Fraktal turi:",                   en: "Fractal type:"                },
+  cnnConf:     { ru: "Уверенность:",                 uz: "Ishonch:",                        en: "Confidence:"                  },
+  cnnModel:    { ru: "3D модель:",                   uz: "3D model:",                       en: "3D model:"                    },
+  cnnParams:   { ru: "Параметры:",                   uz: "Parametrlar:",                    en: "Parameters:"                  },
+  cnnApply:    { ru: "Применить к 3D",               uz: "3D ga qo'llash",                  en: "Apply to 3D"                  },
+  cnnOffline:  { ru: "API недоступен. Запустите: python -m fractal_3d.api_server", uz: "API mavjud emas. Ishga tushiring: python -m fractal_3d.api_server", en: "API offline. Run: python -m fractal_3d.api_server" },
+  cnnScores:   { ru: "Оценки классов:",              uz: "Sinf ballari:",                   en: "Class scores:"                },
+  cnnShowParams: { ru: "Параметры",                  uz: "Parametrlar",                     en: "Parameters"                   },
+  cnnParamsHint: { ru: "Предсказание параметров — обратная задача, точность низкая. Классификация надёжнее.", uz: "Parametrlarni bashorat qilish — teskari masala, aniqligi past.", en: "Parameter prediction is an ill-posed inverse problem — low accuracy. Classification is more reliable." },
+  stepsTitle:   { ru: "🔬 Пошаговая реконструкция (4 слоя)", uz: "🔬 Bosqichma-bosqich rekonstruksiya (4 qatlam)", en: "🔬 Step-by-step reconstruction (4 layers)" },
+  stepsBtn:     { ru: "▶ Запустить разбор",          uz: "▶ Tahlilni boshlash",             en: "▶ Start analysis"             },
+  stepsLoading: { ru: "Анализирую слои...",           uz: "Qatlamlar tahlil qilinmoqda...",  en: "Analysing layers..."          },
+  stepsOffline: { ru: "API недоступен. Запустите: python -m fractal_3d.api_server", uz: "API mavjud emas. Ishga tushiring: python -m fractal_3d.api_server", en: "API offline. Run: python -m fractal_3d.api_server" },
+  finalVerdict: { ru: "Итоговое решение",             uz: "Yakuniy qaror",                   en: "Final verdict"                },
+  depthTitle:   { ru: "Карта глубины (из бэкенда)",  uz: "Chuqurlik xaritasi",              en: "Depth map (from backend)"     },
+  escParams:    { ru: "Параметры escape",             uz: "Escape parametrlari",             en: "Escape params"                },
+  escSsim:      { ru: "SSIM к эталону",               uz: "Etalonga SSIM",                   en: "SSIM to reference"            },
+  escMethod:    { ru: "Метод",                        uz: "Usul",                            en: "Method"                       },
+  escView:      { ru: "Вид (zoom/центр)",             uz: "Ko'rinish (zoom/markaz)",         en: "View (zoom/center)"           },
+  layerLbl:     { ru: "Слой",                         uz: "Qatlam",                          en: "Layer"                        },
+  build3dBtn:   { ru: "🔮 Построить реальный 3D меш", uz: "🔮 Haqiqiy 3D mesh qurish",      en: "🔮 Build real 3D mesh"        },
+  build3dLoad:  { ru: "Реконструирую меш на бэкенде...", uz: "Backendda mesh rekonstruksiya qilinmoqda...", en: "Building mesh on backend..." },
+  build3dTpl:   { ru: "Шаблон (быстро)",             uz: "Shablon (tez)",                   en: "Template (fast)"              },
+  build3dHint:  { ru: "Финальный шаг: строит 3D объект ниже из самого изображения (IFS/глубина → marching cubes)", uz: "Yakuniy bosqich: 3D obyekt rasmning o'zidan quriladi (IFS/chuqurlik → marching cubes)", en: "Final step: builds the 3D object from the image itself (IFS/depth → marching cubes)" },
+  build3dLow:   { ru: "⚠ Низкая уверенность — будет построена приблизительная модель", uz: "⚠ Past ishonch — taxminiy model quriladi", en: "⚠ Low confidence — approximate model will be built" },
+  meshBackend:  { ru: "✅ реальный меш из бэкенда",   uz: "✅ backenddan haqiqiy mesh",       en: "✅ real mesh from backend"    },
+  meshTemplate: { ru: "▢ шаблонный генератор",        uz: "▢ shablon generatori",            en: "▢ template generator"         },
+  pipeTitle:   { ru: "Пайплайн 2D → 3D: пошагово",   uz: "2D → 3D quvuri: bosqichma-bosqich", en: "2D → 3D Pipeline: step by step" },
+  pipeHint:    { ru: "Как изображение превращается в 3D-модель — каждый этап с формулой", uz: "Tasvir qanday 3D-modelga aylanadi — har bosqich formula bilan", en: "How an image becomes a 3D model — each stage with formula" },
+  pipeline:    { ru: "Полный конвейер:",               uz: "To'liq quvur:",                   en: "Full pipeline:"               },
+  detPanel:    { ru: "Анализ изображения (ИИ)",        uz: "Tasvil tahlili (AI)",             en: "Image analysis (AI)"          },
+  detType:     { ru: "Обнаруженный тип:",              uz: "Aniqlangan tur:",                 en: "Detected type:"               },
+  detConf:     { ru: "Уверенность:",                   uz: "Ishonch:",                        en: "Confidence:"                  },
+  detReason:   { ru: "Основание:",                     uz: "Asos:",                           en: "Reason:"                      },
+  det3d:       { ru: "Сгенерированная 3D-модель:",     uz: "Yaratilgan 3D-model:",            en: "Generated 3D model:"          },
+  detPolys:    { ru: "Полигонов:",                     uz: "Poligonlar:",                     en: "Polygons:"                    },
+  detRecur:    { ru: "Глубина рекурсии:",              uz: "Rekursiya chuqurligi:",           en: "Recursion depth:"             },
+  exportOBJ:   { ru: "Экспорт OBJ",                    uz: "OBJ eksport",                     en: "Export OBJ"                   },
+  fractalLvl2: { ru: "Уровень рекурсии",               uz: "Rekursiya darajasi",              en: "Recursion level"              },
+  tbTitle:       { ru: "Тай-брейк: геометрия переопределила CNN", uz: "Tay-brek: geometriya CNN ni qayta belgiladi", en: "Tie-break: geometry overrode CNN" },
+  tbReason:      { ru: "Причина",                      uz: "Sabab",                           en: "Reason"                       },
+  tbCnnThought:  { ru: "CNN считал",                   uz: "CNN deb hisobladi",               en: "CNN thought"                  },
+  tbGeoDecided:  { ru: "Геометрия решила",             uz: "Geometriya qaror qildi",          en: "Geometry decided"             },
+  recCanonical:  { ru: "📐 Каноничная IFS",            uz: "📐 Kanonik IFS",                  en: "📐 Canonical IFS"             },
+  recBlind:      { ru: "🔍 Blind Recovery",            uz: "🔍 Blind Recovery",               en: "🔍 Blind Recovery"            },
+  recSkipped:    { ru: "⏭ IFS пропущен",              uz: "⏭ IFS o'tkazildi",               en: "⏭ IFS skipped"               },
+  poseTitle:     { ru: "Подгонка позы",                uz: "Poza moslash",                    en: "Pose fitting"                 },
+  poseScale:     { ru: "Масштаб",                      uz: "Masshtab",                        en: "Scale"                        },
+  poseAngle:     { ru: "Поворот",                      uz: "Burilish",                        en: "Rotation"                     },
+  poseShift:     { ru: "Сдвиг",                        uz: "Siljish",                         en: "Shift"                        },
+  poseFit:       { ru: "IoU подгонки",                 uz: "IoU mosligi",                     en: "Fit IoU"                      },
+  theoDim:       { ru: "Теоретич. D",                  uz: "Nazariy D",                       en: "Theoretical D"                },
+  transformsLbl: { ru: "Преобразования (матрицы)",     uz: "Almashtirishlar (matritsalar)",   en: "Transforms (matrices)"        },
+  showAll:       { ru: "показать все",                  uz: "barchasini ko'rsatish",           en: "show all"                     },
+  collapse:      { ru: "свернуть",                      uz: "yig'ish",                         en: "collapse"                     },
+  evidenceLbl:   { ru: "Доказательства",                uz: "Dalillar",                        en: "Evidence"                     },
+  moreN:         { ru: "ещё",                           uz: "yana",                            en: "more"                         },
+  genMethodLbl:  { ru: "Метод генерации",               uz: "Yaratish usuli",                  en: "Generation method"            },
+  genChaos:      { ru: "Chaos Game (100K точек)",       uz: "Chaos Game (100K nuqta)",         en: "Chaos Game (100K points)"     },
+  genBoundary:   { ru: "Рекурсивная граница + extrusion", uz: "Rekursiv chegara + extrusion", en: "Recursive boundary + extrusion" },
+  genEscape:     { ru: "Escape-time карта глубины",     uz: "Escape-time chuqurlik xaritasi",  en: "Escape-time depth map"        },
+  genDepth:      { ru: "Рельеф из depth map (2.5D)",    uz: "Depth map'dan relyef (2.5D)",    en: "Relief from depth map (2.5D)" },
+  genNeural:     { ru: "Рельеф из нейро-depth (DA V2)", uz: "Neyro-depth'dan relyef (DA V2)", en: "Relief from neural depth (DA V2)" },
+  recMethodLbl:  { ru: "Метод восстановления",          uz: "Tiklash usuli",                   en: "Recovery method"              },
+  stepWord:      { ru: "Шаг",                           uz: "Bosqich",                         en: "Step"                         },
 };
 
 // ─── CNN architecture steps ────────────────────────────────────────────────────
 const STEPS = [
   {
     num: 1, color: "#00E5FF",
-    title: { ru: "Геом. объект", uz: "Geom. obyekt" },
+    title: { ru: "Геом. объект", uz: "Geom. obyekt", en: "Geom. object" },
     formula: "aᵢx+bᵢy+cᵢz+dᵢ=0",
-    detail: { ru: "Каждая грань задаётся плоскостью. Нормаль nᵢ=(aᵢ,bᵢ,cᵢ), смещение dᵢ — параметры, выученные сетью. Тетраэдр = 4 плоскости.", uz: "Har bir qirra tekislik bilan berilgan. Normal nᵢ=(aᵢ,bᵢ,cᵢ), siljish dᵢ — tarmoq o'rganadigan parametrlar." },
+    detail: { ru: "Каждая грань задаётся плоскостью. Нормаль nᵢ=(aᵢ,bᵢ,cᵢ), смещение dᵢ — параметры, выученные сетью. Тетраэдр = 4 плоскости.", uz: "Har bir qirra tekislik bilan berilgan. Normal nᵢ=(aᵢ,bᵢ,cᵢ), siljish dᵢ — tarmoq o'rganadigan parametrlar.", en: "Each face is defined by a plane. Normal nᵢ=(aᵢ,bᵢ,cᵢ), offset dᵢ — parameters learned by the network. Tetrahedron = 4 planes." },
   },
   {
     num: 2, color: "#9C27B0",
-    title: { ru: "Индикатор F", uz: "Indikator F" },
+    title: { ru: "Индикатор F", uz: "Indikator F", en: "Indicator F" },
     formula: "F = ∏ σ(aᵢx+bᵢy+cᵢz+dᵢ)",
-    detail: { ru: "Мягкая (дифференцируемая) версия через сигмоид σ(t)=1/(1+e⁻ᵃᵗ). F≈1 внутри тела, F≈0 снаружи. α контролирует резкость границы.", uz: "Sigmoid σ(t)=1/(1+e⁻ᵃᵗ) orqali yumshoq versiya. Ichida F≈1, tashqarida F≈0. α chegara keskinligini boshqaradi." },
+    detail: { ru: "Мягкая (дифференцируемая) версия через сигмоид σ(t)=1/(1+e⁻ᵃᵗ). F≈1 внутри тела, F≈0 снаружи. α контролирует резкость границы.", uz: "Sigmoid σ(t)=1/(1+e⁻ᵃᵗ) orqali yumshoq versiya. Ichida F≈1, tashqarida F≈0. α chegara keskinligini boshqaradi.", en: "Smooth (differentiable) version via sigmoid σ(t)=1/(1+e⁻ᵃᵗ). F≈1 inside, F≈0 outside. α controls boundary sharpness." },
   },
   {
     num: 3, color: "#FF9800",
-    title: { ru: "Градиент F", uz: "Gradient F" },
+    title: { ru: "Градиент F", uz: "Gradient F", en: "Gradient F" },
     formula: "∂F/∂x = Σ aᵢσᵢ(1−σᵢ) ∏ⱼ≠ᵢ σⱼ",
-    detail: { ru: "Градиент велик вблизи граней тела — указывает сети, где именно находятся поверхности. Используется как дополнительный признак.", uz: "Gradient jism qirralari yaqinida katta — tarmoqqa sirtlar qayerda ekanligini ko'rsatadi." },
+    detail: { ru: "Градиент велик вблизи граней тела — указывает сети, где именно находятся поверхности. Используется как дополнительный признак.", uz: "Gradient jism qirralari yaqinida katta — tarmoqqa sirtlar qayerda ekanligini ko'rsatadi.", en: "Gradient is large near object faces — tells the network exactly where surfaces are. Used as an extra feature." },
   },
   {
     num: 4, color: "#69F0AE",
-    title: { ru: "Маскирование", uz: "Masklash" },
+    title: { ru: "Маскирование", uz: "Masklash", en: "Masking" },
     formula: "X_masked = X ⊙ F",
-    detail: { ru: "Пространственное внимание: поэлементное умножение признакового тензора на маску F. Подавляет нерелевантные регионы вне объекта.", uz: "Fazoviy diqqat: belgilar tenzorini F maskasiga element bo'yicha ko'paytirish. Ob'ektdan tashqari hududlarni bostiradi." },
+    detail: { ru: "Пространственное внимание: поэлементное умножение признакового тензора на маску F. Подавляет нерелевантные регионы вне объекта.", uz: "Fazoviy diqqat: belgilar tenzorini F maskasiga element bo'yicha ko'paytirish. Ob'ektdan tashqari hududlarni bostiradi.", en: "Spatial attention: element-wise multiplication of the feature tensor by mask F. Suppresses irrelevant regions outside the object." },
   },
   {
     num: 5, color: "#FFB300",
-    title: { ru: "Фракт. свёртка", uz: "Fraktal konv." },
+    title: { ru: "Фракт. свёртка", uz: "Fraktal konv.", en: "Fractal conv." },
     formula: "Y = Σₛ Wₛ × Xₛ",
-    detail: { ru: "Три масштаба (fine/medium/coarse) обрабатываются параллельно и суммируются. Захватывает фрактальные самоподобные структуры на разных уровнях детализации.", uz: "Uch masshtab (fine/medium/coarse) parallel ishlangan va yig'ilgan. Turli darajalarda fraktal o'z-o'ziga o'xshash tuzilmalarni ushlaydi." },
+    detail: { ru: "Три масштаба (fine/medium/coarse) обрабатываются параллельно и суммируются. Захватывает фрактальные самоподобные структуры на разных уровнях детализации.", uz: "Uch masshtab (fine/medium/coarse) parallel ishlangan va yig'ilgan. Turli darajalarda fraktal o'z-o'ziga o'xshash tuzilmalarni ushlaydi.", en: "Three scales (fine/medium/coarse) processed in parallel and summed. Captures self-similar fractal structures at different detail levels." },
   },
   {
     num: 6, color: "#FF5252",
-    title: { ru: "Внимание", uz: "Diqqat" },
+    title: { ru: "Внимание", uz: "Diqqat", en: "Attention" },
     formula: "A(x) = softmax(q(x)), Y = A ⊙ X",
-    detail: { ru: "Веса внимания A(x) = exp(q(x)) / Σexp(qᵢ). Усиливает информативные вокселы, подавляет фон. Y = A ⊙ X.", uz: "A(x) = exp(q(x)) / Σexp(qᵢ). Muhim voksellarni kuchaytiradi, fon bostiradi." },
+    detail: { ru: "Веса внимания A(x) = exp(q(x)) / Σexp(qᵢ). Усиливает информативные вокселы, подавляет фон. Y = A ⊙ X.", uz: "A(x) = exp(q(x)) / Σexp(qᵢ). Muhim voksellarni kuchaytiradi, fon bostiradi.", en: "Attention weights A(x) = exp(q(x)) / Σexp(qᵢ). Amplifies informative voxels, suppresses background. Y = A ⊙ X." },
   },
   {
     num: 7, color: "#00BCD4",
-    title: { ru: "Residual блок", uz: "Residual blok" },
+    title: { ru: "Residual блок", uz: "Residual blok", en: "Residual block" },
     formula: "Y = F(X) + X",
-    detail: { ru: "Conv3D→BN→ReLU→Conv3D→BN плюс skip-connection. Устраняет проблему затухающего градиента в глубоких сетях.", uz: "Conv3D→BN→ReLU→Conv3D→BN + skip-ulanish. Chuqur tarmoqlardagi yo'qoluvchi gradient muammosini hal qiladi." },
+    detail: { ru: "Conv3D→BN→ReLU→Conv3D→BN плюс skip-connection. Устраняет проблему затухающего градиента в глубоких сетях.", uz: "Conv3D→BN→ReLU→Conv3D→BN + skip-ulanish. Chuqur tarmoqlardagi yo'qoluvchi gradient muammosini hal qiladi.", en: "Conv3D→BN→ReLU→Conv3D→BN plus skip-connection. Eliminates vanishing-gradient problem in deep networks." },
   },
   {
     num: 8, color: "#E040FB",
-    title: { ru: "Потери L", uz: "Yo'qotish L" },
+    title: { ru: "Потери L", uz: "Yo'qotish L", en: "Loss L" },
     formula: "L = Lclass + λLfractal + βLgeo",
-    detail: { ru: "L_class = CrossEntropy. L_fractal = ‖D_pred−D_true‖² (размерность Хаусдорфа). L_geo = Σ‖∇Fᵢ‖² — штраф за размытые границы. λ, β — балансировочные веса.", uz: "L_class = CrossEntropy. L_fractal = ‖D_pred−D_true‖². L_geo = Σ‖∇Fᵢ‖² — noaniq chegara uchun jazo." },
+    detail: { ru: "L_class = CrossEntropy. L_fractal = ‖D_pred−D_true‖² (размерность Хаусдорфа). L_geo = Σ‖∇Fᵢ‖² — штраф за размытые границы. λ, β — балансировочные веса.", uz: "L_class = CrossEntropy. L_fractal = ‖D_pred−D_true‖². L_geo = Σ‖∇Fᵢ‖² — noaniq chegara uchun jazo.", en: "L_class = CrossEntropy. L_fractal = ‖D_pred−D_true‖² (Hausdorff dimension). L_geo = Σ‖∇Fᵢ‖² — penalty for blurry boundaries. λ, β balance weights." },
   },
   {
     num: 9, color: "#4CAF50",
-    title: { ru: "Adam оптим.", uz: "Adam optim." },
+    title: { ru: "Adam оптим.", uz: "Adam optim.", en: "Adam optim." },
     formula: "θₜ₊₁ = θₜ − η · mₜ/√(vₜ+ε)",
-    detail: { ru: "mₜ — первый момент (среднее градиента), vₜ — второй момент (дисперсия). Адаптивный шаг для каждого параметра. Быстрая сходимость.", uz: "mₜ — birinchi moment (o'rtacha gradient), vₜ — ikkinchi moment (dispersiya). Har bir parametr uchun adaptiv qadam." },
+    detail: { ru: "mₜ — первый момент (среднее градиента), vₜ — второй момент (дисперсия). Адаптивный шаг для каждого параметра. Быстрая сходимость.", uz: "mₜ — birinchi moment (o'rtacha gradient), vₜ — ikkinchi moment (dispersiya). Har bir parametr uchun adaptiv qadam.", en: "mₜ — first moment (gradient mean), vₜ — second moment (variance). Adaptive step per parameter. Fast convergence." },
   },
   {
     num: 10, color: "#FF9800",
-    title: { ru: "Архитектура", uz: "Arxitektura" },
+    title: { ru: "Архитектура", uz: "Arxitektura", en: "Architecture" },
     formula: "Voxel → Indicator → Mask → Conv×3 → FC → Output",
-    detail: { ru: "Полный конвейер: 3D Voxel Grid → Indicator Layer (дифф. маска) → Masking (X⊙F) → Conv Block 1 (Residual) → Attention → Conv Block 2 (Residual) → Multi-Scale/Fractal Conv → Conv Block 3 → Global Pooling → FC → Class + Fractal Params", uz: "To'liq quvur: 3D Voxel Grid → Indikator → Masklash → Conv×3 + Diqqat + Fraktal → Global Pooling → FC → Natija" },
+    detail: { ru: "Полный конвейер: 3D Voxel Grid → Indicator Layer (дифф. маска) → Masking (X⊙F) → Conv Block 1 (Residual) → Attention → Conv Block 2 (Residual) → Multi-Scale/Fractal Conv → Conv Block 3 → Global Pooling → FC → Class + Fractal Params", uz: "To'liq quvur: 3D Voxel Grid → Indikator → Masklash → Conv×3 + Diqqat + Fraktal → Global Pooling → FC → Natija", en: "Full pipeline: 3D Voxel Grid → Indicator Layer (diff. mask) → Masking (X⊙F) → Conv Block 1 (Residual) → Attention → Conv Block 2 (Residual) → Multi-Scale/Fractal Conv → Conv Block 3 → Global Pooling → FC → Class + Fractal Params" },
   },
 ] as const;
 
@@ -854,7 +853,7 @@ interface CNNResponse {
 // ─── Step-by-step reconstruction API types ────────────────────────────────────
 interface StepMetric {
   label: { ru: string; uz: string };
-  value: string;
+  value: string | { ru: string; uz: string };
 }
 interface IFSTransform {
   matrix: number[][];        // 2×2 linear part
@@ -1046,6 +1045,9 @@ const STEP_VISIBLE: Record<string, (s: PipelineSettings) => boolean> = {
 
 export default function FractalCNN() {
   const { lang } = useLang();
+  // Fallback for API-returned objects that only have { ru, uz } keys
+  const tl = (obj: { ru: string; uz: string } | string): string =>
+    typeof obj === "string" ? obj : ((obj as Record<string, string>)[lang] ?? obj.ru);
 
   const [hasImage, setHasImage]         = useState(false);
   const [depthScale, setDepthScale]     = useState(1.8);
@@ -1720,9 +1722,11 @@ export default function FractalCNN() {
       setMeshSource("backend");
       setDetection({
         kind: apiTypeToKind(steps.final.type),
-        name3d: steps.final.type_3d,
+        name3d: lang === "ru" ? "Depth-рельеф (2.5D)" : "Depth-relyef (2.5D)",
         confidence: Math.round(steps.final.confidence),
-        reason: "Backend reconstruction (real mesh from image)",
+        reason: lang === "ru"
+          ? "3D-рельеф построен из depth map текущего изображения (single-view 2.5D)"
+          : "3D-relyef joriy tasvirning depth map'idan qurildi (single-view 2.5D)",
       });
       if (fractalMode) rebuildFractal();
       else setFractalMode(true);
@@ -1732,7 +1736,7 @@ export default function FractalCNN() {
     } finally {
       setBuild3dLoading(false);
     }
-  }, [steps, fractalMode, rebuildFractal, buildTemplate]);
+  }, [steps, fractalMode, rebuildFractal, buildTemplate, lang]);
 
   const exportOBJ = useCallback(() => {
     const mesh = meshRef.current;
@@ -2210,7 +2214,8 @@ export default function FractalCNN() {
                       style={{ background: "#1E3A5F", color: "#90CAF9", border: "1px solid #2E4A6F" }}>
                       {steps.final.generation_method === "recursive_boundary" ? TX.genBoundary[lang]
                         : steps.final.generation_method === "escape_depth" ? TX.genEscape[lang]
-                        : TX.genChaos[lang]}
+                        : steps.final.generation_method === "neural_depth" ? TX.genNeural[lang]
+                        : TX.genDepth[lang]}
                     </span>
                   )}
                 </div>
@@ -2256,7 +2261,7 @@ export default function FractalCNN() {
                         cursor: build3dLoading ? "wait" : "pointer",
                       }}
                     >
-                      {build3dLoading ? TX.build3dLoad[lang] : `${TX.build3dBtn[lang]} → ${steps.final.type_3d}`}
+                      {build3dLoading ? TX.build3dLoad[lang] : `${TX.build3dBtn[lang]} → ${lang === "ru" ? "depth-рельеф" : "depth-relyef"}`}
                     </button>
                     <button
                       onClick={buildTemplate}
@@ -2352,7 +2357,7 @@ export default function FractalCNN() {
                           style={{ background: layerColor + "22", color: layerColor, border: `1px solid ${layerColor}66` }}>
                           {TX.layerLbl[lang]} {step.layer}
                         </span>
-                        <span className="text-sm font-bold" style={{ color: "#E8EAF6" }}>{step.title[lang]}</span>
+                        <span className="text-sm font-bold" style={{ color: "#E8EAF6" }}>{tl(step.title)}</span>
                         <span className="text-xs font-mono font-bold ml-auto" style={{ color: confColor }}>
                           {step.confidence.toFixed(1)}%
                         </span>
@@ -2369,7 +2374,7 @@ export default function FractalCNN() {
                       {step.hint && (
                         <div className="inline-block px-2 py-0.5 rounded-full text-[10px] mb-2"
                           style={{ background: "#1E3A5F", color: "var(--text-secondary)" }}>
-                          {step.hint}
+                          {tl(step.hint)}
                         </div>
                       )}
 
@@ -2378,8 +2383,8 @@ export default function FractalCNN() {
                         <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
                           {step.metrics.map((m, mi) => (
                             <div key={mi} className="flex items-baseline gap-1 min-w-0">
-                              <span className="shrink-0" style={{ color: "var(--text-secondary)" }}>{m.label[lang]}:</span>
-                              <span className="font-mono font-semibold truncate" style={{ color: "#E8EAF6" }}>{m.value}</span>
+                              <span className="shrink-0" style={{ color: "var(--text-secondary)" }}>{tl(m.label)}:</span>
+                              <span className="font-mono font-semibold truncate" style={{ color: "#E8EAF6" }}>{tl(m.value)}</span>
                             </div>
                           ))}
                         </div>
@@ -2533,7 +2538,8 @@ export default function FractalCNN() {
             style={{ background: "#060B18CC", color: "#90CAF9", border: "1px solid #2E4A6F" }}>
             {steps.final.generation_method === "recursive_boundary" ? TX.genBoundary[lang]
               : steps.final.generation_method === "escape_depth" ? TX.genEscape[lang]
-              : TX.genChaos[lang]}
+              : steps.final.generation_method === "neural_depth" ? TX.genNeural[lang]
+              : TX.genDepth[lang]}
           </div>
         )}
       </div>
@@ -2653,40 +2659,23 @@ export default function FractalCNN() {
         <div className="p-5 space-y-3" style={{ background: "var(--bg-card)" }}>
           {(() => {
             const detType = detection?.kind ?? "—";
-            const gen3dFormula: Record<string, string> = {
-              sphere: "circle mask -> SphereGeometry(r)",
-              cube: "square mask -> BoxGeometry(w,h,d)",
-              sierpinski: "P → ½(P + Vᵢ),  i = 1..4",
-              menger: "удаление центр. кубов · 20ⁿ частей",
-              koch: "ребро → 4 ребра, затем extrude в 3D",
-              pythagoras: "ветвь → 2 ветви · cos(45°)",
-              mandelbrot: "z → z⁸ + c  (Mandelbulb SDF, ray-march)",
-              octahedron: "chaos game → 6 вершин · ratio ½",
-              dodecahedron: "chaos game → 20 вершин · ratio 1/φ",
-              icosahedron: "chaos game → 12 вершин · ratio 1/φ",
-              cantor: "куб → 8 угловых под-кубов рекурсивно",
-              voxel: "пиксель → воксель (высота ∝ яркость)",
-            };
             const detName = detection ? (CLASS_LABELS[cnnApiResult?.type ?? ""] ?? detType) : null;
             // Step-5 generation formula/description reflect the REAL backend method
             // (canonical IFS / Koch recursive boundary / escape-time depth) when known.
             const beFinal = steps?.final ?? null;
             const genMethod = beFinal?.generation_method;
-            let step5formula = gen3dFormula[detType] ?? "—";
-            let step5desc = "По типу фрактала выбирается математический 3D-генератор (Three.js).";
-            if (genMethod === "recursive_boundary") {
-              step5formula = "Koch(p₀,p₁,d) = Koch(p₀,a,d−1) ∪ Koch(a,b,d−1) ∪ …";
-              step5desc = "Рекурсивная граница depth=6, 12288 сегментов → extrusion.";
-            } else if (genMethod === "escape_depth") {
-              step5formula = "z → z² + c,  depth = smooth_iter";
-              step5desc = "Escape-time карта глубины → marching cubes.";
-            } else if (genMethod === "chaos_game") {
-              const nT = beFinal?.recovery_method === "canonical_fitted" ? " (canonical)" : "";
-              step5formula = "Tᵢ(x) = Aᵢ·x + tᵢ,  i = 1..N  (Canonical IFS)";
-              step5desc = `Каноничные аффинные преобразования${beFinal?.recovery_method === "canonical_fitted" ? " + подгонка позы" : " (blind recovery)"}. Chaos game 100K точек → marching cubes → mesh.${nT}`;
+            // 2D->3D ALWAYS builds a height-field relief from the depth map of the
+            // current image (Bug 1): the mesh visually matches the depth map and
+            // differs per input — no IFS / chaos-game / Julia template drives it.
+            const step5formula = "X=(u−W/2), Y=−(v−H/2), Z=depth(u,v) · scale_z → триангуляция соседних пикселей";
+            let step5desc =
+              "3D-рельеф построен ИЗ карты глубины (single-view 2.5D): высота каждой вершины = глубина пикселя. Поверхность повторяет depth-карту, поэтому на разных картинках получается разный рельеф.";
+            if (genMethod === "neural_depth") {
+              step5desc =
+                "3D-рельеф из НЕЙРОННОЙ depth-карты (Depth-Anything V2 → DCNF-CRF): высота вершины = глубина пикселя. Поверхность повторяет depth-карту.";
             }
             const step5out = beFinal
-              ? `✓ ${beFinal.type} (${genMethod === "recursive_boundary" ? "recursive boundary" : genMethod === "escape_depth" ? "escape depth" : beFinal.recovery_method === "canonical_fitted" ? "canonical" : "chaos game"})`
+              ? `✓ depth-рельеф (${genMethod === "neural_depth" ? "neural DA V2" : "depth map"})`
               : detection ? `✓ ${detection.name3d}` : "ожидание классификации";
             // Step 4 = RAW CNN classification (BEFORE the geometric tie-break). Make that
             // explicit so it isn't confused with the post-tie-break final_type.
@@ -2831,7 +2820,7 @@ export default function FractalCNN() {
               className="px-5 py-4 text-sm leading-relaxed transition-all"
               style={{ background: `${s.color}0A`, borderTop: `1px solid ${s.color}33`, color: "var(--text-secondary)" }}
             >
-              <span className="font-bold mr-2" style={{ color: s.color }}>Шаг {s.num}.</span>
+              <span className="font-bold mr-2" style={{ color: s.color }}>{TX.stepWord[lang]} {s.num}.</span>
               {s.detail[lang]}
             </div>
           );

@@ -29,6 +29,7 @@ def build_synthetic(
     menger_level: int = 4,
     ifs_points: int = 2_000_000,
     ifs_warmup: int = 20,
+    voxel_pitch: Optional[float] = None,
 ) -> dict:
     """Branch A — mesh → rendered orbit → point-cloud PLY fallback.
 
@@ -163,6 +164,62 @@ def build_synthetic(
         progress=_render_progress,
     )
 
+    # TSDF fusion / CPU voxelization only improves fractal volumes.
+    # For external/displacement meshes the surface is already clean — skip both.
+    if use_fractal_volume:
+        try:
+            from .tsdf_fusion import fuse_views_to_mesh
+            fused_mesh = out_dir / "source_mesh_fused.ply"
+            _prog(0.55, "Attempting TSDF fusion (Open3D) …")
+            fused_ok = fuse_views_to_mesh(mesh_path if mesh_path else out_dir / "source_mesh.ply", transforms_path, fused_mesh)
+            if fused_ok and fused_mesh.exists():
+                mesh_path = fused_mesh
+                mesh_file = fused_mesh.name
+                try:
+                    source_mesh_stats = _mesh_stats(__import__('trimesh').load(str(mesh_path), force='mesh'))
+                except Exception:
+                    source_mesh_stats = {}
+                _prog(0.6, "TSDF fusion succeeded.")
+            else:
+                _prog(0.6, "TSDF fusion unavailable or failed — using fallback.")
+        except Exception:
+            try:
+                _prog(0.6, "TSDF fusion skipped (Open3D not available).")
+            except Exception:
+                pass
+    # CPU voxelization only helps fractal volumes (fills internal cavities).
+    # For external/displacement meshes the surface is already clean — skip.
+    if use_fractal_volume and not (mesh_path and mesh_path.name.endswith("source_mesh_fused.ply") and (out_dir / mesh_path.name).exists()):
+        try:
+            from .tsdf_cpu import voxelize_mesh_to_mesh
+            fused_cpu = out_dir / "source_mesh_fused_cpu.ply"
+            _prog(0.57, "Attempting CPU voxelization fallback …")
+            src_for_vox = mesh_path if mesh_path else out_dir / "source_mesh.ply"
+            # Determine pitch: explicit voxel_pitch overrides heuristic
+            if voxel_pitch is not None:
+                pitch = float(voxel_pitch)
+            else:
+                # Heuristic: base on fractal resolution when available
+                try:
+                    base_res = float(fractal_params.get("resolution", 192)) if isinstance(fractal_params, dict) else 192.0
+                except Exception:
+                    base_res = 192.0
+                pitch = max(0.001, base_res / 16384.0)  # small default
+            cpu_ok = voxelize_mesh_to_mesh(src_for_vox, fused_cpu, pitch=pitch)
+            if cpu_ok and fused_cpu.exists():
+                mesh_path = fused_cpu
+                mesh_file = fused_cpu.name
+                try:
+                    source_mesh_stats = _mesh_stats(__import__('trimesh').load(str(mesh_path), force='mesh'))
+                except Exception:
+                    source_mesh_stats = {}
+                _prog(0.6, "CPU voxelization succeeded.")
+        except Exception:
+            try:
+                _prog(0.6, "CPU voxelization fallback failed or unavailable.")
+            except Exception:
+                pass
+
     _prog(0.6, "Training / generating point cloud …")
 
     # 2. Train or fallback
@@ -220,6 +277,7 @@ def build_synthetic(
         "method": "fractal_volume" if use_fractal_volume else train_result.get("method", "unknown"),
         "fractal_type": fractal_type,
         "fractal_params": fractal_params,
+        "voxel_pitch": float(voxel_pitch) if voxel_pitch is not None else None,
         "source_mesh_stats": source_mesh_stats,
         "n_views": n_views,
         "n_gaussians": train_result.get("n_gaussians", 0),
