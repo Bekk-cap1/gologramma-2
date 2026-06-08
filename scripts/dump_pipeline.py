@@ -1,7 +1,7 @@
 """Dump the depth-estimation pipeline stages as PNGs + a manifest.
 
 Usage:
-    python scripts/dump_pipeline.py --input sample_fractal.png --out docs/pipeline_demo/
+    python scripts/dump_pipeline.py --input sample_fractal.png --out fractal_3d/output/pipeline_demo/
 
 Produces 01..08 PNG stage images (via estimate_depth(dump_dir=...)) plus
 manifest.json describing each stage (RU title + short description).

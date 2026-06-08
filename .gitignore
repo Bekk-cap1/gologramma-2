@@ -10,8 +10,10 @@
 !.yarn/releases
 !.yarn/versions
 /.venv/
+/.vevn/
 /venv/
 /env/
+/.codex-tmp/
 
 # testing
 /coverage
@@ -61,8 +63,21 @@ __pycache__/
 /dataset.zip
 /fractal_3d_TZ.md
 
-/dataset.zip
-/fractal_3d_TZ.md
+# generated documents and demos
+*.docx
+/docs/_*.ply
+/docs/diagrams/out/
+/docs/pipeline_demo/
+/docs/splat360_demo/
+/docs/splat360_demo2/
+/docs/splat360_mandelbulb/
+/docs/splat360_menger/
+
+# assistant-only notes, not app/runtime files
+/AGENTS.md
+/CLAUDE.md
+/fractal_3d/CLAUDE.md
+
 # fractal_3d runtime artifacts
 fractal_3d/output/
 fractal_3d/logs/
