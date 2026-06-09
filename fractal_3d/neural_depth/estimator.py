@@ -106,7 +106,7 @@ def estimate_depth_compare(image, method="auto", segments=900, compactness=10.0,
                        fractal_aware=fractal_aware, eta=eta)
     depth_crf = crf["crf_depth"]
 
-    # --- Make3D-style baseline (Saxena 2008): piecewise-planar fit on the SAME
+    # --- Make3D-style baseline (Saxena): piecewise-planar fit on the SAME
     #     unary + MRF co-planarity. Reuses the CRF SLIC labels.
     depth_make3d = None
     try:

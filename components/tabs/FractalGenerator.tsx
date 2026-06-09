@@ -7,9 +7,9 @@ import { useLang } from "@/components/LanguageContext";
 const T = {
   tabTitle:    { ru: "Алгоритм DCNF CRF",  uz: "DCNF CRF algoritmi",  en: "DCNF CRF Algorithm"  },
   tabSubtitle: {
-    ru: "Liu et al. CVPR 2015 «Deep Convolutional Neural Fields» + наши добавления: 3 similarity (LAB, histogram, LBP) + DA V2 unary + guided filter",
-    uz: "Liu et al. CVPR 2015 «Deep Convolutional Neural Fields» + bizning qo'shimchalarimiz: 3 similarity (LAB, histogram, LBP) + DA V2 unary + guided filter",
-    en: "Liu et al. CVPR 2015 «Deep Convolutional Neural Fields» + our additions: 3 similarities (LAB, histogram, LBP) + DA V2 unary + guided filter",
+    ru: "Liu et al. CVPR «Deep Convolutional Neural Fields» + наши добавления: 3 similarity (LAB, histogram, LBP) + DA V2 unary + guided filter",
+    uz: "Liu et al. CVPR «Deep Convolutional Neural Fields» + bizning qo'shimchalarimiz: 3 similarity (LAB, histogram, LBP) + DA V2 unary + guided filter",
+    en: "Liu et al. CVPR «Deep Convolutional Neural Fields» + our additions: 3 similarities (LAB, histogram, LBP) + DA V2 unary + guided filter",
   },
 
   secATitle:   { ru: "A. Блок-схема алгоритма (Liu et al. рис. 1 + наши расширения)", uz: "A. Algoritm blok-sxemasi (Liu et al. 1-rasm + bizning kengaytmalar)", en: "A. Algorithm block diagram (Liu et al. Fig. 1 + our extensions)" },
@@ -1211,7 +1211,7 @@ export default function FractalGenerator() {
           };
 
           const table1: Row[] = [
-            { method: "Make3D",                 ref:"[Saxena 2008]", rel:"0.349", log10:"—",     rms:"1.214", d1:"0.447", d2:"0.745", d3:"0.897" },
+            { method: "Make3D",                 ref:"[Saxena]", rel:"0.349", log10:"—",     rms:"1.214", d1:"0.447", d2:"0.745", d3:"0.897" },
             { method: "DepthTransfer",           ref:"[5]",           rel:"0.350", log10:"0.131", rms:"1.200", d1:"—",     d2:"—",     d3:"—"     },
             { method: "Discrete-continuous CRF", ref:"[Liu et al.]",  rel:"0.335", log10:"0.127", rms:"1.060", d1:"—",     d2:"—",     d3:"—"     },
             { method: l==="ru"?"Только Unary (DA V2)":"Faqat Unary (DA V2)",
@@ -1357,7 +1357,7 @@ export default function FractalGenerator() {
         {/* ── Metric legend (formulas) ── */}
         <div className="mb-4 p-3 rounded-lg text-xs" style={{ background:"var(--bg-card)", border:"1px solid var(--border-color)", color:"var(--text-secondary)" }}>
           <div className="font-semibold mb-2" style={{ color:"var(--text-primary)" }}>
-            {l==="ru"?"Формулы метрик (Liu et al. CVPR 2015, §4):":"Metrika formulalari (Liu et al. CVPR 2015, §4):"}
+            {l==="ru"?"Формулы метрик (Liu et al. CVPR, §4):":"Metrika formulalari (Liu et al. CVPR, §4):"}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 font-mono">
             <span><strong style={{color:"var(--accent-cyan)"}}>rel</strong> = (1/T)·Σ |d_gt − d| / d_gt</span>

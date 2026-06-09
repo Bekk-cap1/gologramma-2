@@ -41,11 +41,11 @@ const T = {
   crfFull:        { ru: "CRF-style",                                    uz: "CRF-uslub",                               en: "CRF-style"                                },
   photoDetected:  { ru: "📷 Обнаружено фото → Neural Depth",           uz: "📷 Foto aniqlandi → Neural Depth",        en: "📷 Photo detected → Neural Depth"        },
   depthMethod:    { ru: "Метод глубины:",                               uz: "Chuqurlik usuli:",                        en: "Depth method:"                            },
-  compTitle:      { ru: "Сравнение методов (Liu et al. CVPR 2015)",     uz: "Usullarni taqqoslash (Liu et al. CVPR 2015)", en: "Method comparison (Liu et al. CVPR 2015)" },
+  compTitle:      { ru: "Сравнение методов (Liu et al. CVPR)",     uz: "Usullarni taqqoslash (Liu et al. CVPR)", en: "Method comparison (Liu et al. CVPR)" },
   compCaption:    { ru: "Unary only (y*=z) vs Full CRF (y*=A⁻¹z, A=I+D−R)", uz: "Unary only vs Full CRF",           en: "Unary only (y*=z) vs Full CRF (y*=A⁻¹z, A=I+D−R)" },
   compNumTitle:   { ru: "Числовое сравнение",                           uz: "Raqamli taqqoslash",                      en: "Numerical comparison"                     },
   compNote:       { ru: "Сравнение по Liu et al. (Figure 4): эффект CRF на слабом unary. DA V2 — нейросеть-reference (потолок).", uz: "Liu et al. bo'yicha taqqoslash (4-rasm): CRF ta'siri. DA V2 — neyroset-reference (chegara).", en: "Comparison per Liu et al. (Figure 4): CRF effect on weak unary. DA V2 — neural reference (quality ceiling)." },
-  compMake3dNote: { ru: "Make3D (Saxena et al. 2008) — классический плоскостной бейзлайн (кусочно-плоская модель + MRF), прямой предшественник Liu et al. Сравнение показывает место DCNF CRF относительно плоскостного подхода.", uz: "Make3D (Saxena et al. 2008) — klassik tekislikka asoslangan baza. Liu et al. ning bevosita salafi. DCNF CRF ning tekislik yondashuviga nisbatan o'rnini ko'rsatadi.", en: "Make3D (Saxena et al. 2008) — classic piecewise-planar baseline (MRF), direct predecessor of Liu et al. Shows where DCNF CRF stands vs the planar approach." },
+  compMake3dNote: { ru: "Make3D (Saxena et al.) — классический плоскостной бейзлайн (кусочно-плоская модель + MRF), прямой предшественник Liu et al. Сравнение показывает место DCNF CRF относительно плоскостного подхода.", uz: "Make3D (Saxena et al.) — klassik tekislikka asoslangan baza. Liu et al. ning bevosita salafi. DCNF CRF ning tekislik yondashuviga nisbatan o'rnini ko'rsatadi.", en: "Make3D (Saxena et al.) — classic piecewise-planar baseline (MRF), direct predecessor of Liu et al. Shows where DCNF CRF stands vs the planar approach." },
   effectTitle:    { ru: "Эффект DCNF CRF (vs сырой unary)",            uz: "DCNF CRF ta'siri (xom unary vs)",        en: "DCNF CRF effect (vs raw unary)"           },
   edgeAlign:      { ru: "Совпадение границ",                            uz: "Chegara mos kelishi",                     en: "Edge alignment"                           },
   usefulDetail:   { ru: "Полезные детали",                              uz: "Foydali tafsilotlar",                     en: "Useful detail"                            },
@@ -66,8 +66,8 @@ const T = {
   ablRange:       { ru: "Диапазон",                                     uz: "Diapazon",                                en: "Depth range"                              },
   ablCaption:     { ru: "Каждая строка добавляет один pairwise-признак нашего метода (color → histogram → LBP → spatial).", uz: "Har bir satr bizning usulning bitta pairwise-belgisini qo'shadi (color → histogram → LBP → spatial).", en: "Each row adds one pairwise feature of our method (color → histogram → LBP → spatial)." },
   depthImagesTitle: { ru: "Карта глубины (DCNF)",                      uz: "Chuqurlik xaritasi (DCNF)",               en: "Depth map (DCNF)"                         },
-  liuTable1Title:  { ru: "Таблица 1. Сравнение методов (Make3D dataset, Liu et al. CVPR 2015)", uz: "Jadval 1. Usullarni taqqoslash (Make3D dataset, Liu et al. CVPR 2015)", en: "Table 1. Method comparison (Make3D dataset, Liu et al. CVPR 2015)" },
-  liuTable2Title:  { ru: "Таблица 2. Ablation study (Make3D dataset, Liu et al. CVPR 2015)",    uz: "Jadval 2. Ablation tadqiqoti (Make3D dataset, Liu et al. CVPR 2015)",    en: "Table 2. Ablation study (Make3D dataset, Liu et al. CVPR 2015)"   },
+  liuTable1Title:  { ru: "Таблица 1. Сравнение методов (Make3D dataset, Liu et al. CVPR)", uz: "Jadval 1. Usullarni taqqoslash (Make3D dataset, Liu et al. CVPR)", en: "Table 1. Method comparison (Make3D dataset, Liu et al. CVPR)" },
+  liuTable2Title:  { ru: "Таблица 2. Ablation study (Make3D dataset, Liu et al. CVPR)",    uz: "Jadval 2. Ablation tadqiqoti (Make3D dataset, Liu et al. CVPR)",    en: "Table 2. Ablation study (Make3D dataset, Liu et al. CVPR)"   },
   liuTable1Cap:   { ru: "Стандартные метрики глубины: ↓ меньше — лучше, ↑ больше — лучше. Жирным — лучший результат в каждом столбце.", uz: "Standart chuqurlik ko'rsatkichlari: ↓ kichik — yaxshi, ↑ katta — yaxshi. Qalin — har bir ustundagi eng yaxshi natija.", en: "Standard depth metrics: ↓ lower — better, ↑ higher — better. Bold — best in each column." },
   liuTable2Cap:   { ru: "Каждая строка: добавляется один компонент. DA V2 используется как псевдо-эталон (нет реального GT для фракталов).", uz: "Har bir satr: bitta komponent qo'shiladi. DA V2 psevdo-etalon sifatida ishlatiladi (fraktallar uchun haqiqiy GT yo'q).", en: "Each row adds one component. DA V2 used as pseudo ground truth (no real GT for fractals)." },
   lowerBetter:    { ru: "Ошибки (↓ меньше — лучше)",                   uz: "Xatolar (↓ kichik — yaxshi)",             en: "Errors (↓ lower — better)"               },
@@ -1481,13 +1481,13 @@ export default function DepthCRF() {
                   <div className="text-xs font-semibold" style={{ color: "#06b6d4" }}>{T.compNumTitle[lang]}</div>
                   <div className="text-[11px]" style={{ color: "var(--text-secondary)" }}>{T.compNote[lang]}</div>
 
-                  {/* ── Liu et al. CVPR 2015 Standard Metric Tables ── */}
+                  {/* ── Liu et al. CVPR Standard Metric Tables ── */}
                   {(() => {
                     type Row = { method: string; ours?: boolean; rel: number; log10: number; rms: number; d1: number; d2: number; d3: number };
                     const table1Rows: Row[] = [
-                      { method: "Make3D (Saxena 2008)",            rel: 0.349, log10: 0.131, rms: 8.734, d1: 0.447, d2: 0.745, d3: 0.897 },
-                      { method: "DepthTransfer (Karsch 2014)",     rel: 0.355, log10: 0.127, rms: 9.200, d1: 0.413, d2: 0.711, d3: 0.869 },
-                      { method: "Discr.-Cont. CRF (Liu 2014)",     rel: 0.335, log10: 0.127, rms: 9.003, d1: 0.476, d2: 0.767, d3: 0.904 },
+                      { method: "Make3D (Saxena)",            rel: 0.349, log10: 0.131, rms: 8.734, d1: 0.447, d2: 0.745, d3: 0.897 },
+                      { method: "DepthTransfer",     rel: 0.355, log10: 0.127, rms: 9.200, d1: 0.413, d2: 0.711, d3: 0.869 },
+                      { method: "Discr.-Cont. CRF",     rel: 0.335, log10: 0.127, rms: 9.003, d1: 0.476, d2: 0.767, d3: 0.904 },
                       { method: "Unary only",                      rel: 0.232, log10: 0.094, rms: 7.214, d1: 0.608, d2: 0.842, d3: 0.942 },
                       { method: "Ours (pre-train)",                rel: 0.230, log10: 0.095, rms: 7.271, d1: 0.614, d2: 0.849, d3: 0.944 },
                       { method: "Ours (fine-tune + GF)", ours:true, rel: 0.213, log10: 0.087, rms: 6.986, d1: 0.650, d2: 0.866, d3: 0.949 },
@@ -1597,7 +1597,7 @@ export default function DepthCRF() {
                           Unary only<br /><span className="text-[10px] font-normal">{lang === "ru" ? "сырой, #06b6d4" : "xom, #06b6d4"}</span>
                         </th>
                         <th className="text-center py-1 text-xs font-semibold" style={{ color: "#fb923c" }}>
-                          Make3D<br /><span className="text-[10px] font-normal">Saxena 2008</span>
+                          Make3D<br /><span className="text-[10px] font-normal">Saxena</span>
                         </th>
                         <th className="text-center py-1 text-xs font-semibold" style={{ color: "#34D399" }}>
                           Full CRF<br /><span className="text-[10px] font-normal">{lang === "ru" ? "наш метод" : "bizning usul"}</span>

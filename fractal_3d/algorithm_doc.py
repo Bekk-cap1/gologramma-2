@@ -1,6 +1,6 @@
 """Generate a bilingual (RU/UZ) Word document describing the DCNF-CRF depth
 algorithm: pipeline block-diagram, numbered steps with formulas, and the
-evaluation metrics (Liu et al. CVPR 2015, Tables 1-3) with explanations.
+evaluation metrics (Liu et al. CVPR, Tables 1-3) with explanations.
 
 Used by the /algorithm_doc API endpoint. Only python-docx + matplotlib (Agg).
 """
@@ -237,7 +237,7 @@ def build_algorithm_docx() -> bytes:
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     sub = doc.add_paragraph(
         "Liu et al. «Deep Convolutional Neural Fields for Depth Estimation», "
-        "CVPR 2015 + наши добавления (3 similarity, DA V2 unary, guided filter).")
+        "CVPR + наши добавления (3 similarity, DA V2 unary, guided filter).")
     sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
     for r in sub.runs:
         r.italic = True

@@ -1,4 +1,4 @@
-"""Make3D-style depth baseline (Saxena et al. 2008), simplified — no training.
+"""Make3D-style depth baseline (Saxena et al.), simplified — no training.
 
 A handcrafted piecewise-planar baseline for CONTRAST with the DCNF-CRF: each
 superpixel is modelled as a plane z = a·x + b·y + c fitted to the unary depth,

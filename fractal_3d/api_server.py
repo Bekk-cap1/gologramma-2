@@ -801,7 +801,7 @@ def reconstruct_endpoint(req: ReconstructRequest):
 
 @app.post("/compare_depth")
 def compare_depth(req: CompareDepthRequest):
-    """Build a Unary-only vs Full-CRF depth comparison grid (Liu et al. CVPR 2015)."""
+    """Build a Unary-only vs Full-CRF depth comparison grid (Liu et al. CVPR)."""
     try:
         img = _decode_image(req.image)
     except ValueError as e:

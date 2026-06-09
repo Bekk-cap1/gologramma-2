@@ -16,11 +16,11 @@ from .common import to_gray, binarize
 def depth_comparison_grid(image, depth_unary, depth_crf, depth_da=None,
                           depth_make3d=None, da_available=True,
                           unary_source="pseudo", fractal_aware=False):
-    """Method comparison panel à la Liu et al. CVPR 2015 (Fig. 4 / Table 1).
+    """Method comparison panel à la Liu et al. CVPR (Fig. 4 / Table 1).
 
     Panels: Исходное · Unary · Make3D (plane baseline) · Full CRF · DA V2.
     Unary and CRF share the SAME weak pseudo-cue unary (isolates the CRF effect);
-    Make3D (Saxena 2008) is a piecewise-planar baseline; DA V2 is a neural
+    Make3D (Saxena) is a piecewise-planar baseline; DA V2 is a neural
     reference (ceiling). Returns one image-dict (or None on failure).
     """
     try:
@@ -32,15 +32,9 @@ def depth_comparison_grid(image, depth_unary, depth_crf, depth_da=None,
             img = (np.clip(img, 0, 1) * 255).astype(np.uint8) if img.max() <= 1.0 else img.astype(np.uint8)
 
         panels = [("Исходное изображение", img, None, "#e2e8f0", "")]
-        panels.append(("Unary only (y*=z)", np.asarray(depth_unary), "magma",
-                       "#06b6d4", f"{unary_source} · weak z · no pairwise"))
         if depth_make3d is not None:
             panels.append(("Make3D (плоскости)", np.asarray(depth_make3d), "magma",
-                           "#fb923c", "Saxena 2008 · плоскостной бейзлайн"))
-        crf_cap = ("same unary + fractal-aware CRF"
-                   if fractal_aware else "same unary + Liu DCNF CRF")
-        panels.append(("Full CRF", np.asarray(depth_crf), "magma",
-                       "#10b981", crf_cap))
+                           "#fb923c", "Saxena · плоскостной бейзлайн"))
         if depth_da is not None:
             da_panel = np.asarray(depth_da)
             da_caption = "neural reference · quality ceiling"
@@ -49,6 +43,12 @@ def depth_comparison_grid(image, depth_unary, depth_crf, depth_da=None,
             da_caption = "n/a - install requirements.txt"
         panels.append(("Depth Anything V2" if da_available else "DA V2 (n/a)",
                        da_panel, "inferno", "#a855f7", da_caption))
+        panels.append(("Unary only (y*=z)", np.asarray(depth_unary), "magma",
+                       "#06b6d4", f"{unary_source} · weak z · no pairwise"))
+        crf_cap = ("same unary + fractal-aware CRF"
+                   if fractal_aware else "same unary + Liu DCNF CRF")
+        panels.append(("Full CRF", np.asarray(depth_crf), "magma",
+                       "#10b981", crf_cap))
 
         n = len(panels)
         fig, axes = plt.subplots(1, n, figsize=(3.6 * n, 3.8))
@@ -69,8 +69,8 @@ def depth_comparison_grid(image, depth_unary, depth_crf, depth_da=None,
         fig.tight_layout()
         return {
             "id": "depth_method_comparison",
-            "title": "Сравнение методов (Liu et al. CVPR 2015, Table 1)",
-            "description": "Unary · Make3D (Saxena 2008) · Full CRF · DA V2 (reference)",
+            "title": "Сравнение методов (Liu et al. CVPR, Table 1)",
+            "description": "Unary · Make3D (Saxena) · Full CRF · DA V2 (reference)",
             "data": plot_to_base64(fig),
         }
     except Exception:
