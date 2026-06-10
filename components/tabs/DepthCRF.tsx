@@ -193,12 +193,12 @@ function MetricRow({ label, values }: { label: string; values?: DepthMetricTripl
   return (
     <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
       <td className="py-1" style={{ color: "var(--text-secondary)" }}>{label}</td>
-      {cell(values.unary)}
       {typeof values.make3d === "number"
         ? cell(values.make3d)
         : <td className="text-center py-1" style={{ color: "var(--text-secondary)" }}>—</td>}
-      {cell(values.crf)}
       {daCell(values.da_v2)}
+      {cell(values.unary)}
+      {cell(values.crf)}
     </tr>
   );
 }
@@ -1593,17 +1593,17 @@ export default function DepthCRF() {
                         <th className="text-left py-1 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
                           {T.metricLbl[lang]}
                         </th>
-                        <th className="text-center py-1 text-xs font-semibold" style={{ color: "#06b6d4" }}>
-                          Unary only<br /><span className="text-[10px] font-normal">{lang === "ru" ? "сырой, #06b6d4" : "xom, #06b6d4"}</span>
-                        </th>
                         <th className="text-center py-1 text-xs font-semibold" style={{ color: "#fb923c" }}>
                           Make3D<br /><span className="text-[10px] font-normal">Saxena</span>
                         </th>
-                        <th className="text-center py-1 text-xs font-semibold" style={{ color: "#34D399" }}>
-                          Full CRF<br /><span className="text-[10px] font-normal">{lang === "ru" ? "наш метод" : "bizning usul"}</span>
-                        </th>
                         <th className="text-center py-1 text-xs font-semibold" style={{ color: "#a855f7" }}>
                           DA V2<br /><span className="text-[10px] font-normal">reference</span>
+                        </th>
+                        <th className="text-center py-1 text-xs font-semibold" style={{ color: "#06b6d4" }}>
+                          Unary only<br /><span className="text-[10px] font-normal">{lang === "ru" ? "сырой" : "xom"}</span>
+                        </th>
+                        <th className="text-center py-1 text-xs font-semibold" style={{ color: "#34D399" }}>
+                          Full CRF<br /><span className="text-[10px] font-normal">{lang === "ru" ? "наш метод" : "bizning usul"}</span>
                         </th>
                       </tr>
                     </thead>

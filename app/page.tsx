@@ -181,12 +181,6 @@ export default function Home() {
         ))}
       </main>
 
-      {/* Footer */}
-      <footer style={{ background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)' }} className="px-6 py-4 text-center">
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          {t.appTitle[lang]} — {t.appSubtitle[lang]}
-        </p>
-      </footer>
     </div>
   );
 }

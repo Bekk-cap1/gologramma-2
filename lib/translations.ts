@@ -3,7 +3,7 @@ export type Lang = "ru" | "uz" | "en";
 export const t = {
   // App-wide
   appTitle:    { ru: "Transmission Hologram", uz: "Gologramma", en: "Transmission Hologram" },
-  appSubtitle: { ru: "Интерактивный учебник по физике трансмиссионной голограммы", uz: "Transmissiya hologrammasining fizikasi bo'yicha interaktiv darslik", en: "Interactive physics textbook on transmission holography" },
+  appSubtitle: { ru: "Интерактивный учебник по физике трансмиссионной голограммы", uz: "Transmissiya hologrammasining fizikasi", en: "Interactive physics textbook on transmission holography" },
 
   // Tab names
   tab0: { ru: "Оборудование",    uz: "Jihozlar",      en: "Equipment"     },
