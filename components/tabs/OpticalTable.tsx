@@ -886,6 +886,8 @@ export default function OpticalTable() {
   const holoAngleRef = useRef(0);
   const cghPhaseRef = useRef(0);
   const cghRafRef = useRef<number>(0);
+  const wavePhaseRef = useRef(0);       // continuous px accumulator for wavefront arcs
+  const waveLastTimeRef = useRef(0);    // last rAF timestamp for delta-time
 
   const [components, setComponents] = useState<OpticalComponent[]>(makeStandardPreset());
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -894,7 +896,7 @@ export default function OpticalTable() {
   const [rotatingId, setRotatingId] = useState<string | null>(null);
   const [pointerDownPos, setPointerDownPos] = useState<{ x: number; y: number } | null>(null);
   const [tutorialOpen, setTutorialOpen] = useState(true);
-  const [animFrame, setAnimFrame] = useState(0);
+  const [frameTick, setFrameTick] = useState(0); // redraw trigger only — phase lives in wavePhaseRef
   const [selectedObject, setSelectedObject] = useState<HologramObject>('cube');
 
   // Ray tracing state
@@ -908,9 +910,12 @@ export default function OpticalTable() {
   const rafRef = useRef<number>(0);
   useEffect(() => {
     let running = true;
-    const tick = () => {
+    const tick = (now: number) => {
       if (!running) return;
-      setAnimFrame(f => (f + 1) % 120);
+      const delta = waveLastTimeRef.current > 0 ? (now - waveLastTimeRef.current) / 1000 : 0;
+      waveLastTimeRef.current = now;
+      wavePhaseRef.current += 70 * delta; // 70 px/sec — constant regardless of monitor Hz
+      setFrameTick(f => (f + 1) % 1_000_000); // triggers redraw every frame
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -971,27 +976,157 @@ export default function OpticalTable() {
       }
     }
 
-    // Draw rays
-    for (const ray of rays) {
+    // ── Draw rays ──────────────────────────────────────────────────────────
+    // Separate beams: reference (plane wave), object (spherical wavefront), other
+    const objRaysAll  = rays.filter(r => r.rayType === 'object');
+    const refRaysAll  = rays.filter(r => r.rayType === 'reference');
+    const otherRays   = rays.filter(r => r.rayType === 'scattered');
+
+    // Helper: thin line + glow for a single ray segment
+    const drawLine = (x1: number, y1: number, x2: number, y2: number, color: string, intensity: number) => {
       ctx.save();
-      ctx.globalAlpha = Math.max(0.1, Math.min(1, ray.intensity));
-      ctx.strokeStyle = ray.color;
+      ctx.globalAlpha = Math.max(0.15, Math.min(1, intensity));
+      ctx.strokeStyle = color;
       ctx.lineWidth = 1.5;
-      ctx.shadowColor = ray.color;
+      ctx.shadowColor = color;
       ctx.shadowBlur = 6;
-      ctx.beginPath();
-      ctx.moveTo(ray.x1, ray.y1);
-      ctx.lineTo(ray.x2, ray.y2);
-      ctx.stroke();
-      // Glow pass
-      ctx.globalAlpha = Math.max(0.05, ray.intensity * 0.3);
-      ctx.lineWidth = 5;
-      ctx.shadowBlur = 14;
-      ctx.beginPath();
-      ctx.moveTo(ray.x1, ray.y1);
-      ctx.lineTo(ray.x2, ray.y2);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      ctx.globalAlpha = Math.max(0.05, intensity * 0.25);
+      ctx.lineWidth = 5; ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
       ctx.restore();
+    };
+
+    // 1. Reference beam — animated plane wavefronts only on the ray going to film
+    const filmComp = components.find(c => c.type === 'film');
+    // Rays whose start point is near a lens get plane-wave treatment; others are thin lines
+    const lensComps = components.filter(c => c.type === 'lens');
+    const startsAtLens = (r: typeof refRaysAll[0]) =>
+      lensComps.some(l => Math.hypot(r.x1 - l.x, r.y1 - l.y) < 30);
+
+    // Draw plain lines for pre-lens segments
+    for (const ray of refRaysAll) {
+      const len = Math.hypot(ray.x2 - ray.x1, ray.y2 - ray.y1);
+      if (len < 1 || startsAtLens(ray)) continue;
+      drawLine(ray.x1, ray.y1, ray.x2, ray.y2, ray.color, ray.intensity);
+    }
+
+    // Group post-lens rays by their start point → one fan per lens
+    const lensRayMap = new Map<string, typeof refRaysAll>();
+    for (const ray of refRaysAll) {
+      if (!startsAtLens(ray)) continue;
+      const key = `${Math.round(ray.x1 / 4) * 4},${Math.round(ray.y1 / 4) * 4}`;
+      if (!lensRayMap.has(key)) lensRayMap.set(key, []);
+      lensRayMap.get(key)!.push(ray);
+    }
+
+    for (const group of lensRayMap.values()) {
+      const sx = group[0].x1, sy = group[0].y1;
+      const maxLen = Math.max(...group.map(r => Math.hypot(r.x2 - sx, r.y2 - sy)));
+
+      // Aim the cone at the film; fall back to ray angle range if no film
+      let minA: number, maxA: number;
+      if (filmComp) {
+        const centerAngle = Math.atan2(filmComp.y - sy, filmComp.x - sx);
+        const halfAngle = Math.atan2(filmComp.height * 0.5, Math.hypot(filmComp.x - sx, filmComp.y - sy));
+        minA = centerAngle - halfAngle;
+        maxA = centerAngle + halfAngle;
+      } else {
+        const angles = group.map(r => Math.atan2(r.y2 - sy, r.x2 - sx));
+        minA = Math.min(...angles);
+        maxA = Math.max(...angles);
+      }
+
+      ctx.save();
+      // Filled radial fan — single unified cone
+      const fanGrad = ctx.createRadialGradient(sx, sy, 0, sx, sy, maxLen);
+      fanGrad.addColorStop(0,    'rgba(0,229,255,0.0)');
+      fanGrad.addColorStop(0.12, 'rgba(0,229,255,0.22)');
+      fanGrad.addColorStop(0.65, 'rgba(0,210,240,0.14)');
+      fanGrad.addColorStop(1,    'rgba(0,229,255,0.03)');
+      ctx.fillStyle = fanGrad;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.arc(sx, sy, maxLen, minA, maxA);
+      ctx.closePath();
+      ctx.fill();
+
+      // N staggered arcs — continuous phase, no reset jump
+      const Nref = 4;
+      const baseRref = wavePhaseRef.current % maxLen;
+      for (let i = 0; i < Nref; i++) {
+        const rArc = (baseRref + i * (maxLen / Nref)) % maxLen;
+        const progress = rArc / maxLen;
+        const fadeIn  = Math.min(progress * 8, 1);
+        const fadeOut = 1 - progress;
+        ctx.globalAlpha = 0.85 * fadeIn * fadeOut;
+        ctx.strokeStyle = '#00E5FF';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#00BFFF';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(sx, sy, rArc, minA, maxA);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 2. Object beam — spherical wavefront arcs expanding from source to film
+    const srcMap = new Map<string, typeof objRaysAll>();
+    for (const r of objRaysAll) {
+      const key = `${Math.round(r.x1 / 4) * 4},${Math.round(r.y1 / 4) * 4}`;
+      if (!srcMap.has(key)) srcMap.set(key, []);
+      srcMap.get(key)!.push(r);
+    }
+
+    for (const group of srcMap.values()) {
+      if (group.length < 2) {
+        drawLine(group[0].x1, group[0].y1, group[0].x2, group[0].y2, group[0].color, group[0].intensity);
+        continue;
+      }
+
+      const sx = group[0].x1, sy = group[0].y1;
+      const angles = group.map(r => Math.atan2(r.y2 - sy, r.x2 - sx));
+      const minA = Math.min(...angles), maxA = Math.max(...angles);
+      const maxLen = Math.max(...group.map(r => Math.hypot(r.x2 - sx, r.y2 - sy)));
+
+      ctx.save();
+
+      // Filled radial fan gradient
+      const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, maxLen);
+      grad.addColorStop(0,    'rgba(156,39,176,0.0)');
+      grad.addColorStop(0.12, 'rgba(156,39,176,0.22)');
+      grad.addColorStop(0.65, 'rgba(180,60,210,0.14)');
+      grad.addColorStop(1,    'rgba(156,39,176,0.03)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.arc(sx, sy, maxLen, minA, maxA);
+      ctx.closePath();
+      ctx.fill();
+
+      // Staggered arcs — continuous phase, no reset jump
+      const numArcs = 6;
+      const baseR = wavePhaseRef.current % maxLen;
+      for (let i = 0; i < numArcs; i++) {
+        const rArc = (baseR + i * (maxLen / numArcs)) % maxLen;
+        const progress = rArc / maxLen;
+        const fadeIn = Math.min(progress * 8, 1);
+        ctx.globalAlpha = 0.85 * fadeIn * (1 - progress);
+        ctx.strokeStyle = '#c070e8';
+        ctx.lineWidth = 1.8;
+        ctx.shadowColor = '#9C27B0';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(sx, sy, rArc, minA, maxA);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 3. Any scattered or other rays
+    for (const ray of otherRays) {
+      drawLine(ray.x1, ray.y1, ray.x2, ray.y2, ray.color, ray.intensity);
     }
 
     // Draw components
@@ -1003,7 +1138,7 @@ export default function OpticalTable() {
     if (interferenceInfo.hasInterference) {
       const film = components.find(c => c.type === 'film');
       if (film) {
-        const pulse = 0.5 + 0.5 * Math.sin(animFrame * 0.15);
+        const pulse = 0.5 + 0.5 * Math.sin(wavePhaseRef.current * 0.02);
         ctx.save();
         ctx.translate(film.x, film.y);
         ctx.rotate(toRad(film.angle));
@@ -1018,7 +1153,7 @@ export default function OpticalTable() {
         ctx.lineWidth = 1;
         const fringeSpacing = 6;
         for (let fi = -30; fi < 30; fi += fringeSpacing) {
-          const offset = (animFrame % fringeSpacing) / fringeSpacing * fringeSpacing;
+          const offset = wavePhaseRef.current % fringeSpacing;
           ctx.beginPath();
           ctx.moveTo(-film.height / 2, fi + offset);
           ctx.lineTo(film.height / 2, fi + offset);
@@ -1027,7 +1162,7 @@ export default function OpticalTable() {
         ctx.restore();
       }
     }
-  }, [components, rays, interferenceInfo, animFrame, selectedId, canvasBg, gridDotCol]);
+  }, [components, rays, interferenceInfo, frameTick, selectedId, canvasBg, gridDotCol]);
 
   // Draw palette canvas
   useEffect(() => {
@@ -1093,9 +1228,9 @@ export default function OpticalTable() {
     let running = true;
     const tick = (now: number) => {
       if (!running) return;
-      if (now - last > 120) { // ~8 fps — CGH pixel math is heavy
+      if (now - last > 60) { // ~16 fps
         last = now;
-        cghPhaseRef.current += 0.04;
+        cghPhaseRef.current += 0.45; // visible fringe scroll (~1 cycle / 14 frames)
         const canvas = fringeCanvasRef.current;
         if (canvas) drawCghPlate(canvas, selectedObject, cghPhaseRef.current, quality, bg);
       }
