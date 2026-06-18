@@ -43,8 +43,11 @@ PARAM_STDS  = torch.tensor([0.7, 0.7, 1.0, 100.0])
 # ──────────────────────────────────────────────────────────────────────────────
 
 class FractalDataset(Dataset):
-    def __init__(self, csv_path: str, img_dir: str, transform=None):
-        self.df = pd.read_csv(csv_path)
+    def __init__(self, csv_path: str, img_dir: str, transform=None, allowed_classes=None):
+        df = pd.read_csv(csv_path)
+        if allowed_classes is not None:
+            df = df[df["type"].isin(allowed_classes)].reset_index(drop=True)
+        self.df = df
         self.img_dir = img_dir
         self.transform = transform
 
@@ -206,9 +209,10 @@ def main():
     parser.add_argument("--val",     type=float, default=0.2)
     parser.add_argument("--cls-only", action="store_true",
                         help="Classification only (lam=0): regression head stops fighting → higher accuracy")
+    parser.add_argument("--resume", default=None,
+                        help="Path to checkpoint to resume from (e.g. ./model/best_model.pt)")
     args = parser.parse_args()
 
-    # Classification-only mode: zero out regression loss so it can't destabilise training
     if args.cls_only:
         args.lam = 0.0
         print("[MODE] Classification-only (lam=0) — regression disabled for max accuracy")
@@ -217,40 +221,64 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
+    # Load checkpoint early to know which classes to filter the dataset by
+    best_acc = 0.0
+    start_epoch = 1
+    history = []
+    resume_ckpt = None
+    num_classes_to_use = NUM_CLASSES
+    allowed_classes = None
+
+    if args.resume and os.path.isfile(args.resume):
+        resume_ckpt = torch.load(args.resume, map_location=device, weights_only=False)
+        saved_classes = resume_ckpt.get("classes")
+        if saved_classes:
+            num_classes_to_use = len(saved_classes)
+            allowed_classes = saved_classes
+            # Remap CLS2IDX to match checkpoint class order
+            global CLS2IDX
+            CLS2IDX = {c: i for i, c in enumerate(saved_classes)}
+
     csv_path = os.path.join(args.dataset, "labels.csv")
     img_dir  = os.path.join(args.dataset, "images")
 
-    full_ds = FractalDataset(csv_path, img_dir, transform=get_transforms(True, args.size))
+    full_ds = FractalDataset(csv_path, img_dir, transform=get_transforms(True, args.size),
+                             allowed_classes=allowed_classes)
     n_val   = int(len(full_ds) * args.val)
     n_train = len(full_ds) - n_val
     train_ds, val_ds = random_split(full_ds, [n_train, n_val],
                                     generator=torch.Generator().manual_seed(42))
-    val_ds.dataset = FractalDataset(csv_path, img_dir, transform=get_transforms(False, args.size))
+    val_ds.dataset = FractalDataset(csv_path, img_dir, transform=get_transforms(False, args.size),
+                                    allowed_classes=allowed_classes)
 
     pin = device.type == "cuda"
-    # On Windows, multiprocessing DataLoader can be slow — use num_workers=0 if on CPU
     nw = 4 if pin else 0
     train_loader = DataLoader(train_ds, batch_size=args.batch, shuffle=True,  num_workers=nw, pin_memory=pin)
     val_loader   = DataLoader(val_ds,   batch_size=args.batch, shuffle=False, num_workers=nw, pin_memory=pin)
 
-    model = FractalCNN().to(device)
+    model = FractalCNN(num_classes=num_classes_to_use).to(device)
+
+    if resume_ckpt is not None:
+        state = resume_ckpt.get("state_dict", resume_ckpt)
+        model.load_state_dict(state)
+        best_acc = resume_ckpt.get("acc", 0.0)
+        start_epoch = resume_ckpt.get("epoch", 0) + 1
+        print(f"[RESUME] Loaded {args.resume}  epoch={start_epoch-1}  acc={best_acc:.4f}  classes={num_classes_to_use}")
+
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
     cls_loss = nn.CrossEntropyLoss()
     reg_loss = nn.SmoothL1Loss()
 
-    best_acc = 0.0
-    history = []
-
     print(f"\nTraining {n_train} / val {n_val} samples  |  {args.epochs} epochs\n")
-    for epoch in range(1, args.epochs + 1):
+    for epoch in range(start_epoch, start_epoch + args.epochs):
         tr_loss, tr_acc = train_epoch(model, train_loader, optimizer, cls_loss, reg_loss, device, args.lam)
         vl_loss, vl_acc, mae = eval_epoch(model, val_loader, cls_loss, reg_loss, device, args.lam)
         scheduler.step()
 
         lr = scheduler.get_last_lr()[0]
         mae_str = " | ".join(f"{v:.3f}" for v in mae)
-        print(f"Ep {epoch:03d}/{args.epochs}  "
+        print(f"Ep {epoch:03d}/{start_epoch+args.epochs-1}  "
               f"tr_loss {tr_loss:.4f}  tr_acc {tr_acc:.3f}  "
               f"vl_loss {vl_loss:.4f}  vl_acc {vl_acc:.3f}  "
               f"MAE [{mae_str}]  lr {lr:.2e}")
