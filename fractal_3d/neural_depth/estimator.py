@@ -124,7 +124,9 @@ def estimate_depth_compare(image, method="auto", segments=900, compactness=10.0,
         from .depth_anything import run_depth_anything
         depth_da = normalize_depth(run_depth_anything(image)["depth"])
         da_available = True
-    except Exception:
+    except Exception as e:
+        print(f"[DepthAnything] comparison reference unavailable "
+              f"({type(e).__name__}: {e}); first run downloads ~100MB from HuggingFace")
         depth_da = None
 
     return {

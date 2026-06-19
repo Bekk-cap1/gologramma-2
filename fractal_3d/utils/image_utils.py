@@ -58,11 +58,11 @@ def array_to_base64(arr: np.ndarray, fmt: str = "PNG") -> str:
     return f"data:image/{fmt.lower()};base64,{b64}"
 
 
-def plot_to_base64(fig) -> str:
+def plot_to_base64(fig, facecolor: str = DARK_BG) -> str:
     """matplotlib figure → base64 data URI (closes the figure)."""
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight",
-                facecolor=DARK_BG, edgecolor="none", dpi=90)
+                facecolor=facecolor, edgecolor="none", dpi=90)
     plt.close(fig)
     buf.seek(0)
     b64 = base64.b64encode(buf.read()).decode("ascii")

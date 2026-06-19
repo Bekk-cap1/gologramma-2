@@ -1197,7 +1197,7 @@ export default function DepthCRF() {
           {depthStepImages && depthStepImages.length > 0 && (
             <div>
               <div className="text-xs font-semibold mb-2" style={{ color: "#06b6d4" }}>{T.depthImagesTitle[lang]}</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ maxWidth: 620 }}>
                 {depthStepImages.map((img) => (
                   <div key={img.id} className="rounded-lg p-2" style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)" }}>
                     <div className="text-xs font-semibold mb-1" style={{ color: "#06b6d4" }}>{img.title}</div>
@@ -1714,7 +1714,7 @@ export default function DepthCRF() {
               {/* Grid image */}
               {ablationData.ablation_grid && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={ablationData.ablation_grid} className="w-full rounded" alt="Ablation grid" />
+                <img src={ablationData.ablation_grid} className="w-full rounded" alt="Ablation grid" style={{ maxWidth: 760 }} />
               )}
 
               {/* Table */}

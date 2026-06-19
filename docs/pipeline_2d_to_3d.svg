@@ -1,0 +1,92 @@
+<svg viewBox="0 0 1640 900" xmlns="http://www.w3.org/2000/svg" font-family="'Times New Roman', Georgia, serif">
+<defs>
+  <marker id="ah" markerWidth="10" markerHeight="8" refX="8.5" refY="4" orient="auto">
+    <polygon points="0 0, 10 4, 0 8" fill="#263238"/>
+  </marker>
+  <marker id="av" markerWidth="11" markerHeight="9" refX="9" refY="4.5" orient="auto">
+    <polygon points="0 0, 11 4.5, 0 9" fill="#4527A0"/>
+  </marker>
+  <marker id="afb" markerWidth="10" markerHeight="8" refX="8.5" refY="4" orient="auto">
+    <polygon points="0 0, 10 4, 0 8" fill="#C62828"/>
+  </marker>
+</defs>
+
+<rect width="1640" height="900" fill="#FFFFFF"/>
+
+<!-- TITLE -->
+<text x="820" y="48" text-anchor="middle" font-size="26" font-weight="700" fill="#102A43">2D &#8594; 3D fraktal rekonstruksiya — to&#8216;liq pipeline</text>
+
+<!-- ════════════ TOP BAND (left → right): INPUT → L1 → L2 → L3 ════════════ -->
+
+<!-- B1 : INPUT -->
+<rect x="65" y="110" width="340" height="180" rx="6" fill="#E3F2FD" stroke="#1565C0" stroke-width="2.5"/>
+<text x="235" y="150" text-anchor="middle" font-size="17" font-weight="700" fill="#0D47A1">Kirish — 2D tasvir</text>
+<text x="235" y="190" text-anchor="middle" font-size="15" fill="#102A43">Fraktal rasm (grayscale)</text>
+<text x="235" y="218" text-anchor="middle" font-size="15" fill="#102A43">N &#215; N piksel</text>
+<text x="235" y="252" text-anchor="middle" font-size="13" font-style="italic" fill="#37474F">to_gray(image)</text>
+
+<line x1="405" y1="200" x2="455" y2="200" stroke="#263238" stroke-width="2.5" marker-end="url(#ah)"/>
+
+<!-- B2 : LAYER 1 math -->
+<rect x="455" y="110" width="340" height="180" rx="6" fill="#E0F2F1" stroke="#00897B" stroke-width="2.5"/>
+<text x="625" y="142" text-anchor="middle" font-size="16" font-weight="700" fill="#00695C">Layer 1 — Matematik tahlil</text>
+<text x="478" y="172" font-size="13.5" fill="#102A43">&#8226;  Box-counting &#8594; fraktal o&#8216;lchov D</text>
+<text x="478" y="196" font-size="13.5" fill="#102A43">&#8226;  Fourier tahlili</text>
+<text x="478" y="220" font-size="13.5" fill="#102A43">&#8226;  Lakunarlik (lacunarity)</text>
+<text x="478" y="244" font-size="13.5" fill="#102A43">&#8226;  Multifraktal spektr</text>
+<text x="478" y="268" font-size="13.5" fill="#102A43">&#8226;  IFS recovery (affin xaritalar)</text>
+
+<line x1="795" y1="200" x2="845" y2="200" stroke="#263238" stroke-width="2.5" marker-end="url(#ah)"/>
+
+<!-- B3 : LAYER 2 CNN -->
+<rect x="845" y="110" width="340" height="180" rx="6" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="2.5"/>
+<text x="1015" y="150" text-anchor="middle" font-size="16" font-weight="700" fill="#4A148C">Layer 2 — CNN klassifikatsiya</text>
+<text x="1015" y="190" text-anchor="middle" font-size="15" fill="#102A43">FractalCNN  (15 klass)</text>
+<text x="1015" y="218" text-anchor="middle" font-size="15" fill="#102A43">&#8594; klass + ishonch (confidence)</text>
+<text x="1015" y="248" text-anchor="middle" font-size="13.5" font-style="italic" fill="#37474F">+ 256-o&#8216;lchovli embedding</text>
+
+<line x1="1185" y1="200" x2="1235" y2="200" stroke="#263238" stroke-width="2.5" marker-end="url(#ah)"/>
+
+<!-- B4 : LAYER 3 fusion -->
+<rect x="1235" y="110" width="340" height="180" rx="6" fill="#FFF3E0" stroke="#EF6C00" stroke-width="2.5"/>
+<text x="1405" y="150" text-anchor="middle" font-size="16" font-weight="700" fill="#E65100">Layer 3 — Birlashtirish</text>
+<text x="1405" y="188" text-anchor="middle" font-size="15" fill="#102A43">Weighted voting (fusion)</text>
+<text x="1405" y="216" text-anchor="middle" font-size="14.5" fill="#102A43">&#8594; final_type, kategoriya</text>
+<text x="1405" y="244" text-anchor="middle" font-size="13.5" font-style="italic" fill="#37474F">escape-time / IFS, confidence</text>
+
+<!-- elbow : L3 → depth -->
+<path d="M 1400 290 V 560" fill="none" stroke="#4527A0" stroke-width="3" marker-end="url(#av)"/>
+<text x="1420" y="430" font-size="13.5" font-weight="600" font-style="italic" fill="#4527A0" transform="rotate(90 1420 430)">to&#8216;liq tasnif &#8594; 3D qurish</text>
+
+<!-- ════════════ BOTTOM BAND (right → left): DEPTH → MESH → EXPORT ════════════ -->
+
+<!-- B5 : DEPTH MAP -->
+<rect x="1215" y="560" width="360" height="180" rx="6" fill="#EDE7F6" stroke="#4527A0" stroke-width="2.5"/>
+<text x="1395" y="600" text-anchor="middle" font-size="16" font-weight="700" fill="#311B92">Chuqurlik xaritasi (depth map)</text>
+<text x="1395" y="640" text-anchor="middle" font-size="15" fill="#102A43">Matematik (escape / IFS)</text>
+<text x="1395" y="668" text-anchor="middle" font-size="15" fill="#102A43">yoki  Neyron  DCNF-CRF</text>
+<text x="1395" y="702" text-anchor="middle" font-size="13.5" font-style="italic" fill="#37474F">auto-routing: photo-detektor</text>
+
+<line x1="1215" y1="650" x2="1145" y2="650" stroke="#263238" stroke-width="2.5" marker-end="url(#ah)"/>
+
+<!-- B6 : 3D MESH -->
+<rect x="785" y="560" width="360" height="180" rx="6" fill="#FFF8E1" stroke="#F9A825" stroke-width="3"/>
+<text x="965" y="600" text-anchor="middle" font-size="16" font-weight="700" fill="#F57F17">3D mesh — height-field relief</text>
+<text x="965" y="640" text-anchor="middle" font-size="15" fill="#102A43">build_mesh (depth &#8594; geometriya)</text>
+<text x="965" y="668" text-anchor="middle" font-size="15" fill="#102A43">rezolyutsiya  48 / 64</text>
+<text x="965" y="702" text-anchor="middle" font-size="13.5" font-style="italic" fill="#37474F">relief ekstruziya (depth map&#8217;dan)</text>
+
+<line x1="785" y1="650" x2="715" y2="650" stroke="#263238" stroke-width="2.5" marker-end="url(#ah)"/>
+
+<!-- B7 : EXPORT (output) -->
+<rect x="355" y="560" width="360" height="180" rx="6" fill="#E8F5E9" stroke="#2E7D32" stroke-width="3.5"/>
+<text x="535" y="600" text-anchor="middle" font-size="17" font-weight="700" fill="#1B5E20">Chiqish — 3D model</text>
+<text x="535" y="640" text-anchor="middle" font-size="15" fill="#102A43">OBJ / PLY  fayllar + metadata</text>
+<text x="535" y="668" text-anchor="middle" font-size="15" fill="#102A43">vertices, faces</text>
+<text x="535" y="702" text-anchor="middle" font-size="13.5" font-style="italic" fill="#37474F">3D viewer (frontend)</text>
+
+<!-- ════════════ LAYER 4 : verification feedback (export ↔ input) ════════════ -->
+<path d="M 355 650 H 38 V 200 H 65" fill="none" stroke="#C62828" stroke-width="2" stroke-dasharray="7,5" marker-end="url(#afb)"/>
+<text x="22" y="430" font-size="13" font-weight="600" font-style="italic" fill="#C62828" transform="rotate(-90 22 430)">Layer 4 — verifikatsiya: sintez render &#8596; kirish tasvir (similarity)</text>
+
+</svg>

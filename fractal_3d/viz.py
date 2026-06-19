@@ -31,10 +31,13 @@ def depth_comparison_grid(image, depth_unary, depth_crf, depth_da=None,
         if img.dtype != np.uint8:
             img = (np.clip(img, 0, 1) * 255).astype(np.uint8) if img.max() <= 1.0 else img.astype(np.uint8)
 
-        panels = [("Исходное изображение", img, None, "#e2e8f0", "")]
+        # Black-and-white comparison: source as luminance, depth maps in grayscale.
+        gray_src = (0.299 * img[..., 0] + 0.587 * img[..., 1]
+                    + 0.114 * img[..., 2]).astype(np.uint8)
+        panels = [("Исходное изображение", gray_src, "gray", "#111111", "")]
         if depth_make3d is not None:
-            panels.append(("Make3D (плоскости)", np.asarray(depth_make3d), "magma",
-                           "#fb923c", "Saxena · плоскостной бейзлайн"))
+            panels.append(("Make3D (плоскости)", np.asarray(depth_make3d), "gray",
+                           "#111111", "Saxena · плоскостной бейзлайн"))
         if depth_da is not None:
             da_panel = np.asarray(depth_da)
             da_caption = "neural reference · quality ceiling"
@@ -42,36 +45,36 @@ def depth_comparison_grid(image, depth_unary, depth_crf, depth_da=None,
             da_panel = np.zeros_like(np.asarray(depth_crf, dtype=np.float32))
             da_caption = "n/a - install requirements.txt"
         panels.append(("Depth Anything V2" if da_available else "DA V2 (n/a)",
-                       da_panel, "inferno", "#a855f7", da_caption))
-        panels.append(("Unary only (y*=z)", np.asarray(depth_unary), "magma",
-                       "#06b6d4", f"{unary_source} · weak z · no pairwise"))
+                       da_panel, "gray", "#111111", da_caption))
+        panels.append(("Unary only (y*=z)", np.asarray(depth_unary), "gray",
+                       "#111111", f"{unary_source} · weak z · no pairwise"))
         crf_cap = ("same unary + fractal-aware CRF"
                    if fractal_aware else "same unary + Liu DCNF CRF")
-        panels.append(("Full CRF", np.asarray(depth_crf), "magma",
-                       "#10b981", crf_cap))
+        panels.append(("Full CRF", np.asarray(depth_crf), "gray",
+                       "#111111", crf_cap))
 
         n = len(panels)
         fig, axes = plt.subplots(1, n, figsize=(3.6 * n, 3.8))
-        fig.patch.set_facecolor(DARK_BG)
+        fig.patch.set_facecolor("white")
         if n == 1:
             axes = [axes]
         for ax, (title, data, cmap, color, cap) in zip(axes, panels):
             ax.imshow(data) if cmap is None else ax.imshow(data, cmap=cmap)
-            ax.set_title(title, color=color, fontsize=10)
+            ax.set_title(title, color="#111111", fontsize=10)
             if title == "DA V2 (n/a)":
                 ax.text(0.5, 0.5, "Depth Anything V2\nnot available",
                         transform=ax.transAxes, ha="center", va="center",
-                        color="#c4b5fd", fontsize=10, fontweight="bold")
+                        color="#444444", fontsize=10, fontweight="bold")
             if cap:
                 ax.text(0.5, -0.08, cap, transform=ax.transAxes, ha="center",
-                        color="#94a3b8", fontsize=8)
+                        color="#555555", fontsize=8)
             ax.axis("off")
         fig.tight_layout()
         return {
             "id": "depth_method_comparison",
             "title": "Сравнение методов (Liu et al. CVPR, Table 1)",
             "description": "Unary · Make3D (Saxena) · Full CRF · DA V2 (reference)",
-            "data": plot_to_base64(fig),
+            "data": plot_to_base64(fig, facecolor="white"),
         }
     except Exception:
         return None
@@ -87,18 +90,18 @@ def ablation_grid(image, ablation_results):
         import matplotlib.pyplot as plt
         n = len(ablation_results)
         fig, axes = plt.subplots(1, n, figsize=(3.2 * n, 3.4))
-        fig.patch.set_facecolor(DARK_BG)
+        fig.patch.set_facecolor("white")
         if n == 1:
             axes = [axes]
         for ax, res in zip(axes, ablation_results):
-            ax.imshow(np.asarray(res["depth"]), cmap="magma")
-            ax.set_title(res["name"], color="#10b981", fontsize=10)
+            ax.imshow(np.asarray(res["depth"]), cmap="gray")
+            ax.set_title(res["name"], color="#111111", fontsize=10)
             ea = float(res["metrics"].get("edge_alignment", 0.0))
             ax.text(0.5, -0.08, f"границы: {ea:.3f}", transform=ax.transAxes,
-                    ha="center", color="#94a3b8", fontsize=8)
+                    ha="center", color="#555555", fontsize=8)
             ax.axis("off")
         fig.tight_layout()
-        return plot_to_base64(fig)
+        return plot_to_base64(fig, facecolor="white")
     except Exception:
         return None
 
@@ -164,11 +167,20 @@ def depth_step_images(depth_result: dict, image: np.ndarray) -> list:
     try:
         dm = depth_result.get("depth_map")
         if dm is not None:
+            dm = np.asarray(dm, dtype=np.float32)
+            # depth_map is stored square (target_size) for mesh building; resize it
+            # back to the input aspect ratio for display so this panel matches the
+            # original image and the other step panels (raw / CRF).
+            img_arr = np.asarray(image)
+            if img_arr.ndim >= 2 and tuple(img_arr.shape[:2]) != dm.shape:
+                from skimage.transform import resize as sk_resize
+                dm = sk_resize(dm, img_arr.shape[:2], order=1,
+                               preserve_range=True, anti_aliasing=True).astype(np.float32)
             images.append({
                 "id": "depth_colorized",
-                "title": "4. Final depth (colormap)",
-                "description": "Edge-aware сглаживание → viridis",
-                "data": array_to_base64(colorize(np.asarray(dm, dtype=np.float32), "viridis")),
+                "title": "4. Final depth (grayscale)",
+                "description": "Edge-aware сглаживание → grayscale",
+                "data": array_to_base64(colorize(dm, "gray")),
             })
     except Exception:
         pass
@@ -273,9 +285,9 @@ def depth_images(depth_map: np.ndarray) -> list:
         })
         results.append({
             "id": "depth_colorized",
-            "title": "Карта глубины (colormap)",
-            "description": "viridis",
-            "data": array_to_base64(colorize(depth_map, "viridis")),
+            "title": "Карта глубины (grayscale)",
+            "description": "grayscale",
+            "data": array_to_base64(colorize(depth_map, "gray")),
         })
         return results
     except Exception:
